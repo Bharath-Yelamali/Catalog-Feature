@@ -31,7 +31,14 @@ function App() {
         const value = part[filterType]?.toString().toLowerCase();
         return value && value.startsWith(search.toLowerCase());
       });
-      setResults(filtered);
+      // Always include checked items, even if they don't match the search
+      const checkedIds = Object.keys(checkedItems).filter(id => checkedItems[id]);
+      const checkedParts = parts.filter(part => checkedIds.includes(part.id.toString()));
+      // Merge and deduplicate
+      const merged = [...filtered, ...checkedParts].filter((part, idx, arr) =>
+        arr.findIndex(p => p.id === part.id) === idx
+      );
+      setResults(merged);
       setShowResults(true);
     }
   };
