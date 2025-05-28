@@ -23,7 +23,6 @@ function App() {
     { id: 10, itemNumber: 'J012', manufacturerPartNumber: 'M345', projectNumber: 'P678', totalParts: 900, active: 850, sparePercent: 10 },
     { id: 11, itemNumber: 'K123', manufacturerPartNumber: 'M4567', projectNumber: 'P7890', totalParts: 1, active: 1, sparePercent: 10 },
     { id: 12, itemNumber: 'L234', manufacturerPartNumber: 'M5678', projectNumber: 'P8901', totalParts: 600, active: 590, sparePercent: 10 },
-    // Additional test parts
     { id: 13, itemNumber: 'M555', manufacturerPartNumber: 'M999', projectNumber: 'P1001', totalParts: 2500, active: 2000, sparePercent: 10 },
     { id: 14, itemNumber: 'N666', manufacturerPartNumber: 'M888', projectNumber: 'P1002', totalParts: 50, active: 40, sparePercent: 10 },
     { id: 15, itemNumber: 'O777', manufacturerPartNumber: 'M777', projectNumber: 'P1003', totalParts: 10000, active: 9500, sparePercent: 10 },
