@@ -208,3 +208,11 @@ body {
   color: #d27a7a;
   font-weight: bold;
 }
+
+.hide-search-btn {
+  position: fixed;
+  background: #ffebee;
+  left: 32px;
+  top: 69px;
+  z-index: 1001;
+}
