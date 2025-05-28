@@ -127,7 +127,7 @@ body {
   border-radius: 0 0 8px 8px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.1);
   margin: 0 auto 16px auto;
-  padding: 16px;
+  padding: 0 16px 16px 16px;
   max-height: calc(100vh - 180px);
   overflow-y: auto;
   z-index: 800;
@@ -159,6 +159,12 @@ body {
   font-weight: bold;
   border-bottom: 2px solid #bbb;
   border-radius: 4px 4px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 48px;
+  height: 48px;
+  margin-top: 0;
 }
 
 .search-result-grid {
