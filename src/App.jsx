@@ -84,20 +84,16 @@ function App() {
           {showResults && (
             <>
               <button
-                className="dropdown-move-btn"
+                className="dropdown-move-btn hide-search-btn"
                 onClick={() => {
                   setShowResults(false);
                   setDropdownOffset(0);
                 }}
-                style={{ position: 'fixed', left: 20, top: 120, zIndex: 1001 }}
                 aria-label="Hide search"
               >
                 Hide Search
               </button>
-              <div
-                className="search-results-dropdown"
-                style={{ top: `120px` }}
-              >
+              <div className="search-results-dropdown">
                 {results.length === 0 ? (
                   <div className="search-results-empty">No parts found.</div>
                 ) : (
