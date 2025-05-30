@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './App.css'
 import SearchBar from './components/SearchBar';
 import PartsTable from './components/PartsTable';
@@ -9,37 +9,32 @@ function App() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("itemNumber");
   const [parts, setParts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
 
-  useEffect(() => {
-    async function loadParts() {
+  const handleSearch = async (e) => {
+    if (e.key === 'Enter') {
+      setLoading(true);
+      setError(null);
       try {
-        setLoading(true);
         const data = await fetchParts();
-        setParts(data.value || []); // OData returns { value: [...] }
-        setError(null);
+        const fetchedParts = data.value || [];
+        setParts(fetchedParts);
+        const filtered = search.trim() === ''
+          ? fetchedParts
+          : fetchedParts.filter(part => {
+              const value = (filterType === 'itemNumber' ? part.item_number : part[filterType])?.toString().toLowerCase();
+              return value && value.startsWith(search.toLowerCase());
+            });
+        setResults(filtered);
+        setShowResults(true);
       } catch (err) {
         setError('Failed to load parts: ' + err.message);
       } finally {
         setLoading(false);
       }
-    }
-    loadParts();
-  }, []);
-
-  const handleSearch = (e) => {
-    if (e.key === 'Enter') {
-      const filtered = search.trim() === ''
-        ? parts
-        : parts.filter(part => {
-            const value = (filterType === 'itemNumber' ? part.item_number : part[filterType])?.toString().toLowerCase();
-            return value && value.startsWith(search.toLowerCase());
-          });
-      setResults(filtered);
-      setShowResults(true);
     }
   };
 

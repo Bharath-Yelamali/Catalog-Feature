@@ -85,6 +85,7 @@ app.get('/api/parts', async (req, res) => {
       return res.status(response.status).json({ error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` });
     }
     const data = await response.json();
+    console.log('Fetched data from Aras OData API:', data); // Log the API response to the terminal
     res.json(data);
   } catch (err) {
     console.error('Internal server error:', err);
