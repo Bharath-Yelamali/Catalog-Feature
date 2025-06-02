@@ -70,7 +70,7 @@ app.get('/api/parts', async (req, res) => {
     const token = await getToken();
     let response;
     try {
-      response = await fetch(`${BASE_URL}Part`, {
+      response = await fetch(`${BASE_URL}m_Instance`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
