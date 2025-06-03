@@ -23,21 +23,15 @@ function App() {
       try {
         let data;
         if (search.trim() === '') {
-          // Fetch only the first 50 inventoried parts if search is empty
-          data = await fetchParts({ classification: 'Inventoried', top: 50 });
+          // Fetch first 50 inventoried parts if search is empty
+          data = await fetchParts({ classification: 'Inventoried', $top: 50 });
         } else {
-          // Fetch all inventoried parts for searching
-          data = await fetchParts({ classification: 'Inventoried' });
+          // Fetch inventoried parts with server-side filtering
+          data = await fetchParts({ classification: 'Inventoried', search, filterType });
         }
         const fetchedParts = data.value || [];
         setParts(fetchedParts);
-        // Only filter by item_number if search is not empty
-        const filtered = search.trim() === ''
-          ? fetchedParts
-          : fetchedParts.filter(part =>
-              part.item_number?.toString().toLowerCase().startsWith(search.toLowerCase())
-            );
-        setResults(filtered);
+        setResults(fetchedParts);
         setShowResults(true);
       } catch (err) {
         setError('Failed to load parts: ' + err.message);
@@ -80,6 +74,7 @@ function App() {
                 setSelected={setSelected}
                 quantities={quantities}
                 setQuantities={setQuantities}
+                search={search}
               />
             </>
           )}

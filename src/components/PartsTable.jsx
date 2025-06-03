@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '' }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
 
@@ -61,26 +61,43 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities 
     });
   };
 
+  // Helper to highlight search match
+  const highlightMatch = (text, search) => {
+    if (!search || !text) return text;
+    const idx = text.toLowerCase().indexOf(search.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <span style={{ background: '#ffe066', color: '#222', fontWeight: 600 }}>
+          {text.slice(idx, idx + search.length)}
+        </span>
+        {text.slice(idx + search.length)}
+      </>
+    );
+  };
+
   return (
     <div className="search-results-dropdown">
       {displayParts.length === 0 ? (
         <div className="search-results-empty">No parts found.</div>
       ) : (
         <>
-          <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: '40px 80px 1.2fr 1fr 1fr 1fr 1fr 1.2fr 1.5fr 2fr', minWidth: 0 }}>
+          <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: '40px 80px 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 1.2fr 1.5fr 2fr', minWidth: 0 }}>
             <div className="search-result-field"></div>
             <div className="search-result-field">Qty</div>
-            <div className="search-result-field">Inventory Item Number</div>
             <div className="search-result-field">Total</div>
-            <div className="search-result-field">Surplus</div>
+            <div className="search-result-field">In Use</div>
             <div className="search-result-field">Spare</div>
-            <div className="search-result-field">Classification</div>
+            <div className="search-result-field">Inventory Item Number</div>
             <div className="search-result-field">Manufactur Part #</div>
+            <div className="search-result-field">Manufacturer Name</div>
+            <div className="search-result-field">Hardware Custodian</div>
             <div className="search-result-field">Parent Path</div>
             <div className="search-result-field">Inventory Description</div>
           </div>
           {displayParts.map(part => (
-            <div key={part.id} className="search-result-item" style={{ display: 'grid', gridTemplateColumns: '40px 80px 1.2fr 1fr 1fr 1fr 1fr 1.2fr 1.5fr 2fr', minWidth: 0 }}>
+            <div key={part.id} className="search-result-item" style={{ display: 'grid', gridTemplateColumns: '40px 80px 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 1.2fr 1.5fr 2fr', minWidth: 0 }}>
               <div className="search-result-field">
                 <input
                   type="checkbox"
@@ -102,14 +119,33 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities 
                   aria-label="Quantity"
                 />
               </div>
-              <div className="search-result-field" style={{ cursor: part.item_number && part.item_number.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => handleCellClick('Inventory Item Number', part.item_number)}>{truncate(part.item_number) || 'N/A'}</div>
-              <div className="search-result-field">{part.total ?? 'N/A'}</div>
-              <div className="search-result-field">{part.surplus ?? 'N/A'}</div>
-              <div className="search-result-field">{part.spare ?? 'N/A'}</div>
-              <div className="search-result-field" style={{ cursor: part.classification && part.classification.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => handleCellClick('Classification', part.classification)}>{truncate(part.classification) || 'N/A'}</div>
-              <div className="search-result-field" style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => handleCellClick('Manufactur Part #', part.m_mfg_part_number)}>{truncate(part.m_mfg_part_number) || 'N/A'}</div>
-              <div className="search-result-field" style={{ cursor: part.m_parent_ref_path && part.m_parent_ref_path.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => handleCellClick('Parent Path', part.m_parent_ref_path)}>{truncate(part.m_parent_ref_path) || 'N/A'}</div>
-              <div className="search-result-field" style={{ cursor: part.m_inventory_description && part.m_inventory_description.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => handleCellClick('Inventory Description', part.m_inventory_description)}>{truncate(part.m_inventory_description) || 'N/A'}</div>
+              <div className="search-result-field" style={{ cursor: part.total && part.total.toString().length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.total && part.total.toString().length > 20 ? handleCellClick('Total', part.total?.toString()) : undefined}>
+                {highlightMatch(truncate(part.total?.toString()), search) || 'N/A'}
+              </div>
+              <div className="search-result-field" style={{ cursor: part.surplus && part.surplus.toString().length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.surplus && part.surplus.toString().length > 20 ? handleCellClick('In Use', part.surplus?.toString()) : undefined}>
+                {highlightMatch(truncate(part.surplus?.toString()), search) || 'N/A'}
+              </div>
+              <div className="search-result-field" style={{ cursor: part.spare && part.spare.toString().length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.spare && part.spare.toString().length > 20 ? handleCellClick('Spare', part.spare?.toString()) : undefined}>
+                {highlightMatch(truncate(part.spare?.toString()), search) || 'N/A'}
+              </div>
+              <div className="search-result-field" style={{ cursor: part.m_inventory_item && part.m_inventory_item.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.m_inventory_item && part.m_inventory_item.item_number && part.m_inventory_item.item_number.length > 20 ? handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number) : undefined}>
+                {highlightMatch(truncate(part.m_inventory_item?.item_number), search)}
+              </div>
+              <div className="search-result-field" style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? handleCellClick('Manufactur Part #', part.m_mfg_part_number) : undefined}>
+                {highlightMatch(truncate(part.m_mfg_part_number), search)}
+              </div>
+              <div className="search-result-field" style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.m_mfg_name && part.m_mfg_name.length > 20 ? handleCellClick('Manufacturer Name', part.m_mfg_name) : undefined}>
+                {highlightMatch(truncate(part.m_mfg_name), search)}
+              </div>
+              <div className="search-result-field" style={{ cursor: part["m_custodian@aras.keyed_name"] && part["m_custodian@aras.keyed_name"].length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part["m_custodian@aras.keyed_name"] && part["m_custodian@aras.keyed_name"].length > 20 ? handleCellClick('Hardware Custodian', part["m_custodian@aras.keyed_name"]) : undefined}>
+                {highlightMatch(truncate(part["m_custodian@aras.keyed_name"]), search)}
+              </div>
+              <div className="search-result-field" style={{ cursor: part.m_parent_ref_path && part.m_parent_ref_path.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.m_parent_ref_path && part.m_parent_ref_path.length > 20 ? handleCellClick('Parent Path', part.m_parent_ref_path) : undefined}>
+                {highlightMatch(truncate(part.m_parent_ref_path), search)}
+              </div>
+              <div className="search-result-field" style={{ cursor: part.m_inventory_description && part.m_inventory_description.length > 20 ? 'pointer' : 'default', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} onClick={() => part.m_inventory_description && part.m_inventory_description.length > 20 ? handleCellClick('Inventory Description', part.m_inventory_description || part.m_description) : undefined}>
+                {highlightMatch(truncate(part.m_inventory_description || part.m_description), search)}
+              </div>
             </div>
           ))}
           {expandedValue && (

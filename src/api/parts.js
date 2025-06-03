@@ -1,5 +1,5 @@
 // Fetch all parts from the backend API
-export async function fetchParts({ classification, top } = {}) {
+export async function fetchParts({ classification, top, search, filterType } = {}) {
   let url = 'http://localhost:3001/api/parts';
   const params = [];
   if (classification) {
@@ -7,6 +7,12 @@ export async function fetchParts({ classification, top } = {}) {
   }
   if (top) {
     params.push(`$top=${top}`);
+  }
+  if (search) {
+    params.push(`search=${encodeURIComponent(search)}`);
+  }
+  if (filterType) {
+    params.push(`filterType=${encodeURIComponent(filterType)}`);
   }
   if (params.length > 0) {
     url += '?' + params.join('&');

@@ -68,19 +68,34 @@ const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
 app.get('/api/parts', async (req, res) => {
   try {
     const token = await getToken();
-    // Support $top and classification query params for limiting and filtering results
+    // Always fetch a limited set of inventoried parts
     let odataUrl = `${BASE_URL}m_Instance`;
-    const { $top, classification } = req.query;
-    let queryParts = [];
-    if (classification) {
-      queryParts.push(`$filter=classification eq '${classification}'`);
-    }
-    if ($top) {
-      queryParts.push(`$top=${encodeURIComponent($top)}`);
-    }
-    if (queryParts.length > 0) {
-      odataUrl += '?' + queryParts.join('&');
-    }
+    const { search, filterType } = req.query;
+    // Always filter for classification 'Inventoried'
+    let filterClauses = ["classification eq 'Inventoried'"];
+    let queryParts = [
+      `$filter=${filterClauses.join(' and ')}`,
+      `$top=200` // Always fetch up to 200 records for filtering
+    ];
+    // Always select only the specified fields
+    const selectFields = [
+      'm_parent_ref_path',
+      'm_inventory_description',
+      'm_mfg_part_number',
+      'm_mfg_name',
+      'id',
+      'm_id',
+      'm_custodian',
+      'classification'
+    ];
+    queryParts.push(`$select=${selectFields.join(',')}`);
+    // Expand related fields to get actual values
+    const expandFields = [
+      'm_inventory_item',
+      'm_project'
+    ];
+    queryParts.push(`$expand=${expandFields.join(',')}`);
+    odataUrl += '?' + queryParts.join('&');
     let response;
     try {
       response = await fetch(odataUrl, {
@@ -98,7 +113,42 @@ app.get('/api/parts', async (req, res) => {
       return res.status(response.status).json({ error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` });
     }
     const data = await response.json();
-    res.json(data);
+    let results = data.value || [];
+    // Backend-side filtering for search
+    if (search && search.trim() !== '') {
+      const searchVal = search.trim().toLowerCase();
+      // Map filterType to field(s)
+      const fieldMap = {
+        itemNumber: part => part.m_inventory_item?.item_number,
+        manufacturerPartNumber: part => part.m_mfg_part_number,
+        manufacturerName: part => part.m_mfg_name,
+        parentPath: part => part.m_parent_ref_path,
+        inventoryDescription: part => part.m_inventory_description || part.m_description,
+        hardwareCustodian: part => part["m_custodian@aras.keyed_name"] || part.m_custodian,
+        id: part => part.m_id, // search on m_id, not id
+        all: part => [
+          part.m_inventory_item?.item_number,
+          part.m_mfg_part_number,
+          part.m_mfg_name,
+          part.m_parent_ref_path,
+          part.m_inventory_description,
+          part.m_description,
+          part["m_custodian@aras.keyed_name"],
+          part.m_custodian,
+          part.m_id
+        ].filter(Boolean).join(' || ')
+      };
+      const getField = fieldMap[filterType] || fieldMap['all'];
+      results = results.filter(part => {
+        const value = getField(part);
+        if (!value) return false;
+        if (Array.isArray(value)) {
+          return value.some(v => typeof v === 'string' && v.toLowerCase().includes(searchVal));
+        }
+        return typeof value === 'string' && value.toLowerCase().includes(searchVal);
+      });
+    }
+    res.json({ value: results });
   } catch (err) {
     console.error('Internal server error:', err);
     res.status(500).json({ error: 'Internal server error: ' + err.message });
