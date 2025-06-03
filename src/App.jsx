@@ -7,27 +7,36 @@ import { fetchParts } from './api/parts';
 function App() {
   const [page, setPage] = useState('home')
   const [search, setSearch] = useState("");
-  const [filterType, setFilterType] = useState("itemNumber");
   const [parts, setParts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
+  const [filterType, setFilterType] = useState('all');
+  const [selected, setSelected] = useState({});
+  const [quantities, setQuantities] = useState({});
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchParts();
+        let data;
+        if (search.trim() === '') {
+          // Fetch only the first 50 inventoried parts if search is empty
+          data = await fetchParts({ classification: 'Inventoried', top: 50 });
+        } else {
+          // Fetch all inventoried parts for searching
+          data = await fetchParts({ classification: 'Inventoried' });
+        }
         const fetchedParts = data.value || [];
         setParts(fetchedParts);
+        // Only filter by item_number if search is not empty
         const filtered = search.trim() === ''
           ? fetchedParts
-          : fetchedParts.filter(part => {
-              const value = (filterType === 'itemNumber' ? part.item_number : part[filterType])?.toString().toLowerCase();
-              return value && value.startsWith(search.toLowerCase());
-            });
+          : fetchedParts.filter(part =>
+              part.item_number?.toString().toLowerCase().startsWith(search.toLowerCase())
+            );
         setResults(filtered);
         setShowResults(true);
       } catch (err) {
@@ -67,6 +76,10 @@ function App() {
               {error && <div style={{color: 'red'}}>{error}</div>}
               <PartsTable
                 results={results}
+                selected={selected}
+                setSelected={setSelected}
+                quantities={quantities}
+                setQuantities={setQuantities}
               />
             </>
           )}

@@ -68,9 +68,22 @@ const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
 app.get('/api/parts', async (req, res) => {
   try {
     const token = await getToken();
+    // Support $top and classification query params for limiting and filtering results
+    let odataUrl = `${BASE_URL}m_Instance`;
+    const { $top, classification } = req.query;
+    let queryParts = [];
+    if (classification) {
+      queryParts.push(`$filter=classification eq '${classification}'`);
+    }
+    if ($top) {
+      queryParts.push(`$top=${encodeURIComponent($top)}`);
+    }
+    if (queryParts.length > 0) {
+      odataUrl += '?' + queryParts.join('&');
+    }
     let response;
     try {
-      response = await fetch(`${BASE_URL}m_Instance`, {
+      response = await fetch(odataUrl, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -85,7 +98,6 @@ app.get('/api/parts', async (req, res) => {
       return res.status(response.status).json({ error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` });
     }
     const data = await response.json();
-    console.log('Fetched data from Aras OData API:', data); // Log the API response to the terminal
     res.json(data);
   } catch (err) {
     console.error('Internal server error:', err);
