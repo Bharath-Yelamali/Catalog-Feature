@@ -74,8 +74,7 @@ app.get('/api/parts', async (req, res) => {
     // Always filter for classification 'Inventoried'
     let filterClauses = ["classification eq 'Inventoried'"];
     let queryParts = [
-      `$filter=${filterClauses.join(' and ')}`,
-      `$top=200` // Always fetch up to 200 records for filtering
+      `$filter=${filterClauses.join(' and ')}`
     ];
     // Always select only the specified fields
     const selectFields = [
@@ -86,7 +85,8 @@ app.get('/api/parts', async (req, res) => {
       'id',
       'm_id',
       'm_custodian',
-      'classification'
+      'classification',
+      'm_quantity'
     ];
     queryParts.push(`$select=${selectFields.join(',')}`);
     // Expand related fields to get actual values
@@ -95,6 +95,10 @@ app.get('/api/parts', async (req, res) => {
       'm_project'
     ];
     queryParts.push(`$expand=${expandFields.join(',')}`);
+    // If search is empty, limit to top 500
+    if (!search || search.trim() === '') {
+      queryParts.push('$top=500');
+    }
     odataUrl += '?' + queryParts.join('&');
     let response;
     try {
@@ -114,6 +118,41 @@ app.get('/api/parts', async (req, res) => {
     }
     const data = await response.json();
     let results = data.value || [];
+    // Group by inventory item number and sum quantities for total and spare
+    const grouped = {};
+    for (const part of results) {
+      const itemNumber = part.m_inventory_item?.item_number || 'Unknown';
+      if (!grouped[itemNumber]) grouped[itemNumber] = { instances: [], total: 0, spare: 0 };
+      grouped[itemNumber].instances.push(part);
+      // Add m_quantity to total if it is a number
+      const qty = Number(part.m_quantity);
+      if (!isNaN(qty)) {
+        grouped[itemNumber].total += qty;
+        // Check for spare: m_project fields all equal 'General Inventory'
+        const proj = part.m_project;
+        if (
+          proj &&
+          proj.item_number === 'General Inventory' &&
+          proj.keyed_name === 'General Inventory' &&
+          proj.m_name === 'General Inventory'
+        ) {
+          grouped[itemNumber].spare += qty;
+        }
+      }
+    }
+    // Attach total and spare to each instance for frontend display
+    results = Object.entries(grouped).flatMap(([itemNumber, group]) => {
+      const spareValue = group.spare !== undefined && group.spare !== null ? group.spare : 0;
+      const totalValue = group.total !== undefined && group.total !== null ? group.total : 0;
+      // Always ensure inUse is a number and never undefined/null
+      const inUseValue = Number(totalValue) - Number(spareValue);
+      return group.instances.map(instance => ({
+        ...instance,
+        total: totalValue,
+        inUse: inUseValue,
+        spare: spareValue
+      }));
+    });
     // Backend-side filtering for search
     if (search && search.trim() !== '') {
       const searchVal = search.trim().toLowerCase();
@@ -147,6 +186,10 @@ app.get('/api/parts', async (req, res) => {
         }
         return typeof value === 'string' && value.toLowerCase().includes(searchVal);
       });
+    }
+    // If search is empty, limit results to 500 (in case OData $top is ignored)
+    if (!search || search.trim() === '') {
+      results = results.slice(0, 500);
     }
     res.json({ value: results });
   } catch (err) {

@@ -17,6 +17,7 @@ export async function fetchParts({ classification, top, search, filterType } = {
   if (params.length > 0) {
     url += '?' + params.join('&');
   }
+  console.log('Frontend API request URL:', url); // Debug: log the request URL
   const response = await fetch(url);
   if (!response.ok) throw new Error('Failed to fetch parts');
   const data = await response.json();

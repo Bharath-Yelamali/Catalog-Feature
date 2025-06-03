@@ -23,15 +23,27 @@ function App() {
       try {
         let data;
         if (search.trim() === '') {
-          // Fetch first 50 inventoried parts if search is empty
-          data = await fetchParts({ classification: 'Inventoried', $top: 50 });
+          // Fetch all inventoried parts if search is empty
+          data = await fetchParts({ classification: 'Inventoried' });
         } else {
           // Fetch inventoried parts with server-side filtering
           data = await fetchParts({ classification: 'Inventoried', search, filterType });
         }
         const fetchedParts = data.value || [];
         setParts(fetchedParts);
-        setResults(fetchedParts);
+        // Group parts by inventory item number
+        const grouped = {};
+        for (const part of fetchedParts) {
+          const itemNumber = part.m_inventory_item?.item_number || 'Unknown';
+          if (!grouped[itemNumber]) grouped[itemNumber] = [];
+          grouped[itemNumber].push(part);
+        }
+        // Convert grouped object to array for easier rendering
+        const groupedResults = Object.entries(grouped).map(([itemNumber, instances]) => ({
+          itemNumber,
+          instances
+        }));
+        setResults(groupedResults);
         setShowResults(true);
       } catch (err) {
         setError('Failed to load parts: ' + err.message);
