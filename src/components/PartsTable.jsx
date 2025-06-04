@@ -247,11 +247,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       : group.instances
                     ).map(instance => (
                       <div key={instance.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
-                        <div>{instance.m_id || 'N/A'}</div>
-                        <div>{instance.m_quantity ?? 'N/A'}</div>
-                        <div>{instance.m_maturity || 'N/A'}</div>
-                        <div>{instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A'}</div>
-                        <div>{instance.m_parent_ref_path || 'N/A'}</div>
+                        <div>{highlightMatch(instance.m_id || 'N/A', search)}</div>
+                        <div>{highlightMatch((instance.m_quantity ?? 'N/A').toString(), search)}</div>
+                        <div>{highlightMatch(instance.m_maturity || 'N/A', search)}</div>
+                        <div>{highlightMatch(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', search)}</div>
+                        <div>{highlightMatch(instance.m_parent_ref_path || 'N/A', search)}</div>
                       </div>
                     ))}
                   </div>

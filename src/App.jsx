@@ -15,19 +15,23 @@ function App() {
   const [filterType, setFilterType] = useState('all');
   const [selected, setSelected] = useState({});
   const [quantities, setQuantities] = useState({});
+  const [lastSearch, setLastSearch] = useState("");
   const abortControllerRef = useRef();
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
+      // Track a unique search id for each fetch
+      const searchId = Date.now() + Math.random();
+      window.__currentSearchId = searchId;
       // Cancel previous fetch if still running
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
       window.__showSpinner = true;
       setLoading(true);
       setError(null);
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       try {
         let data;
         if (search.trim() === '') {
@@ -35,6 +39,8 @@ function App() {
         } else {
           data = await fetchParts({ classification: 'Inventoried', search, filterType, signal: controller.signal });
         }
+        // Only update state if this is the latest search
+        if (window.__currentSearchId !== searchId) return;
         const fetchedParts = data.value || [];
         setParts(fetchedParts);
         // Group parts by inventory item number
@@ -51,12 +57,19 @@ function App() {
         }));
         setResults(groupedResults);
         setShowResults(true);
+        setLastSearch(search); // Save the search string used for this fetch
       } catch (err) {
-        if (err.name === 'AbortError') return; // Ignore aborted fetches
+        if (window.__currentSearchId !== searchId) return;
+        if (err.name === 'AbortError') {
+          // Spinner should stay on for new search, so do not hide it here
+          return;
+        }
         setError('Failed to load parts: ' + err.message);
       } finally {
-        setLoading(false);
-        window.__showSpinner = false;
+        if (window.__currentSearchId === searchId) {
+          setLoading(false);
+          window.__showSpinner = false;
+        }
       }
     }
   };
@@ -82,6 +95,7 @@ function App() {
             filterType={filterType}
             setFilterType={setFilterType}
             handleSearch={handleSearch}
+            resultCount={showResults ? results.length : undefined}
           />
           {/* Only show dropdown after Enter is pressed */}
           {showResults && (
@@ -94,7 +108,7 @@ function App() {
                 setSelected={setSelected}
                 quantities={quantities}
                 setQuantities={setQuantities}
-                search={search}
+                search={lastSearch}
               />
             </>
           )}
