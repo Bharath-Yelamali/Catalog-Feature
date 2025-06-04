@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import './App.css'
 import SearchBar from './components/SearchBar';
 import PartsTable from './components/PartsTable';
@@ -15,19 +15,25 @@ function App() {
   const [filterType, setFilterType] = useState('all');
   const [selected, setSelected] = useState({});
   const [quantities, setQuantities] = useState({});
+  const abortControllerRef = useRef();
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
+      // Cancel previous fetch if still running
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      window.__showSpinner = true;
       setLoading(true);
       setError(null);
       try {
         let data;
         if (search.trim() === '') {
-          // Fetch all inventoried parts if search is empty
-          data = await fetchParts({ classification: 'Inventoried' });
+          data = await fetchParts({ classification: 'Inventoried', signal: controller.signal });
         } else {
-          // Fetch inventoried parts with server-side filtering
-          data = await fetchParts({ classification: 'Inventoried', search, filterType });
+          data = await fetchParts({ classification: 'Inventoried', search, filterType, signal: controller.signal });
         }
         const fetchedParts = data.value || [];
         setParts(fetchedParts);
@@ -46,9 +52,11 @@ function App() {
         setResults(groupedResults);
         setShowResults(true);
       } catch (err) {
+        if (err.name === 'AbortError') return; // Ignore aborted fetches
         setError('Failed to load parts: ' + err.message);
       } finally {
         setLoading(false);
+        window.__showSpinner = false;
       }
     }
   };

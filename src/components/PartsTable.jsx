@@ -8,6 +8,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [expandedRows, setExpandedRows] = useState({});
   // State for select all checkbox
   const [selectAll, setSelectAll] = useState(false);
+  // State for filtering instances by General Inventory per group
+  const [generalInventoryFilter, setGeneralInventoryFilter] = useState({});
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -69,20 +71,53 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     });
   };
 
-  // Helper to highlight search match
+  // Helper to highlight all search matches (multi-keyword)
   const highlightMatch = (text, search) => {
     if (!search || !text) return text;
-    const idx = text.toLowerCase().indexOf(search.toLowerCase());
-    if (idx === -1) return text;
-    return (
-      <>
-        {text.slice(0, idx)}
-        <span style={{ background: '#ffe066', color: '#222', fontWeight: 600 }}>
-          {text.slice(idx, idx + search.length)}
+    // Support multi-keyword search (split on '+')
+    const keywords = search.split('+').map(s => s.trim()).filter(Boolean);
+    if (keywords.length === 0) return text;
+    let result = [];
+    let remaining = text;
+    let lastIndex = 0;
+    // Find all matches for all keywords, collect their ranges
+    let matches = [];
+    for (const keyword of keywords) {
+      if (!keyword) continue;
+      let idx = remaining.toLowerCase().indexOf(keyword.toLowerCase());
+      while (idx !== -1) {
+        matches.push({ start: lastIndex + idx, end: lastIndex + idx + keyword.length });
+        idx = remaining.toLowerCase().indexOf(keyword.toLowerCase(), idx + keyword.length);
+      }
+    }
+    if (matches.length === 0) return text;
+    // Sort and merge overlapping matches
+    matches.sort((a, b) => a.start - b.start);
+    let merged = [];
+    for (const m of matches) {
+      if (!merged.length || merged[merged.length - 1].end < m.start) {
+        merged.push({ ...m });
+      } else {
+        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, m.end);
+      }
+    }
+    // Build highlighted output
+    let cursor = 0;
+    for (const m of merged) {
+      if (cursor < m.start) {
+        result.push(text.slice(cursor, m.start));
+      }
+      result.push(
+        <span style={{ background: '#ffe066', color: '#222', fontWeight: 600 }} key={m.start}>
+          {text.slice(m.start, m.end)}
         </span>
-        {text.slice(idx + search.length)}
-      </>
-    );
+      );
+      cursor = m.end;
+    }
+    if (cursor < text.length) {
+      result.push(text.slice(cursor));
+    }
+    return result;
   };
 
   const handleExpandToggle = (itemNumber) => {
@@ -177,16 +212,41 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                 </div>
                 {expandedRows[group.itemNumber] && (
                   <div style={{ background: '#f9f9f9', padding: '0 16px 12px 16px', borderBottom: '1px solid #eee' }}>
-                    <div style={{ fontWeight: 'bold', margin: '8px 0 4px 0' }}>Instances:</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 1fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', margin: '8px 0 4px 0', gap: 12 }}>
+                      <span style={{ fontSize: 20 }}>Instances:</span>
+                      <button
+                        style={{
+                          background: generalInventoryFilter[group.itemNumber] ? '#ffe066' : '#eee',
+                          color: '#222',
+                          border: '1px solid #ccc',
+                          borderRadius: 4,
+                          padding: '2px 10px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          marginLeft: 8
+                        }}
+                        onClick={() => setGeneralInventoryFilter(prev => ({
+                          ...prev,
+                          [group.itemNumber]: !prev[group.itemNumber]
+                        }))}
+                        aria-pressed={!!generalInventoryFilter[group.itemNumber]}
+                        aria-label="Toggle General Inventory filter"
+                      >
+                        General Inventory?
+                      </button>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
                       <div>Instance ID</div>
                       <div>Quantity</div>
                       <div>Inventory Maturity</div>
                       <div>Hardware Custodian</div>
                       <div>Parent Path</div>
                     </div>
-                    {group.instances.map(instance => (
-                      <div key={instance.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 1fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
+                    {(generalInventoryFilter[group.itemNumber]
+                      ? group.instances.filter(instance => instance.generalInventory)
+                      : group.instances
+                    ).map(instance => (
+                      <div key={instance.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
                         <div>{instance.m_id || 'N/A'}</div>
                         <div>{instance.m_quantity ?? 'N/A'}</div>
                         <div>{instance.m_maturity || 'N/A'}</div>

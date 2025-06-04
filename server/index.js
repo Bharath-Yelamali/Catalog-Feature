@@ -118,10 +118,6 @@ app.get('/api/parts', async (req, res) => {
       return res.status(response.status).json({ error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` });
     }
     const data = await response.json();
-    // Log the first part to debug missing fields
-    if (data.value && data.value.length > 0) {
-      console.log('First part from OData API:', JSON.stringify(data.value[0], null, 2));
-    }
     let results = data.value || [];
     // Group by inventory item number and sum quantities for total and spare
     const grouped = {};
@@ -151,16 +147,36 @@ app.get('/api/parts', async (req, res) => {
       const totalValue = group.total !== undefined && group.total !== null ? group.total : 0;
       // Always ensure inUse is a number and never undefined/null
       const inUseValue = Number(totalValue) - Number(spareValue);
-      return group.instances.map(instance => ({
-        ...instance,
-        total: totalValue,
-        inUse: inUseValue,
-        spare: spareValue
-      }));
+      return group.instances.map(instance => {
+        // Compute generalInventory boolean for each instance
+        let generalInventory = false;
+        const proj = instance.m_project;
+        if (proj) {
+          // If m_project is an array, check if any value is 'General Inventory' (case-insensitive)
+          if (Array.isArray(proj)) {
+            generalInventory = proj.some(p => typeof p === 'string' && p.trim().toLowerCase() === 'general inventory');
+          } else if (typeof proj === 'string') {
+            generalInventory = proj.trim().toLowerCase() === 'general inventory';
+          } else if (typeof proj === 'object') {
+            // If m_project is an object, check common fields
+            generalInventory = ['item_number', 'keyed_name', 'm_name'].some(
+              key => proj[key] && typeof proj[key] === 'string' && proj[key].trim().toLowerCase() === 'general inventory'
+            );
+          }
+        }
+        return {
+          ...instance,
+          total: totalValue,
+          inUse: inUseValue,
+          spare: spareValue,
+          generalInventory
+        };
+      });
     });
     // Backend-side filtering for search
     if (search && search.trim() !== '') {
-      const searchVal = search.trim().toLowerCase();
+      // Multi-keyword support: split on '+' and require all keywords to match
+      const keywords = search.split('+').map(s => s.trim().toLowerCase()).filter(Boolean);
       // Map filterType to field(s)
       const fieldMap = {
         itemNumber: part => part.m_inventory_item?.item_number,
@@ -187,9 +203,11 @@ app.get('/api/parts', async (req, res) => {
         const value = getField(part);
         if (!value) return false;
         if (Array.isArray(value)) {
-          return value.some(v => typeof v === 'string' && v.toLowerCase().includes(searchVal));
+          // For array fields, check if all keywords are present in any value
+          return keywords.every(kw => value.some(v => typeof v === 'string' && v.toLowerCase().includes(kw)));
         }
-        return typeof value === 'string' && value.toLowerCase().includes(searchVal);
+        // For string fields, check if all keywords are present
+        return keywords.every(kw => typeof value === 'string' && value.toLowerCase().includes(kw));
       });
     }
     // If search is empty, limit results to 500 (in case OData $top is ignored)
