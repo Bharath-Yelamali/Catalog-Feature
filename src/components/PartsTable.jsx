@@ -235,8 +235,9 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         General Inventory?
                       </button>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
                       <div>Instance ID</div>
+                      <div>Serial Number/Name</div>
                       <div>Quantity</div>
                       <div>Inventory Maturity</div>
                       <div>Hardware Custodian</div>
@@ -246,8 +247,9 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       ? group.instances.filter(instance => instance.generalInventory)
                       : group.instances
                     ).map(instance => (
-                      <div key={instance.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
+                      <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
                         <div>{highlightMatch(instance.m_id || 'N/A', search)}</div>
+                        <div>{highlightMatch(instance.item_number || 'N/A', search)}</div>
                         <div>{highlightMatch((instance.m_quantity ?? 'N/A').toString(), search)}</div>
                         <div>{highlightMatch(instance.m_maturity || 'N/A', search)}</div>
                         <div>{highlightMatch(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', search)}</div>

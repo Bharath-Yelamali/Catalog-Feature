@@ -87,7 +87,8 @@ app.get('/api/parts', async (req, res) => {
       'm_custodian',
       'classification',
       'm_quantity',
-      'm_maturity' // Added m_maturity
+      'm_maturity',
+      'item_number' // Added item_number field
     ];
     queryParts.push(`$select=${selectFields.join(',')}`);
     // Expand related fields to get actual values
@@ -186,6 +187,8 @@ app.get('/api/parts', async (req, res) => {
         inventoryDescription: part => part.m_inventory_description || part.m_description,
         hardwareCustodian: part => part["m_custodian@aras.keyed_name"] || part.m_custodian,
         id: part => part.m_id, // search on m_id, not id
+        serialNumber: part => part.item_number, // search on item_number field
+        inventoryMaturity: part => part.m_maturity, // search on m_maturity field
         all: part => [
           part.m_inventory_item?.item_number,
           part.m_mfg_part_number,
@@ -195,7 +198,9 @@ app.get('/api/parts', async (req, res) => {
           part.m_description,
           part["m_custodian@aras.keyed_name"],
           part.m_custodian,
-          part.m_id
+          part.m_id,
+          part.item_number,
+          part.m_maturity
         ].filter(Boolean).join(' || ')
       };
       const getField = fieldMap[filterType] || fieldMap['all'];
