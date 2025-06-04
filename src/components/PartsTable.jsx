@@ -6,6 +6,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // Remove old selected/quantity logic for flat parts
   // Add expand/collapse state for each itemNumber
   const [expandedRows, setExpandedRows] = useState({});
+  // State for select all checkbox
+  const [selectAll, setSelectAll] = useState(false);
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -29,11 +31,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // Combine selected items and current results, deduplicating by id
   const selectedIds = Object.keys(selected).filter(id => selected[id]);
-  const selectedParts = selectedIds
-    .map(id => results.find(p => p.id === id) || selected[id])
+  // Find the group for each selected id (itemNumber)
+  const selectedGroups = selectedIds
+    .map(id => results.find(group => group.itemNumber === id))
     .filter(Boolean);
-  const nonSelectedParts = results.filter(part => !selected[part.id]);
-  const displayParts = [...selectedParts, ...nonSelectedParts];
+  // Non-selected groups
+  const nonSelectedGroups = results.filter(group => !selectedIds.includes(group.itemNumber));
+  // Display selected groups at the top
+  const displayGroups = [...selectedGroups, ...nonSelectedGroups];
 
   const handleQuantityChange = (id, value, e) => {
     // Only allow positive integers or empty
@@ -41,7 +46,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       setQuantities(prev => ({ ...prev, [id]: value }));
       // Only check the box if Enter is pressed and value is not empty
       if (e && e.key === 'Enter' && value.trim() !== '') {
-        setSelected(prev => ({ ...prev, [id]: results.find(p => p.id === id) }));
+        setSelected(prev => ({ ...prev, [id]: results.find(group => group.itemNumber === id) }));
         // Prevent form submission or default Enter behavior
         if (e.preventDefault) e.preventDefault();
         if (e.stopPropagation) e.stopPropagation();
@@ -84,6 +89,27 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     setExpandedRows(prev => ({ ...prev, [itemNumber]: !prev[itemNumber] }));
   };
 
+  // Handler for select all checkbox
+  const handleSelectAll = (e) => {
+    const checked = e.target.checked;
+    setSelectAll(checked);
+    if (checked) {
+      // Select all visible groups
+      const newSelected = { ...selected };
+      displayGroups.forEach(group => {
+        newSelected[group.itemNumber] = group.instances[0];
+      });
+      setSelected(newSelected);
+    } else {
+      // Deselect all visible groups
+      const newSelected = { ...selected };
+      displayGroups.forEach(group => {
+        delete newSelected[group.itemNumber];
+      });
+      setSelected(newSelected);
+    }
+  };
+
   return (
     <div className="search-results-dropdown">
       {results.length === 0 ? (
@@ -91,7 +117,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       ) : (
         <>
           <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
-            <div className="search-result-field"></div>
+            <div className="search-result-field">
+              <input
+                type="checkbox"
+                aria-label="Select all"
+                checked={displayGroups.length > 0 && displayGroups.every(group => selected[group.itemNumber])}
+                onChange={handleSelectAll}
+              />
+            </div>
             <div className="search-result-field">Qty</div>
             <div className="search-result-field"></div>
             <div className="search-result-field">Total</div>
@@ -102,7 +135,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             <div className="search-result-field">Manufacturer Name</div>
             <div className="search-result-field">Inventory Description</div>
           </div>
-          {results.map(group => {
+          {displayGroups.map(group => {
             const part = group.instances[0];
             const hasMultiple = group.instances.length > 1;
             return (
@@ -134,27 +167,29 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       {expandedRows[group.itemNumber] ? '▲' : '▼'}
                     </button>
                   </div>
-                  <div className="search-result-field">{part.total ?? 'N/A'}</div>
-                  <div className="search-result-field">{part.inUse ?? 'N/A'}</div>
-                  <div className="search-result-field">{part.spare ?? 'N/A'}</div>
-                  <div className="search-result-field">{highlightMatch(part.m_inventory_item?.item_number, search) || 'N/A'}</div>
-                  <div className="search-result-field">{highlightMatch(part.m_mfg_part_number, search) || 'N/A'}</div>
-                  <div className="search-result-field">{highlightMatch(part.m_mfg_name, search) || 'N/A'}</div>
-                  <div className="search-result-field">{highlightMatch(part.m_inventory_description || part.m_description, search) || 'N/A'}</div>
+                  <div className="search-result-field">{truncate(part.total?.toString()) ?? 'N/A'}</div>
+                  <div className="search-result-field">{truncate(part.inUse?.toString()) ?? 'N/A'}</div>
+                  <div className="search-result-field">{truncate(part.spare?.toString()) ?? 'N/A'}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_inventory_item?.item_number), search) || 'N/A'}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_mfg_part_number), search) || 'N/A'}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_mfg_name), search) || 'N/A'}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)} style={{ cursor: (part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_inventory_description || part.m_description), search) || 'N/A'}</div>
                 </div>
                 {expandedRows[group.itemNumber] && (
                   <div style={{ background: '#f9f9f9', padding: '0 16px 12px 16px', borderBottom: '1px solid #eee' }}>
                     <div style={{ fontWeight: 'bold', margin: '8px 0 4px 0' }}>Instances:</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 1fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
                       <div>Instance ID</div>
                       <div>Quantity</div>
+                      <div>Inventory Maturity</div>
                       <div>Hardware Custodian</div>
                       <div>Parent Path</div>
                     </div>
                     {group.instances.map(instance => (
-                      <div key={instance.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
+                      <div key={instance.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 2fr 1fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
                         <div>{instance.m_id || 'N/A'}</div>
                         <div>{instance.m_quantity ?? 'N/A'}</div>
+                        <div>{instance.m_maturity || 'N/A'}</div>
                         <div>{instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A'}</div>
                         <div>{instance.m_parent_ref_path || 'N/A'}</div>
                       </div>

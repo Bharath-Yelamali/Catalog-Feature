@@ -86,7 +86,8 @@ app.get('/api/parts', async (req, res) => {
       'm_id',
       'm_custodian',
       'classification',
-      'm_quantity'
+      'm_quantity',
+      'm_maturity' // Added m_maturity
     ];
     queryParts.push(`$select=${selectFields.join(',')}`);
     // Expand related fields to get actual values
@@ -117,6 +118,10 @@ app.get('/api/parts', async (req, res) => {
       return res.status(response.status).json({ error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` });
     }
     const data = await response.json();
+    // Log the first part to debug missing fields
+    if (data.value && data.value.length > 0) {
+      console.log('First part from OData API:', JSON.stringify(data.value[0], null, 2));
+    }
     let results = data.value || [];
     // Group by inventory item number and sum quantities for total and spare
     const grouped = {};
