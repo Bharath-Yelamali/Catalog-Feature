@@ -297,7 +297,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       <button
         className="next-fixed-btn"
         disabled={!(selectedIds.length > 0 && selectedIds.every(id => quantities[id] && quantities[id].trim() !== ''))}
-        onClick={() => setPage('orders')}
+        onClick={() => setPage('requiredFields')}
       >
         Next
       </button>

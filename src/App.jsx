@@ -184,7 +184,7 @@ function App() {
                 quantities={quantities}
                 setQuantities={setQuantities}
                 search={lastSearch}
-                setPage={setPage}
+                setPage={page => setPage(page)} // pass setPage as before
               />
             </>
           )}
@@ -194,6 +194,7 @@ function App() {
         {page === 'about' && <div>About Page</div>}
         {page === 'contact' && <div>Contact Page</div>}
         {page === 'orders' && <div>Orders Page</div>}
+        {page === 'requiredFields' && <div>Required Fields Page</div>}
       </main>
     </div>
   )
