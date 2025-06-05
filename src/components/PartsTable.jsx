@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '' }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -293,6 +293,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           )}
         </>
       )}
+      {/* Next button fixed to the very bottom right, always visible */}
+      <button
+        className="next-fixed-btn"
+        disabled={!(selectedIds.length > 0 && selectedIds.every(id => quantities[id] && quantities[id].trim() !== ''))}
+        onClick={() => setPage('orders')}
+      >
+        Next
+      </button>
     </div>
   );
 }

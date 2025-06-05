@@ -78,21 +78,23 @@ function App() {
   // Export handler for checked items
   const handleExport = () => {
     // Gather checked items (selected)
-    const checkedGroups = Object.values(selected);
+    const checkedGroups = Object.entries(selected);
     if (!checkedGroups.length) return;
     // Flatten instances for export (one row per instance)
-    const exportRows = checkedGroups.flatMap(group => {
+    const exportRows = checkedGroups.flatMap(([itemNumber, group]) => {
+      // Attach the user-inputted quantity for this itemNumber
+      const qty = quantities[itemNumber] || '';
       if (Array.isArray(group.instances)) {
         // If group is a group object (shouldn't be, but fallback)
-        return group.instances.map(instance => ({ ...instance }));
+        return group.instances.map(instance => ({ ...instance, __exportQty: qty }));
       } else {
         // If group is a single instance
-        return [{ ...group }];
+        return [{ ...group, __exportQty: qty }];
       }
     });
     // Map to exportable fields in the same order as the UI table
     const data = exportRows.map(row => ({
-      'Qty': '', // Quantity is user input, not stored in row; left blank for now
+      'Qty': row.__exportQty ?? '',
       'Total': row.total ?? 'N/A',
       'In Use': row.inUse ?? 'N/A',
       'Spare': row.spare ?? 'N/A',
@@ -182,6 +184,7 @@ function App() {
                 quantities={quantities}
                 setQuantities={setQuantities}
                 search={lastSearch}
+                setPage={setPage}
               />
             </>
           )}
