@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import './App.css'
 import SearchBar from './components/SearchBar';
 import PartsTable from './components/PartsTable';
+import RequiredFields from './components/RequiredFields';
 import { fetchParts } from './api/parts';
 
 function App() {
@@ -194,10 +195,12 @@ function App() {
         {page === 'about' && <div>About Page</div>}
         {page === 'contact' && <div>Contact Page</div>}
         {page === 'orders' && <div>Orders Page</div>}
-        {page === 'requiredFields' && <div>Required Fields Page</div>}
+        {page === 'requiredFields' && (
+          <RequiredFields selected={selected} quantities={quantities} goBack={() => setPage('home')} />
+        )}
       </main>
     </div>
   )
 }
-
+  
 export default App
