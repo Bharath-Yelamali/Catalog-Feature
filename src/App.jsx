@@ -4,6 +4,7 @@ import './App.css'
 import SearchBar from './components/SearchBar';
 import PartsTable from './components/PartsTable';
 import RequiredFields from './components/RequiredFields';
+import ConfirmationSummary from './components/ConfirmationSummary';
 import { fetchParts } from './api/parts';
 
 function App() {
@@ -18,6 +19,42 @@ function App() {
   const [selected, setSelected] = useState({});
   const [quantities, setQuantities] = useState({});
   const [lastSearch, setLastSearch] = useState("");
+  const [preqFields, setPreqFields] = useState({
+    title: '',
+    poNumber: '',
+    poOwnerAlias: '',
+    project: '',
+    supplier: '',
+    coordinator: '',
+    purchaseType: '',
+    currency: '',
+    capex: false,
+    ioCc: '',
+    deliveryContactEmail: '',
+    emailAlias: '',
+    deliveryContactPhone: '',
+    deliveryLocation: '',
+    deliverToMsftPoc: '',
+    deliverToMsftAlias: '',
+    fid: false,
+    fidNumber: '',
+    reviewedByLabTpm: false,
+    reviewer: '',
+    businessJustificationProject: '',
+    businessJustificationLocation: '',
+    businessJustificationWhat: '',
+    businessJustificationWhy: '',
+    businessJustificationImpact: '',
+    businessJustificationNotes: '',
+    interimApproverAlias: '',
+    safeApprover: '',
+    ccListAlias: '',
+    shippingComments: '',
+    invoiceApprover: '',
+    urgent: false,
+    attachments: [],
+  });
+  const [newParts, setNewParts] = useState([]);
   const abortControllerRef = useRef();
 
   const handleSearch = async (e) => {
@@ -139,7 +176,7 @@ function App() {
     <div>
       <nav className="taskbar">
         <div className="taskbar-title clickable" onClick={() => setPage('home')}>
-          <img src="/vite.svg" alt="Vite Logo" className="taskbar-logo" />
+          <img src="/wizard.svg" alt="Wizard Logo" className="taskbar-logo" />
         </div>
         <ul className="taskbar-links">
           <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
@@ -196,7 +233,27 @@ function App() {
         {page === 'contact' && <div>Contact Page</div>}
         {page === 'orders' && <div>Orders Page</div>}
         {page === 'requiredFields' && (
-          <RequiredFields selected={selected} quantities={quantities} goBack={() => setPage('home')} />
+          <RequiredFields
+            selected={selected}
+            quantities={quantities}
+            goBack={() => setPage('home')}
+            setPage={setPage}
+            setPreqFields={setPreqFields}
+            preqFields={preqFields}
+            newParts={newParts}
+            setNewParts={setNewParts}
+          />
+        )}
+        {page === 'confirmationSummary' && (
+          <ConfirmationSummary
+            selected={selected}
+            quantities={quantities}
+            preqFields={preqFields}
+            newParts={newParts}
+            attachments={preqFields.attachments || []}
+            goBack={() => setPage('requiredFields')}
+            onSubmit={() => {/* TODO: handle final submit */}}
+          />
         )}
       </main>
     </div>
