@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../App.css'; // Import the CSS file for class-based styling
 
 function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts }) {
   const [showParts, setShowParts] = useState(false);
@@ -526,71 +527,45 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               </div>
             </fieldset>
             {/* Attachments section at the bottom */}
-            <div style={{
-              marginTop: 32,
-              padding: 24,
-              background: '#f8fafc',
-              border: '1px solid #bbb',
-              borderRadius: 8,
-              width: '94%',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8
-            }}>
-              <label style={{ fontWeight: 500, fontSize: 16, marginBottom: 8 }}>Attachments
-                <input
-                  type="file"
-                  name="attachments"
-                  multiple
-                  onChange={e => setPreqFields(prev => ({ ...prev, attachments: Array.from(e.target.files) }))}
-                  style={{ marginTop: 8 }}
-                />
+            <div className="required-fields-attachments-box">
+              <label className="required-fields-attachments-label">
+                Attachments
+                <span className="required-fields-attachments-hint">(Optional, you may attach multiple files)</span>
               </label>
-              <span style={{ fontSize: 13, color: '#666' }}>You may upload supporting documents, quotes, or other relevant files here.</span>
+              <input
+                type="file"
+                name="attachments"
+                multiple
+                onChange={e => setPreqFields(prev => ({ ...prev, attachments: Array.from(e.target.files) }))}
+                className="required-fields-attachments-input"
+              />
             </div>
           </div>
         </div>
       </div>
       {/* Attachments section at the bottom of the preq page */}
-      <div style={{
-        width: '40vw',
-        minWidth: 320,
-        maxWidth: 600,
-        margin: '0 auto',
-        marginTop: 32,
-        marginBottom: 90,
-        background: '#fff',
-        border: '1px solid #bbb',
-        borderRadius: 10,
-        padding: 28,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.07)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 12
-      }}>
-        <label style={{ fontWeight: 600, fontSize: 17, marginBottom: 8 }}>Attachments
-          <span style={{ color: '#888', fontWeight: 400, fontSize: 14, marginLeft: 8 }}>(Optional, you may attach multiple files)</span>
+      <div className="required-fields-attachments-box">
+        <label className="required-fields-attachments-label">
+          Attachments
+          <span className="required-fields-attachments-hint">(Optional, you may attach multiple files)</span>
         </label>
         <input
           type="file"
           name="attachments"
           multiple
           onChange={e => setPreqFields(prev => ({ ...prev, attachments: Array.from(e.target.files) }))}
-          style={{ marginTop: 4 }}
+          className="required-fields-attachments-input"
         />
       </div>
       <button
         className="back-fixed-btn"
         onClick={goBack}
-        style={{ position: 'fixed', bottom: 0, left: 0 }}
       >
         Back
       </button>
       <button
         className="next-fixed-btn"
         disabled={!allRequiredFilled}
-        style={{ position: 'fixed', bottom: 0, right: 0 }}
         onClick={() => setPage('confirmationSummary')}
       >
         Next
