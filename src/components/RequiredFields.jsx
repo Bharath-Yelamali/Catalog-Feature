@@ -527,7 +527,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                       value={preqFields.invoiceApproverOther || ''}
                       onChange={e => setPreqFields(prev => ({ ...prev, invoiceApproverOther: e.target.value }))}
                       style={{ width: '100%', padding: 8, marginTop: 8, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}
-                      placeholder="
+                      placeholder="Please specify other invoice approver"
                       required
                     />
                   )}
