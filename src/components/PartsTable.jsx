@@ -190,6 +190,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       className="quantity-input"
                       value={quantities[group.itemNumber] || ''}
                       onChange={e => handleQuantityChange(group.itemNumber, e.target.value)}
+                      onBlur={e => {
+                        // If quantity is not empty, check the box on blur
+                        if ((e.target.value || '').trim() !== '') {
+                          setSelected(prev => ({ ...prev, [group.itemNumber]: part }));
+                        }
+                      }}
                       onKeyDown={e => handleQuantityChange(group.itemNumber, quantities[group.itemNumber] || e.target.value, e)}
                       placeholder="0"
                       min="0"
