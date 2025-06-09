@@ -1,43 +1,6 @@
 import React, { useState } from 'react';
 
 function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts }) {
-  // Example required fields for a preq
-  // const [preqFields, setPreqFields] = useState({
-  //   title: '',
-  //   poNumber: '',
-  //   poOwnerAlias: '',
-  //   project: '',
-  //   supplier: '',
-  //   coordinator: '',
-  //   purchaseType: '',
-  //   currency: '',
-  //   capex: false,
-  //   ioCc: '',
-  //   deliveryContactEmail: '',
-  //   emailAlias: '',
-  //   deliveryContactPhone: '',
-  //   deliveryLocation: '',
-  //   deliverToMsftPoc: '',
-  //   deliverToMsftAlias: '',
-  //   fid: false,
-  //   fidNumber: '',
-  //   reviewedByLabTpm: false,
-  //   reviewer: '',
-  //   businessJustificationProject: '',
-  //   businessJustificationLocation: '',
-  //   businessJustificationWhat: '',
-  //   businessJustificationWhy: '',
-  //   businessJustificationImpact: '',
-  //   businessJustificationNotes: '',
-  //   interimApproverAlias: '',
-  //   safeApprover: '',
-  //   ccListAlias: '',
-  //   shippingComments: '',
-  //   invoiceApprover: '',
-  //   urgent: false,
-  //   attachments: [],
-  // });
-
   const [showParts, setShowParts] = useState(false);
   const [showNewPartForm, setShowNewPartForm] = useState(false);
   const [newPartFields, setNewPartFields] = useState({
@@ -84,8 +47,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     'businessJustificationProject', 'businessJustificationLocation', 'businessJustificationWhat',
     'businessJustificationWhy', 'businessJustificationImpact', 'businessJustificationNotes'
   ];
-  const requiredBooleans = ['capex', 'fid', 'reviewedByLabTpm'];
-  const allRequiredFilled = requiredFields.every(f => preqFields[f] && preqFields[f].toString().trim() !== '') && requiredBooleans.every(f => preqFields[f]);
+  const requiredBooleans = ['capex', 'fid', 'reviewedByLabTpm', 'deliverToMsftPoc'];
+  const allRequiredFilled = requiredFields.every(f => preqFields[f] && preqFields[f].toString().trim() !== '') && requiredBooleans.every(f => preqFields[f] !== undefined);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh', paddingBottom: 60 }}>
@@ -381,7 +344,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                     />
                   )}
                 </label>
-                <label style={{ fontWeight: 500 }}>Currency
+                <label style={{ fontWeight: 500 }}>Currency <span style={{color:'red'}}>*</span>
                   <select
                     name="currency"
                     value={preqFields.currency}
@@ -409,30 +372,34 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                     <label style={{ fontWeight: 500, marginBottom: 2 }}>Capex <span style={{color:'red'}}>*</span></label>
-                    <select name="capex" value={preqFields.capex ? 'yes' : 'no'} onChange={e => setPreqFields(prev => ({ ...prev, capex: e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
-                      <option value="no">No</option>
+                    <select name="capex" value={preqFields.capex === undefined ? '' : preqFields.capex ? 'yes' : preqFields.capex === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, capex: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
+                      <option value="">Select</option>
                       <option value="yes">Yes</option>
+                      <option value="no">No</option>
                     </select>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                     <label style={{ fontWeight: 500, marginBottom: 2 }}>FID Y/N <span style={{color:'red'}}>*</span></label>
-                    <select name="fid" value={preqFields.fid ? 'yes' : 'no'} onChange={e => setPreqFields(prev => ({ ...prev, fid: e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
-                      <option value="no">No</option>
+                    <select name="fid" value={preqFields.fid === undefined ? '' : preqFields.fid ? 'yes' : preqFields.fid === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, fid: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
+                      <option value="">Select</option>
                       <option value="yes">Yes</option>
+                      <option value="no">No</option>
                     </select>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                     <label style={{ fontWeight: 500, marginBottom: 2 }}>Reviewed By a Lab TPM <span style={{color:'red'}}>*</span></label>
-                    <select name="reviewedByLabTpm" value={preqFields.reviewedByLabTpm ? 'yes' : 'no'} onChange={e => setPreqFields(prev => ({ ...prev, reviewedByLabTpm: e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
-                      <option value="no">No</option>
+                    <select name="reviewedByLabTpm" value={preqFields.reviewedByLabTpm === undefined ? '' : preqFields.reviewedByLabTpm ? 'yes' : preqFields.reviewedByLabTpm === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, reviewedByLabTpm: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
+                      <option value="">Select</option>
                       <option value="yes">Yes</option>
+                      <option value="no">No</option>
                     </select>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                     <label style={{ fontWeight: 500, marginBottom: 2 }}>Is the PO urgent?</label>
-                    <select name="urgent" value={preqFields.urgent ? 'yes' : 'no'} onChange={e => setPreqFields(prev => ({ ...prev, urgent: e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
-                      <option value="no">No</option>
+                    <select name="urgent" value={preqFields.urgent === undefined ? '' : preqFields.urgent ? 'yes' : preqFields.urgent === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, urgent: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
+                      <option value="">Select</option>
                       <option value="yes">Yes</option>
+                      <option value="no">No</option>
                     </select>
                   </div>
                 </div>
@@ -448,9 +415,10 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               </div>
               <div style={{ flex: 1, minWidth: 260, maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <label style={{ fontWeight: 500 }}>Deliver to (MSFT POC) <span style={{color:'red'}}>*</span>
-                  <select name="deliverToMsftPoc" value={preqFields.deliverToMsftPoc ? 'yes' : 'no'} onChange={e => setPreqFields(prev => ({ ...prev, deliverToMsftPoc: e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
-                    <option value="no">No</option>
+                  <select name="deliverToMsftPoc" value={preqFields.deliverToMsftPoc === undefined ? '' : preqFields.deliverToMsftPoc ? 'yes' : preqFields.deliverToMsftPoc === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, deliverToMsftPoc: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
+                    <option value="">Select</option>
                     <option value="yes">Yes</option>
+                    <option value="no">No</option>
                   </select>
                 </label>
                 <label style={{ fontWeight: 500 }}>Deliver to MSFT Alias <span style={{color:'red'}}>*</span>
