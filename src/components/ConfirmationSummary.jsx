@@ -1,18 +1,207 @@
-import React from 'react';
+import React from "react";
+import jsPDF from "jspdf";
+import { PDFDocument } from "pdf-lib";
+import "../App.css";
 
 function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit }) {
+  // Helper to generate a simple PDF summary and merge with PDF attachment
+  const handleExportPDF = async () => {
+    const doc = new jsPDF();
+    let y = 15;
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Purchase Request Summary", 105, y, { align: 'center' });
+    y += 12;
+
+    // Selected Parts Table
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Selected Parts", 10, y);
+    y += 7;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    // Table header
+    doc.text("Qty", 10, y);
+    doc.text("Item #", 25, y);
+    doc.text("Mfg #", 55, y);
+    doc.text("Mfg Name", 90, y);
+    doc.text("Description", 130, y);
+    y += 6;
+    Object.entries(selected).forEach(([itemNumber, group]) => {
+      const qty = quantities[itemNumber] || '';
+      const part = Array.isArray(group.instances) ? group.instances[0] : group;
+      doc.text(String(qty), 10, y);
+      doc.text(part.m_inventory_item?.item_number || 'N/A', 25, y);
+      doc.text(part.m_mfg_part_number || 'N/A', 55, y);
+      doc.text(part.m_mfg_name || 'N/A', 90, y);
+      doc.text((part.m_inventory_description || part.m_description || 'N/A').substring(0, 60), 130, y);
+      y += 6;
+      if (y > 270) { doc.addPage(); y = 15; }
+    });
+    y += 8;
+
+    // Purchase Request Details (Key-Value)
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Purchase Request Details", 10, y);
+    y += 7;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const details = [
+      ["Title", preqFields.title],
+      ["PO Number", preqFields.poNumber],
+      ["PO Owner Alias", preqFields.poOwnerAlias],
+      ["Coordinator", preqFields.coordinator],
+      ["Email Alias", preqFields.emailAlias],
+      ["Project", preqFields.project],
+      ["Supplier", preqFields.supplier],
+      ["Purchase Type", preqFields.purchaseType],
+      ["Currency", preqFields.currency],
+      ["Capex", typeof preqFields.capex === 'boolean' ? (preqFields.capex ? 'Yes' : 'No') : 'Not specified'],
+      ["IO/CC", preqFields.ioCc],
+      ["Delivery Contact Email", preqFields.deliveryContactEmail],
+      ["Delivery Contact Phone", preqFields.deliveryContactPhone],
+      ["Delivery Location", preqFields.deliveryLocation],
+      ["Deliver to MSFT POC", preqFields.deliverToMsftPoc],
+      ["Deliver to MSFT Alias", preqFields.deliverToMsftAlias],
+      ["Shipping Comments", preqFields.shippingComments],
+      ["FID", preqFields.fid],
+      ["FID Number", preqFields.fidNumber],
+      ["Reviewed by Lab TPM", typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : 'Not specified'],
+      ["Reviewer", preqFields.reviewer],
+      ["Interim Approver Alias", preqFields.interimApproverAlias],
+      ["SAFE Approver", preqFields.safeApprover],
+      ["CC List Alias", preqFields.ccListAlias],
+      ["Invoice Approver", preqFields.invoiceApprover],
+      ["Urgent", typeof preqFields.urgent === 'boolean' ? (preqFields.urgent ? 'Yes' : 'No') : 'Not specified'],
+    ];
+    details.forEach(([label, value]) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${label}:`, 10, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${value || 'Not specified'}`, 60, y);
+      y += 6;
+      if (y > 270) { doc.addPage(); y = 15; }
+    });
+    y += 8;
+
+    // Business Justification (combined)
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Business Justification", 10, y);
+    y += 7;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const fields = preqFields || {};
+    const parts = [
+      fields.businessJustificationProject,
+      fields.businessJustificationLocation,
+      fields.businessJustificationWhat,
+      fields.businessJustificationWhy,
+      fields.businessJustificationImpact,
+      fields.businessJustificationNotes,
+    ].filter(Boolean);
+    const justificationText = parts.length > 0 ? parts.join('. ') + '.' : 'No business justification provided.';
+    // Draw a box for justification
+    const justificationBoxHeight = Math.max(12, Math.ceil(justificationText.length / 90) * 7);
+    doc.setDrawColor(200);
+    doc.rect(10, y - 2, 190, justificationBoxHeight, 'S');
+    doc.text(justificationText, 12, y + 5, { maxWidth: 186 });
+    y += justificationBoxHeight + 6;
+
+    // Attachments
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Attachments", 10, y);
+    y += 7;
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    if (attachments && attachments.length > 0) {
+      attachments.forEach((file, idx) => {
+        doc.text(`${idx + 1}. ${file.name}`, 12, y);
+        y += 6;
+        if (y > 270) { doc.addPage(); y = 15; }
+      });
+    } else {
+      doc.text("No attachments uploaded.", 12, y);
+      y += 6;
+    }
+    y += 6;
+
+    // New Parts Table
+    if (newParts && newParts.length > 0) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text("New Parts to Add", 10, y);
+      y += 7;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      // Table header
+      const newPartFields = Object.keys(newParts[0]);
+      let x = 10;
+      newPartFields.forEach((field) => {
+        doc.text(field, x, y);
+        x += 40;
+      });
+      y += 6;
+      newParts.forEach((part, idx) => {
+        let x = 10;
+        Object.values(part).forEach((val) => {
+          doc.text(val && val.name ? val.name : String(val), x, y);
+          x += 40;
+        });
+        y += 6;
+        if (y > 270) { doc.addPage(); y = 15; }
+      });
+    }
+
+    // 2. Get the summary PDF as a Uint8Array
+    const summaryPdfBytes = doc.output('arraybuffer');
+
+    // 3. If there is a PDF attachment, merge it
+    const pdfAttachment = attachments && attachments.find(f => f.type === 'application/pdf');
+    if (pdfAttachment) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const attachmentBytes = new Uint8Array(e.target.result);
+        const summaryPdfDoc = await PDFDocument.load(summaryPdfBytes);
+        const attachmentPdfDoc = await PDFDocument.load(attachmentBytes);
+        const copiedPages = await summaryPdfDoc.copyPages(attachmentPdfDoc, attachmentPdfDoc.getPageIndices());
+        copiedPages.forEach((page) => summaryPdfDoc.addPage(page));
+        const mergedPdfBytes = await summaryPdfDoc.save();
+        const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'purchase-request-summary.pdf';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      };
+      reader.readAsArrayBuffer(pdfAttachment);
+    } else {
+      const blob = new Blob([summaryPdfBytes], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'purchase-request-summary.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
   return (
-    <div style={{ maxWidth: 900, margin: '60px auto 0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: 36 }}>
-      <h2 style={{ fontWeight: 700, fontSize: 26, marginBottom: 24 }}>Confirmation Summary</h2>
-      <h3 style={{ marginTop: 0 }}>Selected Parts</h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+    <div className="confirmation-summary-container">
+      <h2 className="confirmation-summary-title">Purchase Request Summary</h2>
+      <h3 className="confirmation-summary-section">Selected Parts</h3>
+      <table className="confirmation-summary-table">
         <thead>
-          <tr style={{ background: '#f5f5f5' }}>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Qty</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Inventory Item Number</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Manufacturer Part #</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Manufacturer Name</th>
-            <th style={{ border: '1px solid #ccc', padding: 8 }}>Inventory Description</th>
+          <tr>
+            <th>Qty</th>
+            <th>Inventory Item Number</th>
+            <th>Manufacturer Part #</th>
+            <th>Manufacturer Name</th>
+            <th>Inventory Description</th>
           </tr>
         </thead>
         <tbody>
@@ -21,47 +210,132 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             const part = Array.isArray(group.instances) ? group.instances[0] : group;
             return (
               <tr key={itemNumber}>
-                <td style={{ border: '1px solid #ccc', padding: 8, textAlign: 'center' }}>{qty}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.m_inventory_item?.item_number || 'N/A'}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.m_mfg_part_number || 'N/A'}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.m_mfg_name || 'N/A'}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.m_inventory_description || part.m_description || 'N/A'}</td>
+                <td>{qty}</td>
+                <td>{part.m_inventory_item?.item_number || 'N/A'}</td>
+                <td>{part.m_mfg_part_number || 'N/A'}</td>
+                <td>{part.m_mfg_name || 'N/A'}</td>
+                <td>{part.m_inventory_description || part.m_description || 'N/A'}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <h3>Purchase Request Details</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 24 }}>
-        {Object.entries(preqFields).filter(([k]) => k !== 'attachments').map(([key, value]) => (
-          <div key={key} style={{ marginBottom: 6 }}>
-            <strong>{key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}:</strong> {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}
+      <h3 className="confirmation-summary-section">Purchase Request Details</h3>
+      <div className="confirmation-summary-details-box">
+        {/* Requester Info */}
+        <div className="confirmation-summary-section-card">
+          <h4>Requester Info</h4>
+          <dl>
+            <dt>Title</dt>
+            <dd>{preqFields.title || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>PO Number</dt>
+            <dd>{preqFields.poNumber || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>PO Owner Alias</dt>
+            <dd>{preqFields.poOwnerAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Coordinator</dt>
+            <dd>{preqFields.coordinator || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Email Alias</dt>
+            <dd>{preqFields.emailAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+          </dl>
+        </div>
+        {/* Project & Supplier */}
+        <div className="confirmation-summary-section-card">
+          <h4>Project & Supplier</h4>
+          <dl>
+            <dt>Project</dt>
+            <dd>{preqFields.project || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Supplier</dt>
+            <dd>{preqFields.supplier || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Purchase Type</dt>
+            <dd>{preqFields.purchaseType || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Currency</dt>
+            <dd>{preqFields.currency || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Capex</dt>
+            <dd>{typeof preqFields.capex === 'boolean' ? (preqFields.capex ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>IO/CC</dt>
+            <dd>{preqFields.ioCc || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+          </dl>
+        </div>
+        {/* Delivery Details */}
+        <div className="confirmation-summary-section-card">
+          <h4>Delivery Details</h4>
+          <dl>
+            <dt>Delivery Contact Email</dt>
+            <dd>{preqFields.deliveryContactEmail || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Delivery Contact Phone</dt>
+            <dd>{preqFields.deliveryContactPhone || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Delivery Location</dt>
+            <dd>{preqFields.deliveryLocation || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Deliver to MSFT POC</dt>
+            <dd>{preqFields.deliverToMsftPoc || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Deliver to MSFT Alias</dt>
+            <dd>{preqFields.deliverToMsftAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Shipping Comments</dt>
+            <dd>{preqFields.shippingComments || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+          </dl>
+        </div>
+        {/* Approval & Review */}
+        <div className="confirmation-summary-section-card">
+          <h4>Approval & Review</h4>
+          <dl>
+            <dt>FID</dt>
+            <dd>{preqFields.fid || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>FID Number</dt>
+            <dd>{preqFields.fidNumber || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Reviewed by Lab TPM</dt>
+            <dd>{typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Reviewer</dt>
+            <dd>{preqFields.reviewer || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Interim Approver Alias</dt>
+            <dd>{preqFields.interimApproverAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>SAFE Approver</dt>
+            <dd>{preqFields.safeApprover || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>CC List Alias</dt>
+            <dd>{preqFields.ccListAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Invoice Approver</dt>
+            <dd>{preqFields.invoiceApprover || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dt>Urgent</dt>
+            <dd>{typeof preqFields.urgent === 'boolean' ? (preqFields.urgent ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+          </dl>
+        </div>
+        <div className="confirmation-summary-business-justification">
+          <h4>Business Justification</h4>
+          <div>
+            {(() => {
+              const fields = preqFields || {};
+              const parts = [
+                fields.businessJustificationProject,
+                fields.businessJustificationLocation,
+                fields.businessJustificationWhat,
+                fields.businessJustificationWhy,
+                fields.businessJustificationImpact,
+                fields.businessJustificationNotes,
+              ].filter(Boolean);
+              return parts.length > 0 ? parts.join('. ') + '.' : <span className="confirmation-summary-detail-empty">No business justification provided.</span>;
+            })()}
           </div>
-        ))}
-      </div>
-      <h3>Business Justification</h3>
-      <div style={{ marginBottom: 24, background: '#f8fafc', borderRadius: 6, padding: 16, border: '1px solid #e0e0e0' }}>
-        {(() => {
-          const fields = preqFields || {};
-          const parts = [
-            fields.businessJustificationProject,
-            fields.businessJustificationLocation,
-            fields.businessJustificationWhat,
-            fields.businessJustificationWhy,
-            fields.businessJustificationImpact,
-            fields.businessJustificationNotes,
-          ].filter(Boolean);
-          return parts.length > 0 ? parts.join('. ') + '.' : <span style={{color:'#888'}}>No business justification provided.</span>;
-        })()}
+        </div>
+        <div className="confirmation-summary-attachments">
+          <h4>Attachments</h4>
+          <ul>
+            {attachments && attachments.length > 0 ? (
+              attachments.map((file, idx) => (
+                <li key={idx}>{file.name}</li>
+              ))
+            ) : (
+              <li className="confirmation-summary-detail-empty">No attachments uploaded.</li>
+            )}
+          </ul>
+        </div>
       </div>
       {newParts && newParts.length > 0 && (
         <>
-          <h3>New Parts to Add</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+          <h3 className="confirmation-summary-section">New Parts to Add</h3>
+          <table className="confirmation-summary-table">
             <thead>
-              <tr style={{ background: '#f5f5f5' }}>
+              <tr className="confirmation-summary-table-header-row">
                 {Object.keys(newParts[0]).map(field => (
-                  <th key={field} style={{ border: '1px solid #ccc', padding: 8 }}>{field}</th>
+                  <th key={field} className="confirmation-summary-table-header-cell">{field}</th>
                 ))}
               </tr>
             </thead>
@@ -69,7 +343,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
               {newParts.map((part, idx) => (
                 <tr key={idx}>
                   {Object.values(part).map((val, i) => (
-                    <td key={i} style={{ border: '1px solid #ccc', padding: 8 }}>{val && val.name ? val.name : val}</td>
+                    <td key={i} className="confirmation-summary-table-cell">{val && val.name ? val.name : val}</td>
                   ))}
                 </tr>
               ))}
@@ -77,19 +351,10 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
           </table>
         </>
       )}
-      <h3>Attachments</h3>
-      <ul style={{ marginBottom: 24 }}>
-        {attachments && attachments.length > 0 ? (
-          attachments.map((file, idx) => (
-            <li key={idx}>{file.name}</li>
-          ))
-        ) : (
-          <li>No attachments uploaded.</li>
-        )}
-      </ul>
-      <div style={{ display: 'flex', gap: 16, marginTop: 24 }}>
-        <button onClick={goBack} style={{ background: '#eee', color: '#222', border: '1px solid #bbb', borderRadius: 6, padding: '10px 22px', fontWeight: 500, fontSize: 15, cursor: 'pointer' }}>Back</button>
-        <button onClick={onSubmit} style={{ background: '#2d72d9', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 22px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}>Submit</button>
+      <div className="confirmation-summary-buttons">
+        <button onClick={goBack} className="confirmation-summary-button-back">Back</button>
+        <button onClick={onSubmit} className="confirmation-summary-button-submit">Submit</button>
+        <button onClick={handleExportPDF} className="export-btn">Export as PDF</button>
       </div>
     </div>
   );
