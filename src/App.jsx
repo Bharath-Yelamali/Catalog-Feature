@@ -28,17 +28,17 @@ function App() {
     coordinator: '',
     purchaseType: '',
     currency: '',
-    capex: false,
+    capex: undefined, // changed from false
     ioCc: '',
     deliveryContactEmail: '',
     emailAlias: '',
     deliveryContactPhone: '',
     deliveryLocation: '',
-    deliverToMsftPoc: '',
+    deliverToMsftPoc: undefined, // changed from ''
     deliverToMsftAlias: '',
-    fid: false,
+    fid: undefined, // changed from false
     fidNumber: '',
-    reviewedByLabTpm: false,
+    reviewedByLabTpm: undefined, // changed from false
     reviewer: '',
     businessJustificationProject: '',
     businessJustificationLocation: '',
@@ -51,7 +51,7 @@ function App() {
     ccListAlias: '',
     shippingComments: '',
     invoiceApprover: '',
-    urgent: false,
+    urgent: undefined, // changed from false
     attachments: [],
   });
   const [newParts, setNewParts] = useState([]);
