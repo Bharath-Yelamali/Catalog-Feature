@@ -1,5 +1,5 @@
 // Fetch all parts from the backend API
-export async function fetchParts({ classification, top, search, filterType, signal } = {}) {
+export async function fetchParts({ classification, top, search, filterType, signal, accessToken } = {}) {
   let url = 'http://localhost:3001/api/parts';
   const params = [];
   if (classification) {
@@ -18,7 +18,11 @@ export async function fetchParts({ classification, top, search, filterType, sign
     url += '?' + params.join('&');
   }
   console.log('Frontend API request URL:', url); // Debug: log the request URL
-  const response = await fetch(url, { signal });
+  const headers = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  const response = await fetch(url, { signal, headers });
   if (!response.ok) throw new Error('Failed to fetch parts');
   const data = await response.json();
   console.log('Fetched parts from backend API:', data); // Log the API response to the terminal
