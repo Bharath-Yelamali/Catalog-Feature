@@ -6,6 +6,8 @@ import PartsTable from './components/PartsTable';
 import RequiredFields from './components/RequiredFields';
 import ConfirmationSummary from './components/ConfirmationSummary';
 import { fetchParts } from './api/parts';
+import HomePage from './components/HomePage';
+import LoginPage from './components/LoginPage';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -55,6 +57,9 @@ function App() {
     attachments: [],
   });
   const [newParts, setNewParts] = useState([]);
+  const [loginSearch, setLoginSearch] = useState("");
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const abortControllerRef = useRef();
 
   const handleSearch = async (e) => {
@@ -110,6 +115,19 @@ function App() {
           window.__showSpinner = false;
         }
       }
+    }
+  };
+
+  // Handler for the large search bar on the login page
+  const handleLoginSearch = (e) => {
+    if (e.key === 'Enter' && loginSearch.trim() !== "") {
+      setSearch(loginSearch);
+      setPage('search');
+      setTimeout(() => {
+        // Simulate Enter key for search page's search bar
+        const event = { key: 'Enter' };
+        handleSearch(event);
+      }, 0);
     }
   };
 
@@ -179,13 +197,21 @@ function App() {
           <img src="/wizard.svg" alt="Wizard Logo" className="taskbar-logo" />
         </div>
         <ul className="taskbar-links">
+          <li><a href="#" onClick={() => setPage('search')}>Search</a></li>
           <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
           <li><a href="#" onClick={() => setPage('about')}>About</a></li>
           <li><a href="#" onClick={() => setPage('contact')}>Contact</a></li>
+          <li><a href="#" onClick={() => setPage('login')}>Login</a></li> {/* Login tab, furthest right */}
         </ul>
       </nav>
-      {/* Show searchbar and dropdown only on home page */}
+      {/* Use HomePage component for the homepage */}
       {page === 'home' && (
+        <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleSearch} />
+      )}
+      {page === 'login' && (
+        <LoginPage />
+      )}
+      {page === 'search' && (
         <>
           <SearchBar
             search={search}
@@ -195,7 +221,6 @@ function App() {
             handleSearch={handleSearch}
             resultCount={showResults ? results.length : undefined}
           />
-          {/* Render Export button in the correct spot using window.renderExportButton */}
           {(() => {
             window.renderExportButton = () => (
               <button
@@ -210,7 +235,6 @@ function App() {
             );
             return null;
           })()}
-          {/* Only show dropdown after Enter is pressed */}
           {showResults && (
             <>
               {loading && <div>Loading parts...</div>}
@@ -222,7 +246,7 @@ function App() {
                 quantities={quantities}
                 setQuantities={setQuantities}
                 search={lastSearch}
-                setPage={page => setPage(page)} // pass setPage as before
+                setPage={page => setPage(page)}
               />
             </>
           )}
@@ -236,7 +260,7 @@ function App() {
           <RequiredFields
             selected={selected}
             quantities={quantities}
-            goBack={() => setPage('home')}
+            goBack={() => setPage('search')}
             setPage={setPage}
             setPreqFields={setPreqFields}
             preqFields={preqFields}
