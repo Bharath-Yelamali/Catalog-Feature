@@ -1,16 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const crypto = require('crypto');
 const app = express();
 const PORT = 3001;
 
-// === OAuth Configuration (from .env) ===
-const TOKEN_URL = process.env.ARAS_TOKEN_URL;
-const USERNAME = process.env.ARAS_USERNAME;
-const PASSWORD = process.env.ARAS_PASSWORD;
-const DATABASE = process.env.ARAS_DATABASE;
-const CLIENT_ID = process.env.ARAS_CLIENT_ID;
-const SCOPE = process.env.ARAS_SCOPE;
+// === OAuth Configuration (hardcoded) ===
+const TOKEN_URL = "https://chievmimsiiss01/IMSStage/OAuthServer/connect/token";
+const DATABASE = "IMSStageBharath";
+const CLIENT_ID = "IOMApp";
+const SCOPE = "Innovator";
 
 // Token cache
 let accessToken = null;
@@ -67,7 +66,15 @@ const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
 
 app.get('/api/parts', async (req, res) => {
   try {
-    const token = await getToken();
+    // Get access token from Authorization header (Bearer <token>)
+    const authHeader = req.headers['authorization'];
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring('Bearer '.length);
+    }
+    if (!token) {
+      return res.status(401).json({ error: 'Missing or invalid access token. Please log in.' });
+    }
     // Always fetch a limited set of inventoried parts
     let odataUrl = `${BASE_URL}m_Instance`;
     const { search, filterType } = req.query;
@@ -223,6 +230,41 @@ app.get('/api/parts', async (req, res) => {
   } catch (err) {
     console.error('Internal server error:', err);
     res.status(500).json({ error: 'Internal server error: ' + err.message });
+  }
+});
+
+// === Login Endpoint for User Authentication ===
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Username and password are required.' });
+  }
+  // Hash the password using MD5 (Aras expects MD5 hash)
+  const hashedPassword = crypto.createHash('md5').update(password).digest('hex');
+  // Prepare OAuth payload
+  const payload = new URLSearchParams({
+    grant_type: "password",
+    client_id: CLIENT_ID,
+    username,
+    password: hashedPassword,
+    scope: SCOPE,
+    database: DATABASE
+  });
+  try {
+    const response = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: payload
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `Failed to obtain OAuth token: ${errorText}` });
+    }
+    const data = await response.json();
+    // Return the access token and expiry to the frontend
+    return res.json({ access_token: data.access_token, expires_in: data.expires_in });
+  } catch (err) {
+    return res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 

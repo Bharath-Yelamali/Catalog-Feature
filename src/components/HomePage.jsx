@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const HomePage = ({ setPage, setSearch, handleSearch }) => {
+const HomePage = ({ setPage, setSearch, handleSearch, accessToken }) => {
   const [homeSearch, setHomeSearch] = useState('');
 
   const handleHomeSubmit = e => {
@@ -32,14 +32,16 @@ const HomePage = ({ setPage, setSearch, handleSearch }) => {
         </form>
       </div>
       {/* Only the login button below the banner */}
-      <div className="homepage-login-btn-container" style={{ position: 'relative', zIndex: 1001, marginTop: '520px', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
-        <button
-          className="homepage-login-btn"
-          onClick={() => setPage('login')}
-        >
-          Go to Login
-        </button>
-      </div>
+      {!accessToken && (
+        <div className="homepage-login-btn-container" style={{ position: 'relative', zIndex: 1001, marginTop: '520px', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
+          <button
+            className="homepage-login-btn"
+            onClick={() => setPage('login')}
+          >
+            Go to Login
+          </button>
+        </div>
+      )}
       <div style={{ height: '60px' }} />
     </div>
   );

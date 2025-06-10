@@ -1,19 +1,44 @@
 import React, { useState } from 'react';
 import '../App.css';
 
-const LoginPage = () => {
-  const [username, setUsername] = useState('');
+const LoginPage = ({ setPage, setAccessToken, setUsername }) => {
+  const [username, setUsernameInput] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username || !password) {
       setError('Please enter both username and password.');
       return;
     }
     setError('');
-    // TODO: Implement login logic
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 400 || response.status === 401) {
+          setError('Invalid username or password');
+        } else {
+          setError(data.error || 'Login failed.');
+        }
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+      setAccessToken(data.access_token); // Save token in app state
+      setUsername(username); // Save username in app state
+      setPage('home'); // Redirect to homepage on successful login
+    } catch (err) {
+      setError('Network error. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -27,7 +52,7 @@ const LoginPage = () => {
               className="login-input"
               placeholder="Username"
               value={username}
-              onChange={e => setUsername(e.target.value)}
+              onChange={e => setUsernameInput(e.target.value)}
               autoComplete="username"
               required
             />
@@ -44,8 +69,8 @@ const LoginPage = () => {
             />
           </div>
           {error && <div className="login-hint" style={{ color: '#d27a7a', marginBottom: 8 }}>{error}</div>}
-          <button type="submit" className="login-btn" style={{ cursor: 'pointer', opacity: 1 }}>
-            Sign In
+          <button type="submit" className="login-btn" style={{ cursor: 'pointer', opacity: 1 }} disabled={loading}>
+            {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
       </div>

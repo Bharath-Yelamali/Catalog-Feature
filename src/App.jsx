@@ -60,6 +60,9 @@ function App() {
   const [loginSearch, setLoginSearch] = useState("");
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [accessToken, setAccessToken] = useState(null);
+  const [username, setUsername] = useState("");
+  const [showSessionPopup, setShowSessionPopup] = useState(false);
   const abortControllerRef = useRef();
 
   const handleSearch = async (e) => {
@@ -79,14 +82,13 @@ function App() {
       try {
         let data;
         if (search.trim() === '') {
-          data = await fetchParts({ classification: 'Inventoried', signal: controller.signal });
+          data = await fetchParts({ classification: 'Inventoried', signal: controller.signal, accessToken });
         } else {
-          data = await fetchParts({ classification: 'Inventoried', search, filterType, signal: controller.signal });
+          data = await fetchParts({ classification: 'Inventoried', search, filterType, signal: controller.signal, accessToken });
         }
         // Only update state if this is the latest search
         if (window.__currentSearchId !== searchId) return;
         const fetchedParts = data.value || [];
-        setParts(fetchedParts);
         // Group parts by inventory item number
         const grouped = {};
         for (const part of fetchedParts) {
@@ -190,8 +192,35 @@ function App() {
     XLSX.writeFile(wb, `selected_parts_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
+  const handleLogout = () => {
+    setAccessToken(null);
+    setPage('home');
+    setSearch("");
+    setShowResults(false);
+    setResults([]);
+    setFilterType('all');
+    setSelected({});
+    setQuantities({});
+    setLastSearch("");
+    setError(null);
+    setLoading(false);
+  };
+
   return (
     <div>
+      {showSessionPopup && (
+        <div className="session-popup-overlay" onClick={() => setShowSessionPopup(false)}>
+          <div className="session-popup" onClick={e => e.stopPropagation()}>
+            <div className="session-popup-title">About my session</div>
+            <div className="session-popup-fields">
+              <div className="session-popup-field"><span>Login Name:</span> <span>{username || 'N/A'}</span></div>
+              <div className="session-popup-field"><span>Database:</span> <span>IMSStageBharath</span></div>
+              <div className="session-popup-field"><span>Admin:</span> <span>{/* TODO: Fill with real value if available */}N/A</span></div>
+            </div>
+            <button className="session-popup-close" onClick={() => setShowSessionPopup(false)}>Close</button>
+          </div>
+        </div>
+      )}
       <nav className="taskbar">
         <div className="taskbar-title clickable" onClick={() => setPage('home')}>
           <img src="/wizard.svg" alt="Wizard Logo" className="taskbar-logo" />
@@ -200,16 +229,26 @@ function App() {
           <li><a href="#" onClick={() => setPage('search')}>Search</a></li>
           <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
           <li><a href="#" onClick={() => setPage('about')}>About</a></li>
-          <li><a href="#" onClick={() => setPage('contact')}>Contact</a></li>
-          <li><a href="#" onClick={() => setPage('login')}>Login</a></li> {/* Login tab, furthest right */}
+          {!accessToken ? (
+            <li><a href="#" onClick={() => setPage('login')}>Login</a></li>
+          ) : (
+            <>
+              <li>
+                <a href="#" className="taskbar-link" onClick={e => { e.preventDefault(); setShowSessionPopup(true); }}>
+                  Session
+                </a>
+              </li>
+              <li><a href="#" onClick={handleLogout}>Logout</a></li>
+            </>
+          )}
         </ul>
       </nav>
       {/* Use HomePage component for the homepage */}
       {page === 'home' && (
-        <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleSearch} />
+        <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleSearch} accessToken={accessToken} />
       )}
       {page === 'login' && (
-        <LoginPage />
+        <LoginPage setPage={setPage} setAccessToken={setAccessToken} setUsername={setUsername} />
       )}
       {page === 'search' && (
         <>
@@ -254,7 +293,6 @@ function App() {
       )}
       <main className="main-content">
         {page === 'about' && <div>About Page</div>}
-        {page === 'contact' && <div>Contact Page</div>}
         {page === 'orders' && <div>Orders Page</div>}
         {page === 'requiredFields' && (
           <RequiredFields
