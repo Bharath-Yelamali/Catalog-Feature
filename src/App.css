@@ -788,33 +788,6 @@ body {
   align-items: center;
 }
 
-.homepage-login-btn-container {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  margin-top: 40px;
-  position: relative;
-  z-index: 2;
-}
-
-.homepage-login-btn {
-  font-size: 1.2rem;
-  padding: 12px 36px;
-  border-radius: 8px;
-  border: none;
-  background: #2d72d9;
-  color: #fff;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(44,130,201,0.10);
-  cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
-}
-.homepage-login-btn:hover,
-.homepage-login-btn:focus {
-  background: #1751a1;
-  box-shadow: 0 4px 16px rgba(44,130,201,0.13);
-}
-
 .homepage-description-section,
 .homepage-description-text {
   display: none !important;

@@ -5,11 +5,19 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken }) => {
 
   const handleHomeSubmit = e => {
     e.preventDefault();
+    // Always redirect to login if not logged in, regardless of input
+    if (!accessToken) {
+      if (typeof handleSearch === 'function') {
+        handleSearch({ key: 'Enter', preventDefault: () => {}, stopPropagation: () => {}, value: homeSearch });
+      }
+      return;
+    }
+    // If logged in, proceed as normal
     setSearch(homeSearch);
     setPage('search');
     setTimeout(() => {
       if (typeof handleSearch === 'function') {
-        handleSearch({ key: 'Enter', preventDefault: () => {}, stopPropagation: () => {} });
+        handleSearch({ key: 'Enter', preventDefault: () => {}, stopPropagation: () => {}, value: homeSearch });
       }
     }, 0);
   };
@@ -31,17 +39,6 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken }) => {
           </div>
         </form>
       </div>
-      {/* Only the login button below the banner */}
-      {!accessToken && (
-        <div className="homepage-login-btn-container" style={{ position: 'relative', zIndex: 1001, marginTop: '520px', marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
-          <button
-            className="homepage-login-btn"
-            onClick={() => setPage('login')}
-          >
-            Go to Login
-          </button>
-        </div>
-      )}
       <div style={{ height: '60px' }} />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import * as XLSX from 'xlsx';
 import './App.css'
 import SearchBar from './components/SearchBar';
@@ -63,6 +63,11 @@ function App() {
   const [accessToken, setAccessToken] = useState(null);
   const [username, setUsername] = useState("");
   const [showSessionPopup, setShowSessionPopup] = useState(false);
+  const [pendingSearch, setPendingSearch] = useState(null);
+  // Track if login was triggered by a search attempt (even blank)
+  const [loginFromSearch, setLoginFromSearch] = useState(false);
+  // Track the last page before login (for nav login button)
+  const [lastPage, setLastPage] = useState('home');
   const abortControllerRef = useRef();
 
   const handleSearch = async (e) => {
@@ -120,17 +125,31 @@ function App() {
     }
   };
 
-  // Handler for the large search bar on the login page
+  // Handler for the large search bar on the login page or homepage
   const handleLoginSearch = (e) => {
-    if (e.key === 'Enter' && loginSearch.trim() !== "") {
-      setSearch(loginSearch);
-      setPage('search');
-      setTimeout(() => {
-        // Simulate Enter key for search page's search bar
-        const event = { key: 'Enter' };
-        handleSearch(event);
-      }, 0);
+    const searchValue = e.value !== undefined ? e.value : loginSearch;
+    if (e.key === 'Enter') {
+      if (!accessToken) {
+        setPendingSearch(searchValue); // can be blank
+        setLoginFromSearch(true);
+        setPage('login');
+      } else {
+        setSearch(searchValue);
+        setPage('search');
+        setTimeout(() => {
+          // Simulate Enter key for search page's search bar
+          const event = { key: 'Enter' };
+          handleSearch(event);
+        }, 0);
+      }
     }
+  };
+
+  // Handler for nav login button
+  const handleNavLogin = () => {
+    setLastPage(page); // remember where user was
+    setLoginFromSearch(false);
+    setPage('login');
   };
 
   // Export handler for checked items
@@ -206,6 +225,32 @@ function App() {
     setLoading(false);
   };
 
+  // When login is successful, check for pending search and loginFromSearch
+  const handleLoginSuccess = (token, usernameValue) => {
+    setAccessToken(token);
+    setUsername(usernameValue);
+    if (loginFromSearch) {
+      setSearch(pendingSearch ?? '');
+      setPendingSearch(null);
+      setLoginFromSearch(false);
+      setPage('search');
+      setTimeout(() => {
+        const event = { key: 'Enter' };
+        handleSearch(event);
+      }, 0);
+    } else {
+      setPage(lastPage || 'home');
+    }
+  };
+
+  // Auto-trigger search fetch if redirected to search page, even if search is blank
+  useEffect(() => {
+    if (page === 'search' && !loading && results.length === 0 && accessToken) {
+      handleSearch({ key: 'Enter' });
+    }
+    // Only run when page, search, loading, results, or accessToken changes
+  }, [page, search, loading, results.length, accessToken]);
+
   return (
     <div>
       {showSessionPopup && (
@@ -230,7 +275,7 @@ function App() {
           <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
           <li><a href="#" onClick={() => setPage('about')}>About</a></li>
           {!accessToken ? (
-            <li><a href="#" onClick={() => setPage('login')}>Login</a></li>
+            <li><a href="#" onClick={handleNavLogin}>Login</a></li>
           ) : (
             <>
               <li>
@@ -245,10 +290,10 @@ function App() {
       </nav>
       {/* Use HomePage component for the homepage */}
       {page === 'home' && (
-        <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleSearch} accessToken={accessToken} />
+        <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleLoginSearch} accessToken={accessToken} />
       )}
       {page === 'login' && (
-        <LoginPage setPage={setPage} setAccessToken={setAccessToken} setUsername={setUsername} />
+        <LoginPage setPage={setPage} setAccessToken={(token) => handleLoginSuccess(token, username)} setUsername={setUsername} />
       )}
       {page === 'search' && (
         <>

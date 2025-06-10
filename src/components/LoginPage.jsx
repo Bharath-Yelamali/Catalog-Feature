@@ -34,7 +34,7 @@ const LoginPage = ({ setPage, setAccessToken, setUsername }) => {
       setLoading(false);
       setAccessToken(data.access_token); // Save token in app state
       setUsername(username); // Save username in app state
-      setPage('home'); // Redirect to homepage on successful login
+      // Do not setPage here; let parent App handle redirect after login
     } catch (err) {
       setError('Network error. Please try again.');
       setLoading(false);
