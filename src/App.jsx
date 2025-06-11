@@ -74,6 +74,7 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [identities, setIdentities] = useState([]);
   const abortControllerRef = useRef();
+  const [justSearched, setJustSearched] = useState(false);
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
@@ -285,16 +286,12 @@ function App() {
   };
 
   // Auto-trigger search fetch if redirected to search page, even if search is blank
-  const hasAutoSearched = useRef(false);
   useEffect(() => {
-    if (page === 'search' && !loading && accessToken && !hasAutoSearched.current) {
+    if (page === 'search' && !loading && accessToken && justSearched) {
       handleSearch({ key: 'Enter' });
-      hasAutoSearched.current = true;
+      setJustSearched(false);
     }
-    if (page !== 'search') {
-      hasAutoSearched.current = false;
-    }
-  }, [page, loading, accessToken]);
+  }, [page, loading, accessToken, justSearched]);
 
   return (
     <div>
@@ -336,7 +333,7 @@ function App() {
       </nav>
       {/* Use HomePage component for the homepage */}
       {page === 'home' && (
-        <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleLoginSearch} accessToken={accessToken} />
+        <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleLoginSearch} accessToken={accessToken} setJustSearched={setJustSearched} />
       )}
       {page === 'login' && (
         <LoginPage setPage={setPage} handleLoginSuccess={handleLoginSuccess} />
