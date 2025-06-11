@@ -285,12 +285,16 @@ function App() {
   };
 
   // Auto-trigger search fetch if redirected to search page, even if search is blank
+  const hasAutoSearched = useRef(false);
   useEffect(() => {
-    if (page === 'search' && !loading && results.length === 0 && accessToken) {
+    if (page === 'search' && !loading && accessToken && !hasAutoSearched.current) {
       handleSearch({ key: 'Enter' });
+      hasAutoSearched.current = true;
     }
-    // Only run when page, search, loading, results, or accessToken changes
-  }, [page, search, loading, results.length, accessToken]);
+    if (page !== 'search') {
+      hasAutoSearched.current = false;
+    }
+  }, [page, loading, accessToken]);
 
   return (
     <div>
