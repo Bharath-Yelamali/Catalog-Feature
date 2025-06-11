@@ -268,6 +268,14 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Register userInfo route
+const userInfoRouter = require('./userInfo');
+app.use('/api', userInfoRouter);
+
+// Register identity route
+const identityRouter = require('./identity');
+app.use('/api', identityRouter);
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

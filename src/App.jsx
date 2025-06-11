@@ -8,6 +8,7 @@ import ConfirmationSummary from './components/ConfirmationSummary';
 import { fetchParts } from './api/parts';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
+import { fetchUserFirstName } from './api/userInfo';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -62,12 +63,16 @@ function App() {
   const [loginPassword, setLoginPassword] = useState("");
   const [accessToken, setAccessToken] = useState(null);
   const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [showSessionPopup, setShowSessionPopup] = useState(false);
   const [pendingSearch, setPendingSearch] = useState(null);
   // Track if login was triggered by a search attempt (even blank)
   const [loginFromSearch, setLoginFromSearch] = useState(false);
   // Track the last page before login (for nav login button)
   const [lastPage, setLastPage] = useState('home');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [identities, setIdentities] = useState([]);
   const abortControllerRef = useRef();
 
   const handleSearch = async (e) => {
@@ -226,9 +231,45 @@ function App() {
   };
 
   // When login is successful, check for pending search and loginFromSearch
-  const handleLoginSuccess = (token, usernameValue) => {
+  const handleLoginSuccess = async (token, usernameValue) => {
     setAccessToken(token);
     setUsername(usernameValue);
+    // Fetch user's first and last name after login
+    try {
+      const data = await fetchUserFirstName({ username: usernameValue, accessToken: token });
+      setFirstName(data.firstName || "");
+      setLastName(data.lastName || "");
+      // Fetch identities immediately after user info
+      try {
+        const identitiesData = await import('./api/identity').then(mod => mod.fetchIdentities({ accessToken: token }));
+        console.log('Fetched identities from API:', identitiesData); // Log to browser console
+        setIdentities(identitiesData.value || []);
+        // Check if user is admin by matching name (case-insensitive, trimmed)
+        const userNameNorm = (usernameValue || '').trim().toLowerCase();
+        const fullNameNorm = (`${data.firstName || ''} ${data.lastName || ''}`).trim().toLowerCase();
+        let adminId = null;
+        let adminMatch = false;
+        (identitiesData.value || []).forEach(admin => {
+          if (!admin || !admin.name) return;
+          const adminNameNorm = admin.name.trim().toLowerCase();
+          if (adminNameNorm === userNameNorm || adminNameNorm === fullNameNorm) {
+            adminId = admin.id || null;
+            adminMatch = true;
+          }
+        });
+        if (adminId) {
+          console.log('User is admin. Admin ID:', adminId);
+        }
+        setIsAdmin(adminMatch);
+      } catch (err) {
+        setIdentities([]);
+        setIsAdmin(false);
+      }
+    } catch (err) {
+      setFirstName("");
+      setLastName("");
+      setIdentities([]);
+    }
     if (loginFromSearch) {
       setSearch(pendingSearch ?? '');
       setPendingSearch(null);
@@ -260,7 +301,8 @@ function App() {
             <div className="session-popup-fields">
               <div className="session-popup-field"><span>Login Name:</span> <span>{username || 'N/A'}</span></div>
               <div className="session-popup-field"><span>Database:</span> <span>IMSStageBharath</span></div>
-              <div className="session-popup-field"><span>Admin:</span> <span>{/* TODO: Fill with real value if available */}N/A</span></div>
+              <div className="session-popup-field"><span>Admin:</span> <span>{isAdmin ? 'Yes' : 'No'}</span></div>
+              <div className="session-popup-field"><span>Full Name:</span> <span>{(firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'N/A'}</span></div>
             </div>
             <button className="session-popup-close" onClick={() => setShowSessionPopup(false)}>Close</button>
           </div>
@@ -293,7 +335,7 @@ function App() {
         <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleLoginSearch} accessToken={accessToken} />
       )}
       {page === 'login' && (
-        <LoginPage setPage={setPage} setAccessToken={(token) => handleLoginSuccess(token, username)} setUsername={setUsername} />
+        <LoginPage setPage={setPage} handleLoginSuccess={handleLoginSuccess} />
       )}
       {page === 'search' && (
         <>
