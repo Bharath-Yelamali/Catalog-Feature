@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import '../App.css';
 
-const LoginPage = ({ setPage, setAccessToken, setUsername }) => {
+const LoginPage = ({ setPage, setAccessToken, setUsername, handleLoginSuccess }) => {
   const [username, setUsernameInput] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,8 +32,13 @@ const LoginPage = ({ setPage, setAccessToken, setUsername }) => {
         return;
       }
       setLoading(false);
-      setAccessToken(data.access_token); // Save token in app state
-      setUsername(username); // Save username in app state
+      // Use handleLoginSuccess to set token, username, and fetch first name
+      if (typeof handleLoginSuccess === 'function') {
+        await handleLoginSuccess(data.access_token, username);
+      } else {
+        setAccessToken(data.access_token);
+        setUsername(username);
+      }
       // Do not setPage here; let parent App handle redirect after login
     } catch (err) {
       setError('Network error. Please try again.');
