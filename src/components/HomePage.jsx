@@ -7,9 +7,6 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken, setJustSearch
     e.preventDefault();
     // Always redirect to login if not logged in, regardless of input
     if (!accessToken) {
-      // Store search intent in sessionStorage for post-login auto-search
-      sessionStorage.setItem('pendingSearch', homeSearch);
-      sessionStorage.setItem('pendingJustSearched', 'true');
       if (typeof handleSearch === 'function') {
         handleSearch({ key: 'Enter', preventDefault: () => {}, stopPropagation: () => {}, value: homeSearch });
       }
