@@ -32,7 +32,9 @@ router.get('/orders', async (req, res) => {
       ? `&$filter=contains(keyed_name,'${encodeURIComponent(searchTerm)}')`
       : '';
     
-    const odataUrl = `${BASE_URL}m_Procurement_Request?${orderBy}&${top}${filter}`;
+    // Use $select=* to request all available properties, including those with null values
+    const select = "$select=*";
+    const odataUrl = `${BASE_URL}m_Procurement_Request?${orderBy}&${top}&${select}${filter}`;
     
     const imsResp = await fetch(odataUrl, {
       headers: { Authorization: `Bearer ${token}` }

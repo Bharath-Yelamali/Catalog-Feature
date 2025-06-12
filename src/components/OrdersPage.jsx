@@ -297,7 +297,6 @@ const OrdersPage = ({ username, accessToken }) => {
                   &times;
                 </button>
               </div>
-              
               <div className="order-details-body">
                 <div className="order-details-summary">
                   <h4>
@@ -307,50 +306,60 @@ const OrdersPage = ({ username, accessToken }) => {
                     Status: {renderStatusBadge(getFieldValue(selectedOrder, 'state'))}
                   </div>
                 </div>
-                
+                <div style={{marginBottom: 16, color: '#4a5568', fontSize: 14}}>
+                  <b>Note:</b> Only non-empty fields are shown below. Fields already visible in the main table (Order Name, Order ID, Status, Date Created, Last Modified) are not repeated here.
+                </div>
                 <div className="order-details-grid">
-                  {Object.keys(selectedOrder).map((key) => {
-                    // Skip displaying fields with null values or system fields
-                    if (
-                      selectedOrder[key] === null || 
-                      key.startsWith('_') ||
-                      key === '@odata.context'
-                    ) {
-                      return null;
-                    }
-                    
-                    // Handle date fields
-                    let value = selectedOrder[key];
-                    if (
-                      (key.toLowerCase().includes('date') || 
-                       key.toLowerCase().includes('_on') || 
-                       key.toLowerCase().includes('_at')) && 
-                      value && typeof value === 'string' && value.includes('T')
-                    ) {
-                      const date = new Date(value);
-                      if (!isNaN(date)) {
-                        value = date.toLocaleString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        });
-                      }
-                    }
-                    
-                    return (
-                      <div key={key} className="order-details-item">
-                        <div className="order-details-label">{key}</div>
-                        <div className="order-details-value">
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {/* Only show the curated list of fields, grouped and labeled, but skip those already in the main table and those that are empty/null */}
+                  {/* 1. Project & Supplier */}
+                  {selectedOrder['m_project@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Project</div><div className="order-details-value">{selectedOrder['m_project@aras.keyed_name']}</div></div>}
+                  {selectedOrder['m_supplier@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Supplier</div><div className="order-details-value">{selectedOrder['m_supplier@aras.keyed_name']}</div></div>}
+                  {selectedOrder['m_po_num'] && <div className="order-details-item"><div className="order-details-label">PO Number</div><div className="order-details-value">{selectedOrder['m_po_num']}</div></div>}
+                  {selectedOrder['m_po_owner'] && <div className="order-details-item"><div className="order-details-label">PO Owner</div><div className="order-details-value">{selectedOrder['m_po_owner']}</div></div>}
+                  {selectedOrder['m_coordinator'] && <div className="order-details-item"><div className="order-details-label">Coordinator</div><div className="order-details-value">{selectedOrder['m_coordinator']}</div></div>}
+                  {/* 2. Financial & Purchase Details */}
+                  {selectedOrder['m_total_price'] && <div className="order-details-item"><div className="order-details-label">Total Price</div><div className="order-details-value">{selectedOrder['m_total_price']}</div></div>}
+                  {selectedOrder['m_currency'] && <div className="order-details-item"><div className="order-details-label">Currency</div><div className="order-details-value">{selectedOrder['m_currency']}</div></div>}
+                  {selectedOrder['m_purchase_type'] && <div className="order-details-item"><div className="order-details-label">Purchase Type</div><div className="order-details-value">{selectedOrder['m_purchase_type']}</div></div>}
+                  {selectedOrder['m_is_capex'] && <div className="order-details-item"><div className="order-details-label">Is Capex</div><div className="order-details-value">{selectedOrder['m_is_capex'] === '1' ? 'Yes' : selectedOrder['m_is_capex'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_io_num'] && <div className="order-details-item"><div className="order-details-label">IO Number</div><div className="order-details-value">{selectedOrder['m_io_num']}</div></div>}
+                  {/* 3. Delivery & Contact */}
+                  {selectedOrder['m_delivery_location'] && <div className="order-details-item"><div className="order-details-label">Delivery Location</div><div className="order-details-value">{selectedOrder['m_delivery_location']}</div></div>}
+                  {selectedOrder['m_deliverto_msft'] && <div className="order-details-item"><div className="order-details-label">Deliver to MSFT</div><div className="order-details-value">{selectedOrder['m_deliverto_msft']}</div></div>}
+                  {selectedOrder['m_contact'] && <div className="order-details-item"><div className="order-details-label">Contact</div><div className="order-details-value">{selectedOrder['m_contact']}</div></div>}
+                  {selectedOrder['m_email'] && <div className="order-details-item"><div className="order-details-label">Email</div><div className="order-details-value">{selectedOrder['m_email']}</div></div>}
+                  {selectedOrder['m_email_alias'] && <div className="order-details-item"><div className="order-details-label">Email Alias</div><div className="order-details-value">{selectedOrder['m_email_alias']}</div></div>}
+                  {/* 4. Approval & Review */}
+                  {selectedOrder['m_reviewer'] && <div className="order-details-item"><div className="order-details-label">Reviewer</div><div className="order-details-value">{selectedOrder['m_reviewer']}</div></div>}
+                  {selectedOrder['m_invoice_approver'] && <div className="order-details-item"><div className="order-details-label">Invoice Approver</div><div className="order-details-value">{selectedOrder['m_invoice_approver']}</div></div>}
+                  {selectedOrder['m_interim_approver'] && <div className="order-details-item"><div className="order-details-label">Interim Approver</div><div className="order-details-value">{selectedOrder['m_interim_approver']}</div></div>}
+                  {selectedOrder['m_safe_appover'] && <div className="order-details-item"><div className="order-details-label">SAFE Approver</div><div className="order-details-value">{selectedOrder['m_safe_appover']}</div></div>}
+                  {selectedOrder['m_is_fid'] && <div className="order-details-item"><div className="order-details-label">Is FID</div><div className="order-details-value">{selectedOrder['m_is_fid'] === '1' ? 'Yes' : selectedOrder['m_is_fid'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_is_lab_tpm'] && <div className="order-details-item"><div className="order-details-label">Is Lab TPM</div><div className="order-details-value">{selectedOrder['m_is_lab_tpm'] === '1' ? 'Yes' : selectedOrder['m_is_lab_tpm'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_is_msft_poc'] && <div className="order-details-item"><div className="order-details-label">Is MSFT POC</div><div className="order-details-value">{selectedOrder['m_is_msft_poc'] === '1' ? 'Yes' : selectedOrder['m_is_msft_poc'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_is_po_urgent'] && <div className="order-details-item"><div className="order-details-label">Is PO Urgent</div><div className="order-details-value">{selectedOrder['m_is_po_urgent'] === '1' ? 'Yes' : selectedOrder['m_is_po_urgent'] === '0' ? 'No' : ''}</div></div>}
+                  {/* 5. Business Justification & Notes */}
+                  {selectedOrder['m_detail_info'] && <div className="order-details-item"><div className="order-details-label">Detail Info</div><div className="order-details-value">{selectedOrder['m_detail_info']}</div></div>}
+                  {selectedOrder['m_notes_proc'] && <div className="order-details-item"><div className="order-details-label">Notes to Procurement</div><div className="order-details-value">{selectedOrder['m_notes_proc']}</div></div>}
+                  {selectedOrder['m_explanation_for_wait'] && <div className="order-details-item"><div className="order-details-label">Explanation for Wait</div><div className="order-details-value">{selectedOrder['m_explanation_for_wait']}</div></div>}
+                  {selectedOrder['m_explanation_not_submit'] && <div className="order-details-item"><div className="order-details-label">Explanation Not Submit</div><div className="order-details-value">{selectedOrder['m_explanation_not_submit']}</div></div>}
+                  {selectedOrder['m_why_not_forecasted'] && <div className="order-details-item"><div className="order-details-label">Why Not Forecasted</div><div className="order-details-value">{selectedOrder['m_why_not_forecasted']}</div></div>}
+                  {/* 6. Workflow & Attachments */}
+                  {(selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name']) && <div className="order-details-item"><div className="order-details-label">Current State</div><div className="order-details-value">{selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name']}</div></div>}
+                  {selectedOrder['m_lineitem_options'] && <div className="order-details-item"><div className="order-details-label">Line Items</div><div className="order-details-value">{selectedOrder['m_lineitem_options']}</div></div>}
+                  {selectedOrder['m_Procurement_Request_Files@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Files/Attachments</div><div className="order-details-value"><a href={selectedOrder['m_Procurement_Request_Files@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Files</a></div></div>}
+                  {selectedOrder['m_Procurement_Request_Signoff@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Signoff</div><div className="order-details-value"><a href={selectedOrder['m_Procurement_Request_Signoff@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Signoff</a></div></div>}
+                  {selectedOrder['m_quote@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Quote</div><div className="order-details-value"><a href={selectedOrder['m_quote@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Quote</a></div></div>}
+                  {/* 7. Other Metadata */}
+                  {selectedOrder['major_rev'] && <div className="order-details-item"><div className="order-details-label">Major Rev</div><div className="order-details-value">{selectedOrder['major_rev']}</div></div>}
+                  {selectedOrder['generation'] && <div className="order-details-item"><div className="order-details-label">Generation</div><div className="order-details-value">{selectedOrder['generation']}</div></div>}
+                  {selectedOrder['is_current'] && <div className="order-details-item"><div className="order-details-label">Is Current</div><div className="order-details-value">{selectedOrder['is_current']}</div></div>}
+                  {selectedOrder['is_released'] && <div className="order-details-item"><div className="order-details-label">Is Released</div><div className="order-details-value">{selectedOrder['is_released']}</div></div>}
+                  {selectedOrder['itemtype'] && <div className="order-details-item"><div className="order-details-label">Itemtype</div><div className="order-details-value">{selectedOrder['itemtype']}</div></div>}
+                  {selectedOrder['permission_id@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Permission</div><div className="order-details-value">{selectedOrder['permission_id@aras.keyed_name']}</div></div>}
+                  {selectedOrder['team_id@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Team</div><div className="order-details-value"><a href={selectedOrder['team_id@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Team</a></div></div>}
                 </div>
               </div>
-              
               <div className="order-details-footer">
                 <button 
                   className="order-details-button" 
