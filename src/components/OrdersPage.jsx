@@ -309,6 +309,26 @@ const OrdersPage = ({ username, accessToken }) => {
                 <div style={{marginBottom: 16, color: '#4a5568', fontSize: 14}}>
                   <b>Note:</b> Only non-empty fields are shown below. Fields already visible in the main table (Order Name, Order ID, Status, Date Created, Last Modified) are not repeated here.
                 </div>
+                {/* Order Metadata Section - Removed Locked By field */}
+                <div className="order-details-section" style={{margin: '0 0 24px 0', padding: '16px 18px', background: '#f7fafc', borderRadius: 8, border: '1px solid #e2e8f0'}}>
+                  <h4 style={{margin: '0 0 10px 0', fontWeight: 600, fontSize: 16}}>Order Metadata</h4>
+                  <div style={{display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: 6, columnGap: 16, fontSize: 15}}>
+                    <div style={{fontWeight: 500}}>Created By:</div>
+                    <div>{selectedOrder['created_by_id@aras.keyed_name'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>Created On:</div>
+                    <div>{selectedOrder['created_on'] ? new Date(selectedOrder['created_on']).toLocaleString() : '—'}</div>
+                    <div style={{fontWeight: 500}}>Modified By:</div>
+                    <div>{selectedOrder['modified_by_id@aras.keyed_name'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>Modified On:</div>
+                    <div>{selectedOrder['modified_on'] ? new Date(selectedOrder['modified_on']).toLocaleString() : '—'}</div>
+                    <div style={{fontWeight: 500}}>Major Rev:</div>
+                    <div>{selectedOrder['major_rev'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>Generation:</div>
+                    <div>{selectedOrder['generation'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>State:</div>
+                    <div>{selectedOrder['state'] || '—'}</div>
+                  </div>
+                </div>
                 <div className="order-details-grid">
                   {/* Only show the curated list of fields, grouped and labeled, but skip those already in the main table and those that are empty/null */}
                   {/* 1. Project & Supplier */}
