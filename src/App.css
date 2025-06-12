@@ -1,7 +1,7 @@
 #root {
-  max-width: 1280px;
+  max-width: 100%; /* Changed from 1280px to 100% to use full screen width */
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem; /* Reduced padding to use more screen space */
   text-align: center;
   background: #f7fafd;
 }
@@ -849,4 +849,553 @@ body {
 }
 .session-popup-close:hover {
   background: #1a4e8a;
+}
+
+.orders-page-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0; 
+  position: relative;
+  left: 0;
+  top: 0; /* Removed top spacing completely */
+  z-index: 900;
+}
+
+.orders-dropdown {
+  position: relative;
+  width: 100%;
+  max-width: 98%; /* Increased from 95% to 98% of screen width */
+  margin: 0 auto;
+  padding: 8px 10px; /* Further reduced horizontal padding for more space */
+}
+
+.orders-header {
+  margin-bottom: 12px; /* Reduced bottom margin */
+}
+
+
+.orders-content {
+  background: #fff;
+  border: none; /* Removed border */
+  border-radius: 8px; /* Reduced border radius to maximize space */
+  box-shadow: 0 6px 24px rgba(0,0,0,0.08); /* Softer shadow */
+  margin: 0 auto;
+  padding: 0; /* Remove all padding */
+  max-height: calc(100vh - 140px); /* Increased available height further */
+  overflow-y: auto;
+  overflow-x: auto;
+  animation: fade-in 0.5s ease;
+  position: relative; /* Establish positioning context */
+  width: 100%; /* Ensure full width */
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.orders-table-hint {
+  background-color: #ebf8ff;
+  color: #2b6cb0;
+  padding: 6px 12px; /* Reduced padding */
+  margin-bottom: 12px; /* Reduced bottom margin from 16px to 12px */
+  border-radius: 6px;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+}
+
+.orders-table-hint-icon {
+  margin-right: 8px;
+  font-size: 1.1rem;
+}
+
+.orders-table {
+  width: 100%;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed; /* Changed from auto to fixed for better column width distribution */
+  word-break: break-word;
+  font-size: 0.95rem;
+}
+
+/* Fixed Table Header */
+.orders-table thead {
+  background-color: #ffffff;
+  position: sticky;
+  top: -1px; /* Shift up by 1px to remove the gap */
+  z-index: 1000; /* Increased z-index to ensure it appears above dropdown content */
+  width: 100%;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.orders-table thead::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: #e2e8f0;
+}
+
+.orders-table th,
+.orders-table td {
+  border: none; /* Removed borders */
+  border-bottom: 1px solid #edf2f7; /* Only bottom border */
+  padding: 8px 10px; /* Further reduced padding for more compact view */
+  max-width: none; /* Remove max-width constraint to allow cell expansion */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  transition: background-color 0.2s;
+}
+
+.orders-table th {
+  background-color: #ffffff; /* Full white background */
+  font-weight: 600;
+  color: #4a5568; /* Darker text for headers */
+  text-transform: uppercase; /* Uppercase headers */
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  position: sticky;
+  top: -1px; /* Match the thead's negative top value */
+  z-index: 1000; /* Increased z-index */
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1); /* Stronger shadow */
+  height: 45px; /* Specific height for the header */
+}
+
+.orders-table-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.orders-table tr:hover td {
+  background-color: #f0f7ff; /* Highlight row on hover */
+  box-shadow: 0 2px 5px rgba(66, 153, 225, 0.1);
+}
+
+.orders-table-row:active td {
+  background-color: #e6f2ff; /* Deeper color when clicked */
+}
+
+.orders-subtitle {
+  font-size: 0.9rem; /* Reduced font size */
+  color: #718096;
+  margin-top: 0;
+  margin-bottom: 10px; /* Reduced margin from 24px to 10px */
+  font-style: normal;
+}
+
+/* Status colors */
+.order-status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: center;
+  min-width: 80px;
+}
+
+.order-status-draft {
+  background-color: #EDF2F7;
+  color: #4A5568;
+}
+
+.order-status-submitted {
+  background-color: #E6FFFA;
+  color: #2C7A7B;
+}
+
+.order-status-approved {
+  background-color: #E6FFFA;
+  color: #2F855A;
+}
+
+.order-status-rejected {
+  background-color: #FFF5F5;
+  color: #C53030;
+}
+
+.order-status-completed {
+  background-color: #E6FFFA;
+  color: #2C7A7B;
+}
+
+.orders-search-container {
+  margin: 0 0 16px 0; /* Reduced bottom margin from 28px to 16px */
+  display: flex;
+  justify-content: center;
+}
+
+.orders-search-form {
+  display: flex;
+  width: 100%;
+  max-width: 700px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.orders-search-input {
+  flex-grow: 1;
+  padding: 14px 18px;
+  border: 1px solid #e2e8f0;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  font-size: 16px;
+  outline: none;
+  transition: border 0.3s, box-shadow 0.3s;
+}
+
+.orders-search-input:focus {
+  border-color: #4299e1;
+  box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+}
+
+.orders-search-button {
+  padding: 0 24px;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.3s;
+  display: flex;
+  align-items: center;
+}
+
+.orders-search-button:hover {
+  background-color: #3182ce;
+}
+
+.orders-search-button:before {
+  content: "🔍";
+  margin-right: 8px;
+}
+
+.orders-search-clear {
+  margin-left: 12px;
+  padding: 0 20px;
+  background-color: #fff;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.3s, border-color 0.3s;
+}
+
+.orders-search-clear:hover {
+  background-color: #f7fafc;
+  border-color: #cbd5e0;
+}
+
+.orders-no-results {
+  text-align: center;
+  color: #718096;
+  padding: 48px 24px;
+  font-style: normal;
+  background-color: #f9fafb;
+  border-radius: 12px;
+  margin-top: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.orders-no-results h3 {
+  margin: 12px 0;
+  font-size: 1.2rem;
+  color: #4a5568;
+}
+
+.orders-no-results p {
+  margin: 0;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.orders-no-results-icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.orders-loading {
+  text-align: center;
+  color: #4a5568;
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.orders-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e2e8f0;
+  border-radius: 50%;
+  border-top-color: #4299e1;
+  animation: spinner 0.8s linear infinite;
+  margin-bottom: 8px;
+}
+
+.orders-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c53030;
+  padding: 16px 24px;
+  background-color: #fff5f5;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border: 1px solid #fed7d7;
+  box-shadow: 0 2px 8px rgba(197, 48, 48, 0.1);
+  gap: 12px;
+}
+
+.orders-error-icon {
+  font-size: 1.5rem;
+}
+
+.orders-error-message {
+  font-weight: 500;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Order Details Modal */
+.order-details-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1100;
+  backdrop-filter: blur(3px);
+}
+
+.order-details-content {
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  animation: modal-fade-in 0.3s ease;
+  overflow: hidden;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.order-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}
+
+.order-details-header h3 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #2d3748;
+}
+
+.order-details-close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  line-height: 1;
+  cursor: pointer;
+  color: #718096;
+  padding: 0 8px;
+  transition: color 0.2s;
+}
+
+.order-details-close:hover {
+  color: #e53e3e;
+}
+
+.order-details-body {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.order-details-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.order-details-summary h4 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #2d3748;
+}
+
+.order-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 16px;
+}
+
+.order-details-item {
+  padding: 12px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border-left: 3px solid #4299e1;
+}
+
+.order-details-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #4a5568;
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.order-details-value {
+  color: #2d3748;
+  word-break: break-word;
+}
+
+.order-details-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  background-color: #f8fafc;
+}
+
+.order-details-button {
+  padding: 10px 20px;
+  background-color: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.order-details-button:hover {
+  background-color: #3182ce;
+}
+
+/* Responsive: shrink font and cell size for many columns */
+@media (max-width: 1200px) {
+  .orders-table th,
+  .orders-table td {
+    font-size: 0.85rem;
+    padding: 6px;
+    max-width: 120px;
+  }
+  
+  .orders-dropdown {
+    padding: 16px 20px;
+    max-width: 98%;
+  }
+  
+  .orders-content {
+    padding: 0;
+  }
+  
+  .order-details-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .orders-table th,
+  .orders-table td {
+    font-size: 0.8rem;
+    padding: 4px;
+    max-width: 80px;
+  }
+  
+  .orders-search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .orders-search-input {
+    border-radius: 8px 8px 0 0;
+    border-right: 1px solid #e2e8f0;
+  }
+  
+  .orders-search-button {
+    border-radius: 0 0 8px 8px;
+  }
+  
+  .orders-search-clear {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+  
+  .orders-dropdown {
+    padding: 12px 16px;
+  }
+  
+  .order-details-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .order-details-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .order-details-status {
+    margin-top: 10px;
+  }
+  
+  .order-details-content {
+    width: 95%;
+    max-height: 90vh;
+  }
 }

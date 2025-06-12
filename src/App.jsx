@@ -9,6 +9,7 @@ import { fetchParts } from './api/parts';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { fetchUserFirstName } from './api/userInfo';
+import OrdersPage from './components/OrdersPage';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -312,10 +313,15 @@ function App() {
       <nav className="taskbar">
         <div className="taskbar-title clickable" onClick={() => setPage('home')}>
           <img src="/wizard.svg" alt="Wizard Logo" className="taskbar-logo" />
-        </div>
-        <ul className="taskbar-links">
-          <li><a href="#" onClick={() => setPage('search')}>Search</a></li>
-          <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
+        </div>        <ul className="taskbar-links">
+          {/* Only show Search link if user is logged in */}
+          {accessToken && (
+            <li><a href="#" onClick={() => setPage('search')}>Search</a></li>
+          )}
+          {/* Only show Orders link if user is logged in */}
+          {accessToken && (
+            <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
+          )}
           <li><a href="#" onClick={() => setPage('about')}>About</a></li>
           {!accessToken ? (
             <li><a href="#" onClick={handleNavLogin}>Login</a></li>
@@ -334,20 +340,24 @@ function App() {
       {/* Use HomePage component for the homepage */}
       {page === 'home' && (
         <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleLoginSearch} accessToken={accessToken} setJustSearched={setJustSearched} />
-      )}
-      {page === 'login' && (
+      )}      {page === 'login' && (
         <LoginPage setPage={setPage} handleLoginSuccess={handleLoginSuccess} />
       )}
       {page === 'search' && (
         <>
-          <SearchBar
-            search={search}
-            setSearch={setSearch}
-            filterType={filterType}
-            setFilterType={setFilterType}
-            handleSearch={handleSearch}
-            resultCount={showResults ? results.length : undefined}
-          />
+          {/* Redirect to home page if not logged in and somehow navigated to search page */}
+          {!accessToken ? (
+            <>{setPage('home')}</>
+          ) : (
+            <SearchBar
+              search={search}
+              setSearch={setSearch}
+              filterType={filterType}
+              setFilterType={setFilterType}
+              handleSearch={handleSearch}
+              resultCount={showResults ? results.length : undefined}
+            />
+          )}
           {(() => {
             window.renderExportButton = () => (
               <button
@@ -360,9 +370,8 @@ function App() {
                 Export
               </button>
             );
-            return null;
-          })()}
-          {showResults && (
+            return null;          })()}
+          {accessToken && showResults && (
             <>
               {loading && <div>Loading parts...</div>}
               {error && <div style={{color: 'red'}}>{error}</div>}
@@ -379,9 +388,17 @@ function App() {
           )}
         </>
       )}
-      <main className="main-content">
-        {page === 'about' && <div>About Page</div>}
-        {page === 'orders' && <div>Orders Page</div>}
+      <main className="main-content">        {page === 'about' && <div>About Page</div>}
+        {page === 'orders' && (
+          <>
+            {/* Redirect to home page if not logged in and somehow navigated to orders page */}
+            {!accessToken ? (
+              <>{setPage('home')}</>
+            ) : (
+              <OrdersPage username={username} accessToken={accessToken} />
+            )}
+          </>
+        )}
         {page === 'requiredFields' && (
           <RequiredFields
             selected={selected}

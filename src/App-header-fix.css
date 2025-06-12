@@ -1,0 +1,37 @@
+/* Table header fix styles - Maximized width */
+.orders-table thead {
+  background-color: #ffffff;
+  position: sticky;
+  top: -1px; /* Match the value in App.css to completely remove the gap */
+  z-index: 1000; /* Increased z-index to ensure it appears above dropdown content */
+  width: 100%;
+  margin-top: 0;
+  padding-top: 0;
+  max-width: none; /* Remove max width constraints */
+}
+
+.orders-table thead::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: #e2e8f0;
+}
+
+.orders-table th {
+  background-color: #ffffff; /* Full white background */
+  font-weight: 600;
+  color: #4a5568; /* Darker text for headers */
+  text-transform: uppercase; /* Uppercase headers */
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  position: sticky;
+  top: -1px; /* Match the thead's top value */
+  z-index: 1000; /* Increased z-index to match thead */
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1); /* Stronger shadow */
+  height: 45px; /* Specific height for the header */
+}
