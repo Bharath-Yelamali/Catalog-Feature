@@ -46,7 +46,7 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken, setJustSearch
       {/* About Section */}
       <section className="homepage-about-section">
         <div className="homepage-about-container">
-          <h2>Welcome to the Procurement Catalog</h2>
+          <h2>Welcome to the Inventory Catalog</h2>
           <p>
             This site is your one-stop platform for searching, requesting, and tracking hardware parts and procurement orders across your organization. Whether you need to find a specific component, submit a new purchase request, or follow the status of your order through the procurement workflow, this catalog makes the process simple and transparent.
           </p>
@@ -100,10 +100,10 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken, setJustSearch
       <section className="homepage-help-section">
         <div className="homepage-help-container">
           <h3>Need help?</h3>
-          <p>Check the <a href="#" style={{ color: '#2d72d9', textDecoration: 'underline' }}>FAQ</a> or contact your procurement team for support.</p>
+          <p>Check the <a href="#" className="homepage-faq-link">FAQ</a> or contact your procurement team for support.</p>
         </div>
       </section>
-      <div style={{ height: '60px' }} />
+      <div className="homepage-bottom-spacer" />
     </div>
   );
 };

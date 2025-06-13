@@ -654,14 +654,37 @@ body {
   border-radius: 6px;
   margin-top: 8px;
   margin-bottom: 8px;
-  cursor: not-allowed;
-  opacity: 0.7;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 .login-hint {
   font-size: 0.95rem;
   color: #888;
   margin-top: 4px;
   text-align: center;
+}
+
+.centralized-login-box {
+  background: #fff;
+  border: 2px solid #bcd6f7;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(44, 62, 80, 0.08);
+  padding: 36px 32px 28px 32px;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.centralized-login-bg {
+  min-height: 100vh;
+  width: 100vw;
+  background: #f5f8fc url('/images/banner-bg.jpg') center center/cover no-repeat;
+  display: flex;
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
 }
 
 .homepage-banner {
@@ -1491,4 +1514,34 @@ body {
   font-size: 1.15rem;
   color: #444;
   margin: 0 auto 0 auto;
+}
+
+.homepage-faq-link {
+  color: #2d72d9;
+  text-decoration: underline;
+}
+
+.homepage-bottom-spacer {
+  height: 60px;
+}
+
+.login-info {
+  margin-bottom: 18px;
+  color: #2d72d9;
+  font-size: 15px;
+  text-align: center;
+}
+
+.login-info-secondary {
+  color: #444;
+}
+
+.login-hint {
+  color: #d27a7a;
+  margin-bottom: 8px;
+}
+
+.login-btn {
+  cursor: pointer;
+  opacity: 1;
 }

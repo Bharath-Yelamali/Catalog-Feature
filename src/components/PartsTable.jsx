@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -151,7 +151,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         <div className="search-results-empty">No parts found.</div>
       ) : (
         <>
-          <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
+          <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
             <div className="search-result-field">
               <input
                 type="checkbox"
@@ -165,6 +165,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             <div className="search-result-field">Total</div>
             <div className="search-result-field">In Use</div>
             <div className="search-result-field">Spare</div>
+            <div className="search-result-field">Surplus</div>
             <div className="search-result-field">Inventory Item Number</div>
             <div className="search-result-field">Manufactur Part #</div>
             <div className="search-result-field">Manufacturer Name</div>
@@ -172,10 +173,19 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           </div>
           {displayGroups.map(group => {
             const part = group.instances[0];
-            const hasMultiple = group.instances.length > 1;
+            // If spare_value is null, treat it as 0
+            const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
+            const total = part.total == null ? 0 : part.total;
+            const inUse = part.inUse == null ? 0 : part.inUse;
+            // General inventory amount
+            const generalInventoryAmount = total - inUse;
+            // Spare is required spare
+            const spare = Math.ceil(spareThreshold * inUse);
+            // Surplus is general inventory minus spare
+            const surplus = generalInventoryAmount - spare;
             return (
               <div key={group.itemNumber}>
-                <div className="search-result-item" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
+                <div className="search-result-item" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
                   <div className="search-result-field">
                     <input
                       type="checkbox"
@@ -210,7 +220,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   </div>
                   <div className="search-result-field">{truncate(part.total?.toString()) ?? 'N/A'}</div>
                   <div className="search-result-field">{truncate(part.inUse?.toString()) ?? 'N/A'}</div>
-                  <div className="search-result-field">{truncate(part.spare?.toString()) ?? 'N/A'}</div>
+                  <div className="search-result-field">{truncate(spare.toString())}</div>
+                  <div className="search-result-field" style={{
+                    color: surplus > 0 ? '#228B22' : undefined,
+                    fontWeight: surplus > 0 ? 700 : undefined,
+                  }}>
+                    {truncate(surplus.toString())}
+                  </div>
                   <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_inventory_item?.item_number), search) || 'N/A'}</div>
                   <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_mfg_part_number), search) || 'N/A'}</div>
                   <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_mfg_name), search) || 'N/A'}</div>
@@ -240,6 +256,29 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       >
                         General Inventory?
                       </button>
+                      {isAdmin && (
+                        <span style={{marginLeft: 24, fontWeight: 400, fontSize: 16, color: '#2d6a4f', display: 'flex', alignItems: 'center', gap: 8}}>
+                          Spare Threshold for this item:
+                          <input
+                            type="number"
+                            min="0"
+                            max="1"
+                            step="0.01"
+                            value={group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value}
+                            onChange={e => {
+                              const newValue = parseFloat(e.target.value);
+                              // Update spare_value for all instances in this group
+                              group.instances.forEach(instance => {
+                                instance.spare_value = isNaN(newValue) ? 0 : newValue;
+                              });
+                              // Force re-render
+                              setSelected(selected => ({ ...selected }));
+                            }}
+                            style={{ width: 60, marginLeft: 6, fontWeight: 600, color: '#2d6a4f', border: '1px solid #bcd6f7', borderRadius: 4, padding: '2px 6px', background: '#f8fafc' }}
+                            aria-label="Edit spare threshold for this item"
+                          />
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
                       <div>Instance ID</div>

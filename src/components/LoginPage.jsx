@@ -50,6 +50,11 @@ const LoginPage = ({ setPage, setAccessToken, setUsername, handleLoginSuccess })
     <div className="centralized-login-bg">
       <div className="centralized-login-box">
         <div className="login-title">Sign in to your account</div>
+        <div className="login-info">
+          This is your <b>IMS login</b>.<br/>
+          Use your IMS username and password.<br/>
+          <span className="login-info-secondary">For password reset or access issues, contact your IMS administrator or visit the IMS password reset page.</span>
+        </div>
         <form className="login-form" onSubmit={handleSubmit}>
           <div className="login-form-row">
             <input
@@ -73,8 +78,8 @@ const LoginPage = ({ setPage, setAccessToken, setUsername, handleLoginSuccess })
               required
             />
           </div>
-          {error && <div className="login-hint" style={{ color: '#d27a7a', marginBottom: 8 }}>{error}</div>}
-          <button type="submit" className="login-btn" style={{ cursor: 'pointer', opacity: 1 }} disabled={loading}>
+          {error && <div className="login-hint">{error}</div>}
+          <button type="submit" className="login-btn" disabled={loading}>
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
