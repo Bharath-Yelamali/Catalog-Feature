@@ -43,6 +43,8 @@ const OrdersPage = ({ username, accessToken }) => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [workflowProcess, setWorkflowProcess] = useState(null);
+  const [workflowActivities, setWorkflowActivities] = useState([]);
   
   // Use ref to track if we've loaded orders to prevent multiple API calls
   // This persists across re-renders unlike a state variable
@@ -136,28 +138,22 @@ const OrdersPage = ({ username, accessToken }) => {
   const handleOrderClick = async (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+    setWorkflowProcess(null);
+    setWorkflowActivities([]);
     try {
-      console.log('Order clicked:', order);
       const itemNumber = order.item_number || order.keyed_name;
-      if (!itemNumber) {
-        console.warn('No item_number or keyed_name found on order:', order);
-        return;
-      }
-      // Fetch the most recent workflow process
+      if (!itemNumber) return;
       const resp = await fetch(`/api/workflow-processes?orderItemNumber=${encodeURIComponent(itemNumber)}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const data = await resp.json();
-      console.log('Workflow process response:', data);
-      // If a workflow process is found, fetch the most recent workflow process activity
+      setWorkflowProcess(data.workflowProcess || null);
       if (data.workflowProcess && data.workflowProcess.id) {
         const activityResp = await fetch(`/api/workflow-process-activities?workflowProcessId=${encodeURIComponent(data.workflowProcess.id)}`, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         const activityData = await activityResp.json();
-        console.log('Workflow process activity response:', activityData);
-      } else {
-        console.warn('No workflow process found for this order.');
+        setWorkflowActivities(Array.isArray(activityData.activities) ? activityData.activities : []);
       }
     } catch (err) {
       console.error('Error fetching workflow process or activity:', err);
@@ -177,24 +173,23 @@ const OrdersPage = ({ username, accessToken }) => {
   // Helper to render status badge with appropriate styling
   const renderStatusBadge = (status) => {
     if (!status) return <span className="order-status">Unknown</span>;
-    
-    // Convert status to lowercase for consistent comparison
     const lowerStatus = status.toLowerCase();
-    
-    // Determine appropriate class based on status
     let statusClass = 'order-status';
-    if (lowerStatus.includes('draft')) {
-      statusClass += ' order-status-draft';
-    } else if (lowerStatus.includes('submitted') || lowerStatus.includes('pending')) {
-      statusClass += ' order-status-submitted';
-    } else if (lowerStatus.includes('approved')) {
-      statusClass += ' order-status-approved';
-    } else if (lowerStatus.includes('rejected') || lowerStatus.includes('denied')) {
-      statusClass += ' order-status-rejected';
-    } else if (lowerStatus.includes('complete')) {
-      statusClass += ' order-status-completed';
-    }
-    
+    // Map state to class
+    if (lowerStatus.includes('draft')) statusClass += ' order-status-draft';
+    else if (lowerStatus.includes('new')) statusClass += ' order-status-new';
+    else if (lowerStatus.includes('submitted')) statusClass += ' order-status-submitted';
+    else if (lowerStatus.includes('pending approval')) statusClass += ' order-status-pending-approval';
+    else if (lowerStatus.includes('assign shipment')) statusClass += ' order-status-assign-shipment';
+    else if (lowerStatus.includes('pending invoice')) statusClass += ' order-status-pending-invoice';
+    else if (lowerStatus.includes('invoice')) statusClass += ' order-status-invoice';
+    else if (lowerStatus.includes('pending payment')) statusClass += ' order-status-pending-payment';
+    else if (lowerStatus.includes('paid')) statusClass += ' order-status-paid';
+    else if (lowerStatus.includes('complete')) statusClass += ' order-status-complete';
+    else if (lowerStatus.includes('on hold')) statusClass += ' order-status-on-hold';
+    else if (lowerStatus.includes('cancel')) statusClass += ' order-status-cancel';
+    else if (lowerStatus.includes('approved')) statusClass += ' order-status-approved';
+    else if (lowerStatus.includes('rejected') || lowerStatus.includes('denied')) statusClass += ' order-status-rejected';
     return <span className={statusClass}>{status}</span>;
   };
   
@@ -360,49 +355,89 @@ const OrdersPage = ({ username, accessToken }) => {
                   <h4 style={{margin: '0 0 18px 0', fontWeight: 600, fontSize: 20}}>Procurement Workflow</h4>
                   <div style={{width: '100%', overflowX: 'auto', overflowY: 'hidden', position: 'relative'}}>
                     {/* On Hold above Submitted with upward arrow centered */}
-                    <div style={{position: 'absolute', left: 190, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 60}}>
+                    <div style={{position: 'absolute', left: 255, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 60}}>
                       <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>On Hold</div>
                       <span style={{fontSize: 18, color: '#4a5568', margin: '2px 0'}}>↑</span>
                     </div>
                     {/* On Hold above Pending Approval with upward arrow centered */}
-                    <div style={{position: 'absolute', left: 300, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
+                    <div style={{position: 'absolute', left: 385, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
                       <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>On Hold</div>
                       <span style={{fontSize: 18, color: '#4a5568', margin: '2px 0'}}>↑</span>
                     </div>
                     {/* Cancel below Pending Approval with downward arrow */}
-                    <div style={{position: 'absolute', left: 300, top: 90, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
+                    <div style={{position: 'absolute', left: 385, top: 90, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
                       <span style={{fontSize: 18, color: '#a00', margin: '2px 0'}}>↓</span>
                       <div style={{padding: '2px 8px', background: '#ffe0e0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center', color: '#a00'}}>Cancel</div>
                     </div>
-                    <div style={{display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 0, minHeight: 160, minWidth: 1800, justifyContent: 'flex-start'}}>
-                      {/* Start, New, Submitted, Pending Approval, Assign Shipment, and additional states with simple arrows */}
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 40, textAlign: 'center'}}>Start</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 40, textAlign: 'center'}}>New</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Submitted</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 100, textAlign: 'center'}}>Pending Approval</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 100, textAlign: 'center'}}>Assign Shipment</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 100, textAlign: 'center'}}>Pending Invoice</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Invoice</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 110, textAlign: 'center'}}>Pending Payment</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 110, textAlign: 'center'}}>Pending Payment</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Paid</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Paid</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 80, textAlign: 'center'}}>Complete</div>
-                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
-                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 80, textAlign: 'center'}}>Complete</div>
-                    </div>
+                    {/* Highlight the current state in the workflow diagram */}
+                    {(() => {
+                      const workflowStates = [
+                        'Start','New','Submitted','Pending Approval','Assign Shipment','Pending Invoice','Invoice','Pending Payment','Paid','Complete'
+                      ];
+                      const currentState = selectedOrder && (selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name'] || selectedOrder['state']);
+                      return (
+                        <div style={{display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 0, minHeight: 160, minWidth: 1800, justifyContent: 'flex-start'}}>
+                          {workflowStates.map((state, idx, arr) => (
+                            <React.Fragment key={state}>
+                              <div
+                                style={{
+                                  padding: '2px 8px',
+                                  background: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '#dbeafe' : '#e2e8f0',
+                                  borderRadius: 14,
+                                  fontWeight: 600,
+                                  fontSize: 12,
+                                  minWidth: state.length > 8 ? 100 : 60,
+                                  textAlign: 'center',
+                                  position: 'relative',
+                                  border: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '2px solid #3182ce' : 'none',
+                                  color: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '#1e293b' : undefined,
+                                  boxShadow: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '0 0 0 3px #3182ce, 0 2px 8px #3182ce33' : undefined,
+                                  zIndex: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? 2 : 1,
+                                }}
+                              >
+                                {state}
+                              </div>
+                              {idx < arr.length - 1 && (
+                                <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
+                  {/* --- Workflow Info Section --- */}
+                  {(workflowProcess || workflowActivities.length > 0) && (
+                    <div style={{marginTop: 24, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 18}}>
+                      <h5 style={{margin: '0 0 10px 0', fontWeight: 600, fontSize: 16}}>Workflow Info</h5>
+                      {workflowProcess && (
+                        <div style={{marginBottom: 8, fontSize: 15}}>
+                          <b>Current Owner/Assignee:</b> {workflowProcess['process_owner@aras.keyed_name'] || '—'}<br/>
+                          <b>Workflow Name:</b> {workflowProcess.label || workflowProcess.name || workflowProcess['label@aras.lang'] || '—'}<br/>
+                          <b>Status:</b> {workflowProcess.state || workflowProcess['current_state@aras.name'] || '—'}<br/>
+                          <b>Started:</b> {workflowProcess.active_date ? new Date(workflowProcess.active_date).toLocaleString() : '—'}<br/>
+                          {workflowProcess.closed_date && (<><b>Closed:</b> {new Date(workflowProcess.closed_date).toLocaleString()}<br/></>)}
+                        </div>
+                      )}
+                      {workflowActivities.length > 0 && (
+                        <div style={{marginBottom: 8, fontSize: 15}}>
+                          <b>Last Action:</b> {workflowActivities[0]['related_id@aras.keyed_name'] || '—'} by {workflowActivities[0]['created_by_id@aras.keyed_name'] || '—'} on {workflowActivities[0].created_on ? new Date(workflowActivities[0].created_on).toLocaleString() : '—'}
+                        </div>
+                      )}
+                      {workflowActivities.length > 0 && (
+                        <div style={{marginTop: 10}}>
+                          <b>Order Timeline:</b>
+                          <ul style={{margin: '8px 0 0 0', padding: 0, listStyle: 'none', fontSize: 14}}>
+                            {workflowActivities.slice(0, 8).map((act, i) => (
+                              <li key={i} style={{marginBottom: 2}}>
+                                <span style={{fontWeight: 500}}>{act['related_id@aras.keyed_name'] || '—'}</span> by <span>{act['created_by_id@aras.keyed_name'] || '—'}</span> on <span>{act.created_on ? new Date(act.created_on).toLocaleString() : '—'}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="order-details-grid">
                   {/* Only show the curated list of fields, grouped and labeled, but skip those already in the main table and those that are empty/null */}
