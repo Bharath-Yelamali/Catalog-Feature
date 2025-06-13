@@ -35,7 +35,7 @@ router.get('/orders', async (req, res) => {
     // Use $select=* to request all available properties, including those with null values
     const select = "$select=*";
     const odataUrl = `${BASE_URL}m_Procurement_Request?${orderBy}&${top}&${select}${filter}`;
-    
+
     const imsResp = await fetch(odataUrl, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -48,6 +48,38 @@ router.get('/orders', async (req, res) => {
     return res.json({ imsRaw: imsData });
   } catch (err) {
     return res.status(500).json({ error: err.message || 'Failed to fetch orders' });
+  }
+});
+
+// GET /workflow-processes?orderItemNumber=REQ-000070
+router.get('/workflow-processes', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  let token = null;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring('Bearer '.length);
+  }
+  if (!token) {
+    return res.status(400).json({ error: 'Missing Authorization header' });
+  }
+  const orderItemNumber = req.query.orderItemNumber;
+  try {
+    const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
+    let filter = '';
+    if (orderItemNumber) {
+      filter = `&$filter=keyed_name eq '${orderItemNumber}'`;
+    }
+    const select = "$select=*";
+    const url = `${BASE_URL}Workflow Process?${select}${filter}`;
+    console.log(`Fetching workflow process for orderItemNumber: ${orderItemNumber} with URL: ${url}`);
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) {
+      const text = await resp.text();
+      return res.status(resp.status).json({ error: `IMS error: ${text}` });
+    }
+    const data = await resp.json();
+    return res.json({ workflowProcesses: data.value || [] });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to fetch workflow processes' });
   }
 });
 

@@ -133,9 +133,25 @@ const OrdersPage = ({ username, accessToken }) => {
   };
   
   // Handle row click to view order details
-  const handleOrderClick = (order) => {
+  const handleOrderClick = async (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+    // --- Add API call for workflow process here ---
+    try {
+      console.log('Order clicked:', order);
+      const itemNumber = order.item_number || order.keyed_name;
+      if (!itemNumber) {
+        console.warn('No item_number or keyed_name found on order:', order);
+        return;
+      }
+      const resp = await fetch(`/api/workflow-processes?orderItemNumber=${encodeURIComponent(itemNumber)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const data = await resp.json();
+      console.log('Workflow process response:', data);
+    } catch (err) {
+      console.error('Error fetching workflow process:', err);
+    }
   };
   
   // Close order details modal
