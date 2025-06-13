@@ -100,10 +100,10 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken, setJustSearch
       <section className="homepage-help-section">
         <div className="homepage-help-container">
           <h3>Need help?</h3>
-          <p>Check the <a href="#" style={{ color: '#2d72d9', textDecoration: 'underline' }}>FAQ</a> or contact your procurement team for support.</p>
+          <p>Check the <a href="#" className="homepage-faq-link">FAQ</a> or contact your procurement team for support.</p>
         </div>
       </section>
-      <div style={{ height: '60px' }} />
+      <div className="homepage-bottom-spacer" />
     </div>
   );
 };
