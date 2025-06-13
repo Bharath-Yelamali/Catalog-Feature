@@ -148,12 +148,31 @@ const OrdersPage = ({ username, accessToken }) => {
       });
       const data = await resp.json();
       setWorkflowProcess(data.workflowProcess || null);
+      // Always log the workflow process response
+      console.log('[Order Click] Workflow Process API response:', data);
+      console.log('[Order Click] Workflow Process:', data.workflowProcess || null);
       if (data.workflowProcess && data.workflowProcess.id) {
         const activityResp = await fetch(`/api/workflow-process-activities?workflowProcessId=${encodeURIComponent(data.workflowProcess.id)}`, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         const activityData = await activityResp.json();
-        setWorkflowActivities(Array.isArray(activityData.activities) ? activityData.activities : []);
+        // Log the full API response
+        console.log('[Order Click] Workflow Activities API response:', activityData);
+        // Try to extract activities as array or object
+        let activities = [];
+        if (Array.isArray(activityData.activities)) {
+          activities = activityData.activities;
+        } else if (Array.isArray(activityData.workflowProcessActivity)) {
+          activities = activityData.workflowProcessActivity;
+        } else if (activityData.workflowProcessActivity) {
+          activities = [activityData.workflowProcessActivity];
+        }
+        setWorkflowActivities(activities);
+        console.log('[Order Click] Workflow Activities (parsed):', activities);
+      } else {
+        // Log if no workflow process id
+        console.log('[Order Click] No workflow process id found, skipping activities fetch.');
+        console.log('[Order Click] Workflow Activities:', []);
       }
     } catch (err) {
       console.error('Error fetching workflow process or activity:', err);
