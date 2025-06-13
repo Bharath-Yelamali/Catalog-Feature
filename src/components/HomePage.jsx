@@ -46,7 +46,7 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken, setJustSearch
       {/* About Section */}
       <section className="homepage-about-section">
         <div className="homepage-about-container">
-          <h2>Welcome to the Procurement Catalog</h2>
+          <h2>Welcome to the Inventory Catalog</h2>
           <p>
             This site is your one-stop platform for searching, requesting, and tracking hardware parts and procurement orders across your organization. Whether you need to find a specific component, submit a new purchase request, or follow the status of your order through the procurement workflow, this catalog makes the process simple and transparent.
           </p>

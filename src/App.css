@@ -664,6 +664,29 @@ body {
   text-align: center;
 }
 
+.centralized-login-box {
+  background: #fff;
+  border: 2px solid #bcd6f7;
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(44, 62, 80, 0.08);
+  padding: 36px 32px 28px 32px;
+  max-width: 420px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.centralized-login-bg {
+  min-height: 100vh;
+  width: 100vw;
+  background: #f5f8fc url('/images/banner-bg.jpg') center center/cover no-repeat;
+  display: flex;
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
+}
+
 .homepage-banner {
   width: 100vw;
   min-height: 340px;

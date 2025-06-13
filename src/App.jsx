@@ -383,6 +383,7 @@ function App() {
                 setQuantities={setQuantities}
                 search={lastSearch}
                 setPage={page => setPage(page)}
+                isAdmin={isAdmin}
               />
             </>
           )}

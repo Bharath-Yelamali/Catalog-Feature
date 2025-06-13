@@ -36,7 +36,8 @@ router.get('/parts', async (req, res) => {
       'classification',
       'm_quantity',
       'm_maturity',
-      'item_number'
+      'item_number',
+      'spare_value' // Added spare_value to select fields
     ];
     queryParts.push(`$select=${selectFields.join(',')}`);
     // Expand related fields to get actual values
