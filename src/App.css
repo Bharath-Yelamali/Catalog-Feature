@@ -700,6 +700,7 @@ body {
   justify-content: flex-start;
   z-index: 1;
   position: relative;
+  padding-top: 48px;
 }
 
 .homepage-banner-title {
@@ -709,7 +710,8 @@ body {
   font-size: 3.2rem;
   font-weight: 800;
   color: #fff; /* changed to white */
-  margin-bottom: 0.7rem;
+  margin-top: 24px;
+  margin-bottom: 1.2rem;
   letter-spacing: 0.01em;
   text-shadow: 0 2px 8px rgba(44,130,201,0.10);
   padding-left: 0;
@@ -725,10 +727,12 @@ body {
   color: #fff; /* changed to white */
   font-weight: 400;
   letter-spacing: 0.01em;
+  margin-top: 12px;
+  margin-bottom: 2.2rem;
 }
 
 .homepage-banner-searchbar {
-  margin-top: 48px;
+  margin-top: 32px;
   width: 90vw;
   max-width: 1200px;
   min-width: 320px;
