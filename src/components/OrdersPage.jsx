@@ -136,7 +136,6 @@ const OrdersPage = ({ username, accessToken }) => {
   const handleOrderClick = async (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
-    // --- Add API call for workflow process here ---
     try {
       console.log('Order clicked:', order);
       const itemNumber = order.item_number || order.keyed_name;
@@ -144,13 +143,24 @@ const OrdersPage = ({ username, accessToken }) => {
         console.warn('No item_number or keyed_name found on order:', order);
         return;
       }
+      // Fetch the most recent workflow process
       const resp = await fetch(`/api/workflow-processes?orderItemNumber=${encodeURIComponent(itemNumber)}`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       const data = await resp.json();
       console.log('Workflow process response:', data);
+      // If a workflow process is found, fetch the most recent workflow process activity
+      if (data.workflowProcess && data.workflowProcess.id) {
+        const activityResp = await fetch(`/api/workflow-process-activities?workflowProcessId=${encodeURIComponent(data.workflowProcess.id)}`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const activityData = await activityResp.json();
+        console.log('Workflow process activity response:', activityData);
+      } else {
+        console.warn('No workflow process found for this order.');
+      }
     } catch (err) {
-      console.error('Error fetching workflow process:', err);
+      console.error('Error fetching workflow process or activity:', err);
     }
   };
   
