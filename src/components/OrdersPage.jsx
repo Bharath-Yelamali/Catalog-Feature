@@ -43,6 +43,8 @@ const OrdersPage = ({ username, accessToken }) => {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [workflowProcess, setWorkflowProcess] = useState(null);
+  const [workflowActivities, setWorkflowActivities] = useState([]);
   
   // Use ref to track if we've loaded orders to prevent multiple API calls
   // This persists across re-renders unlike a state variable
@@ -133,9 +135,29 @@ const OrdersPage = ({ username, accessToken }) => {
   };
   
   // Handle row click to view order details
-  const handleOrderClick = (order) => {
+  const handleOrderClick = async (order) => {
     setSelectedOrder(order);
     setShowOrderDetails(true);
+    setWorkflowProcess(null);
+    setWorkflowActivities([]);
+    try {
+      const itemNumber = order.item_number || order.keyed_name;
+      if (!itemNumber) return;
+      const resp = await fetch(`/api/workflow-processes?orderItemNumber=${encodeURIComponent(itemNumber)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const data = await resp.json();
+      setWorkflowProcess(data.workflowProcess || null);
+      if (data.workflowProcess && data.workflowProcess.id) {
+        const activityResp = await fetch(`/api/workflow-process-activities?workflowProcessId=${encodeURIComponent(data.workflowProcess.id)}`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const activityData = await activityResp.json();
+        setWorkflowActivities(Array.isArray(activityData.activities) ? activityData.activities : []);
+      }
+    } catch (err) {
+      console.error('Error fetching workflow process or activity:', err);
+    }
   };
   
   // Close order details modal
@@ -151,24 +173,23 @@ const OrdersPage = ({ username, accessToken }) => {
   // Helper to render status badge with appropriate styling
   const renderStatusBadge = (status) => {
     if (!status) return <span className="order-status">Unknown</span>;
-    
-    // Convert status to lowercase for consistent comparison
     const lowerStatus = status.toLowerCase();
-    
-    // Determine appropriate class based on status
     let statusClass = 'order-status';
-    if (lowerStatus.includes('draft')) {
-      statusClass += ' order-status-draft';
-    } else if (lowerStatus.includes('submitted') || lowerStatus.includes('pending')) {
-      statusClass += ' order-status-submitted';
-    } else if (lowerStatus.includes('approved')) {
-      statusClass += ' order-status-approved';
-    } else if (lowerStatus.includes('rejected') || lowerStatus.includes('denied')) {
-      statusClass += ' order-status-rejected';
-    } else if (lowerStatus.includes('complete')) {
-      statusClass += ' order-status-completed';
-    }
-    
+    // Map state to class
+    if (lowerStatus.includes('draft')) statusClass += ' order-status-draft';
+    else if (lowerStatus.includes('new')) statusClass += ' order-status-new';
+    else if (lowerStatus.includes('submitted')) statusClass += ' order-status-submitted';
+    else if (lowerStatus.includes('pending approval')) statusClass += ' order-status-pending-approval';
+    else if (lowerStatus.includes('assign shipment')) statusClass += ' order-status-assign-shipment';
+    else if (lowerStatus.includes('pending invoice')) statusClass += ' order-status-pending-invoice';
+    else if (lowerStatus.includes('invoice')) statusClass += ' order-status-invoice';
+    else if (lowerStatus.includes('pending payment')) statusClass += ' order-status-pending-payment';
+    else if (lowerStatus.includes('paid')) statusClass += ' order-status-paid';
+    else if (lowerStatus.includes('complete')) statusClass += ' order-status-complete';
+    else if (lowerStatus.includes('on hold')) statusClass += ' order-status-on-hold';
+    else if (lowerStatus.includes('cancel')) statusClass += ' order-status-cancel';
+    else if (lowerStatus.includes('approved')) statusClass += ' order-status-approved';
+    else if (lowerStatus.includes('rejected') || lowerStatus.includes('denied')) statusClass += ' order-status-rejected';
     return <span className={statusClass}>{status}</span>;
   };
   
@@ -297,7 +318,6 @@ const OrdersPage = ({ username, accessToken }) => {
                   &times;
                 </button>
               </div>
-              
               <div className="order-details-body">
                 <div className="order-details-summary">
                   <h4>
@@ -307,50 +327,169 @@ const OrdersPage = ({ username, accessToken }) => {
                     Status: {renderStatusBadge(getFieldValue(selectedOrder, 'state'))}
                   </div>
                 </div>
-                
-                <div className="order-details-grid">
-                  {Object.keys(selectedOrder).map((key) => {
-                    // Skip displaying fields with null values or system fields
-                    if (
-                      selectedOrder[key] === null || 
-                      key.startsWith('_') ||
-                      key === '@odata.context'
-                    ) {
-                      return null;
-                    }
-                    
-                    // Handle date fields
-                    let value = selectedOrder[key];
-                    if (
-                      (key.toLowerCase().includes('date') || 
-                       key.toLowerCase().includes('_on') || 
-                       key.toLowerCase().includes('_at')) && 
-                      value && typeof value === 'string' && value.includes('T')
-                    ) {
-                      const date = new Date(value);
-                      if (!isNaN(date)) {
-                        value = date.toLocaleString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        });
-                      }
-                    }
-                    
-                    return (
-                      <div key={key} className="order-details-item">
-                        <div className="order-details-label">{key}</div>
-                        <div className="order-details-value">
-                          {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                <div style={{marginBottom: 16, color: '#4a5568', fontSize: 14}}>
+                  <b>Note:</b> Only non-empty fields are shown below. Fields already visible in the main table (Order Name, Order ID, Status, Date Created, Last Modified) are not repeated here.
+                </div>
+                {/* Order Metadata Section - Removed Locked By field */}
+                <div className="order-details-section" style={{margin: '0 0 24px 0', padding: '16px 18px', background: '#f7fafc', borderRadius: 8, border: '1px solid #e2e8f0'}}>
+                  <h4 style={{margin: '0 0 10px 0', fontWeight: 600, fontSize: 16}}>Order Metadata</h4>
+                  <div style={{display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: 6, columnGap: 16, fontSize: 15}}>
+                    <div style={{fontWeight: 500}}>Created By:</div>
+                    <div>{selectedOrder['created_by_id@aras.keyed_name'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>Created On:</div>
+                    <div>{selectedOrder['created_on'] ? new Date(selectedOrder['created_on']).toLocaleString() : '—'}</div>
+                    <div style={{fontWeight: 500}}>Modified By:</div>
+                    <div>{selectedOrder['modified_by_id@aras.keyed_name'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>Modified On:</div>
+                    <div>{selectedOrder['modified_on'] ? new Date(selectedOrder['modified_on']).toLocaleString() : '—'}</div>
+                    <div style={{fontWeight: 500}}>Major Rev:</div>
+                    <div>{selectedOrder['major_rev'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>Generation:</div>
+                    <div>{selectedOrder['generation'] || '—'}</div>
+                    <div style={{fontWeight: 500}}>State:</div>
+                    <div>{selectedOrder['state'] || '—'}</div>
+                  </div>
+                </div>
+                {/* Procurement Workflow Diagram */}
+                <div className="order-details-section" style={{margin: '0 0 24px 0', padding: '32px 32px', background: '#f0f7fa', borderRadius: 12, border: '2px solid #b6d4e2'}}>
+                  <h4 style={{margin: '0 0 18px 0', fontWeight: 600, fontSize: 20}}>Procurement Workflow</h4>
+                  <div style={{width: '100%', overflowX: 'auto', overflowY: 'hidden', position: 'relative'}}>
+                    {/* On Hold above Submitted with upward arrow centered */}
+                    <div style={{position: 'absolute', left: 255, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 60}}>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>On Hold</div>
+                      <span style={{fontSize: 18, color: '#4a5568', margin: '2px 0'}}>↑</span>
+                    </div>
+                    {/* On Hold above Pending Approval with upward arrow centered */}
+                    <div style={{position: 'absolute', left: 385, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>On Hold</div>
+                      <span style={{fontSize: 18, color: '#4a5568', margin: '2px 0'}}>↑</span>
+                    </div>
+                    {/* Cancel below Pending Approval with downward arrow */}
+                    <div style={{position: 'absolute', left: 385, top: 90, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
+                      <span style={{fontSize: 18, color: '#a00', margin: '2px 0'}}>↓</span>
+                      <div style={{padding: '2px 8px', background: '#ffe0e0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center', color: '#a00'}}>Cancel</div>
+                    </div>
+                    {/* Highlight the current state in the workflow diagram */}
+                    {(() => {
+                      const workflowStates = [
+                        'Start','New','Submitted','Pending Approval','Assign Shipment','Pending Invoice','Invoice','Pending Payment','Paid','Complete'
+                      ];
+                      const currentState = selectedOrder && (selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name'] || selectedOrder['state']);
+                      return (
+                        <div style={{display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 0, minHeight: 160, minWidth: 1800, justifyContent: 'flex-start'}}>
+                          {workflowStates.map((state, idx, arr) => (
+                            <React.Fragment key={state}>
+                              <div
+                                style={{
+                                  padding: '2px 8px',
+                                  background: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '#dbeafe' : '#e2e8f0',
+                                  borderRadius: 14,
+                                  fontWeight: 600,
+                                  fontSize: 12,
+                                  minWidth: state.length > 8 ? 100 : 60,
+                                  textAlign: 'center',
+                                  position: 'relative',
+                                  border: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '2px solid #3182ce' : 'none',
+                                  color: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '#1e293b' : undefined,
+                                  boxShadow: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? '0 0 0 3px #3182ce, 0 2px 8px #3182ce33' : undefined,
+                                  zIndex: (currentState && currentState.toLowerCase() === state.toLowerCase()) ? 2 : 1,
+                                }}
+                              >
+                                {state}
+                              </div>
+                              {idx < arr.length - 1 && (
+                                <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                              )}
+                            </React.Fragment>
+                          ))}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })()}
+                  </div>
+                  {/* --- Workflow Info Section --- */}
+                  {(workflowProcess || workflowActivities.length > 0) && (
+                    <div style={{marginTop: 24, background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', padding: 18}}>
+                      <h5 style={{margin: '0 0 10px 0', fontWeight: 600, fontSize: 16}}>Workflow Info</h5>
+                      {workflowProcess && (
+                        <div style={{marginBottom: 8, fontSize: 15}}>
+                          <b>Current Owner/Assignee:</b> {workflowProcess['process_owner@aras.keyed_name'] || '—'}<br/>
+                          <b>Workflow Name:</b> {workflowProcess.label || workflowProcess.name || workflowProcess['label@aras.lang'] || '—'}<br/>
+                          <b>Status:</b> {workflowProcess.state || workflowProcess['current_state@aras.name'] || '—'}<br/>
+                          <b>Started:</b> {workflowProcess.active_date ? new Date(workflowProcess.active_date).toLocaleString() : '—'}<br/>
+                          {workflowProcess.closed_date && (<><b>Closed:</b> {new Date(workflowProcess.closed_date).toLocaleString()}<br/></>)}
+                        </div>
+                      )}
+                      {workflowActivities.length > 0 && (
+                        <div style={{marginBottom: 8, fontSize: 15}}>
+                          <b>Last Action:</b> {workflowActivities[0]['related_id@aras.keyed_name'] || '—'} by {workflowActivities[0]['created_by_id@aras.keyed_name'] || '—'} on {workflowActivities[0].created_on ? new Date(workflowActivities[0].created_on).toLocaleString() : '—'}
+                        </div>
+                      )}
+                      {workflowActivities.length > 0 && (
+                        <div style={{marginTop: 10}}>
+                          <b>Order Timeline:</b>
+                          <ul style={{margin: '8px 0 0 0', padding: 0, listStyle: 'none', fontSize: 14}}>
+                            {workflowActivities.slice(0, 8).map((act, i) => (
+                              <li key={i} style={{marginBottom: 2}}>
+                                <span style={{fontWeight: 500}}>{act['related_id@aras.keyed_name'] || '—'}</span> by <span>{act['created_by_id@aras.keyed_name'] || '—'}</span> on <span>{act.created_on ? new Date(act.created_on).toLocaleString() : '—'}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="order-details-grid">
+                  {/* Only show the curated list of fields, grouped and labeled, but skip those already in the main table and those that are empty/null */}
+                  {/* 1. Project & Supplier */}
+                  {selectedOrder['m_project@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Project</div><div className="order-details-value">{selectedOrder['m_project@aras.keyed_name']}</div></div>}
+                  {selectedOrder['m_supplier@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Supplier</div><div className="order-details-value">{selectedOrder['m_supplier@aras.keyed_name']}</div></div>}
+                  {selectedOrder['m_po_num'] && <div className="order-details-item"><div className="order-details-label">PO Number</div><div className="order-details-value">{selectedOrder['m_po_num']}</div></div>}
+                  {selectedOrder['m_po_owner'] && <div className="order-details-item"><div className="order-details-label">PO Owner</div><div className="order-details-value">{selectedOrder['m_po_owner']}</div></div>}
+                  {selectedOrder['m_coordinator'] && <div className="order-details-item"><div className="order-details-label">Coordinator</div><div className="order-details-value">{selectedOrder['m_coordinator']}</div></div>}
+                  {/* 2. Financial & Purchase Details */}
+                  {selectedOrder['m_total_price'] && <div className="order-details-item"><div className="order-details-label">Total Price</div><div className="order-details-value">{selectedOrder['m_total_price']}</div></div>}
+                  {selectedOrder['m_currency'] && <div className="order-details-item"><div className="order-details-label">Currency</div><div className="order-details-value">{selectedOrder['m_currency']}</div></div>}
+                  {selectedOrder['m_purchase_type'] && <div className="order-details-item"><div className="order-details-label">Purchase Type</div><div className="order-details-value">{selectedOrder['m_purchase_type']}</div></div>}
+                  {selectedOrder['m_is_capex'] && <div className="order-details-item"><div className="order-details-label">Is Capex</div><div className="order-details-value">{selectedOrder['m_is_capex'] === '1' ? 'Yes' : selectedOrder['m_is_capex'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_io_num'] && <div className="order-details-item"><div className="order-details-label">IO Number</div><div className="order-details-value">{selectedOrder['m_io_num']}</div></div>}
+                  {/* 3. Delivery & Contact */}
+                  {selectedOrder['m_delivery_location'] && <div className="order-details-item"><div className="order-details-label">Delivery Location</div><div className="order-details-value">{selectedOrder['m_delivery_location']}</div></div>}
+                  {selectedOrder['m_deliverto_msft'] && <div className="order-details-item"><div className="order-details-label">Deliver to MSFT</div><div className="order-details-value">{selectedOrder['m_deliverto_msft']}</div></div>}
+                  {selectedOrder['m_contact'] && <div className="order-details-item"><div className="order-details-label">Contact</div><div className="order-details-value">{selectedOrder['m_contact']}</div></div>}
+                  {selectedOrder['m_email'] && <div className="order-details-item"><div className="order-details-label">Email</div><div className="order-details-value">{selectedOrder['m_email']}</div></div>}
+                  {selectedOrder['m_email_alias'] && <div className="order-details-item"><div className="order-details-label">Email Alias</div><div className="order-details-value">{selectedOrder['m_email_alias']}</div></div>}
+                  {/* 4. Approval & Review */}
+                  {selectedOrder['m_reviewer'] && <div className="order-details-item"><div className="order-details-label">Reviewer</div><div className="order-details-value">{selectedOrder['m_reviewer']}</div></div>}
+                  {selectedOrder['m_invoice_approver'] && <div className="order-details-item"><div className="order-details-label">Invoice Approver</div><div className="order-details-value">{selectedOrder['m_invoice_approver']}</div></div>}
+                  {selectedOrder['m_interim_approver'] && <div className="order-details-item"><div className="order-details-label">Interim Approver</div><div className="order-details-value">{selectedOrder['m_interim_approver']}</div></div>}
+                  {selectedOrder['m_safe_appover'] && <div className="order-details-item"><div className="order-details-label">SAFE Approver</div><div className="order-details-value">{selectedOrder['m_safe_appover']}</div></div>}
+                  {selectedOrder['m_is_fid'] && <div className="order-details-item"><div className="order-details-label">Is FID</div><div className="order-details-value">{selectedOrder['m_is_fid'] === '1' ? 'Yes' : selectedOrder['m_is_fid'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_is_lab_tpm'] && <div className="order-details-item"><div className="order-details-label">Is Lab TPM</div><div className="order-details-value">{selectedOrder['m_is_lab_tpm'] === '1' ? 'Yes' : selectedOrder['m_is_lab_tpm'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_is_msft_poc'] && <div className="order-details-item"><div className="order-details-label">Is MSFT POC</div><div className="order-details-value">{selectedOrder['m_is_msft_poc'] === '1' ? 'Yes' : selectedOrder['m_is_msft_poc'] === '0' ? 'No' : ''}</div></div>}
+                  {selectedOrder['m_is_po_urgent'] && <div className="order-details-item"><div className="order-details-label">Is PO Urgent</div><div className="order-details-value">{selectedOrder['m_is_po_urgent'] === '1' ? 'Yes' : selectedOrder['m_is_po_urgent'] === '0' ? 'No' : ''}</div></div>}
+                  {/* 5. Business Justification & Notes */}
+                  {selectedOrder['m_detail_info'] && <div className="order-details-item"><div className="order-details-label">Detail Info</div><div className="order-details-value">{selectedOrder['m_detail_info']}</div></div>}
+                  {selectedOrder['m_notes_proc'] && <div className="order-details-item"><div className="order-details-label">Notes to Procurement</div><div className="order-details-value">{selectedOrder['m_notes_proc']}</div></div>}
+                  {selectedOrder['m_explanation_for_wait'] && <div className="order-details-item"><div className="order-details-label">Explanation for Wait</div><div className="order-details-value">{selectedOrder['m_explanation_for_wait']}</div></div>}
+                  {selectedOrder['m_explanation_not_submit'] && <div className="order-details-item"><div className="order-details-label">Explanation Not Submit</div><div className="order-details-value">{selectedOrder['m_explanation_not_submit']}</div></div>}
+                  {selectedOrder['m_why_not_forecasted'] && <div className="order-details-item"><div className="order-details-label">Why Not Forecasted</div><div className="order-details-value">{selectedOrder['m_why_not_forecasted']}</div></div>}
+                  {/* 6. Workflow & Attachments */}
+                  {(selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name']) && <div className="order-details-item"><div className="order-details-label">Current State</div><div className="order-details-value">{selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name']}</div></div>}
+                  {selectedOrder['m_lineitem_options'] && <div className="order-details-item"><div className="order-details-label">Line Items</div><div className="order-details-value">{selectedOrder['m_lineitem_options']}</div></div>}
+                  {selectedOrder['m_Procurement_Request_Files@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Files/Attachments</div><div className="order-details-value"><a href={selectedOrder['m_Procurement_Request_Files@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Files</a></div></div>}
+                  {selectedOrder['m_Procurement_Request_Signoff@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Signoff</div><div className="order-details-value"><a href={selectedOrder['m_Procurement_Request_Signoff@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Signoff</a></div></div>}
+                  {selectedOrder['m_quote@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Quote</div><div className="order-details-value"><a href={selectedOrder['m_quote@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Quote</a></div></div>}
+                  {/* 7. Other Metadata */}
+                  {selectedOrder['major_rev'] && <div className="order-details-item"><div className="order-details-label">Major Rev</div><div className="order-details-value">{selectedOrder['major_rev']}</div></div>}
+                  {selectedOrder['generation'] && <div className="order-details-item"><div className="order-details-label">Generation</div><div className="order-details-value">{selectedOrder['generation']}</div></div>}
+                  {selectedOrder['is_current'] && <div className="order-details-item"><div className="order-details-label">Is Current</div><div className="order-details-value">{selectedOrder['is_current']}</div></div>}
+                  {selectedOrder['is_released'] && <div className="order-details-item"><div className="order-details-label">Is Released</div><div className="order-details-value">{selectedOrder['is_released']}</div></div>}
+                  {selectedOrder['itemtype'] && <div className="order-details-item"><div className="order-details-label">Itemtype</div><div className="order-details-value">{selectedOrder['itemtype']}</div></div>}
+                  {selectedOrder['permission_id@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Permission</div><div className="order-details-value">{selectedOrder['permission_id@aras.keyed_name']}</div></div>}
+                  {selectedOrder['team_id@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Team</div><div className="order-details-value"><a href={selectedOrder['team_id@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Team</a></div></div>}
                 </div>
               </div>
-              
               <div className="order-details-footer">
                 <button 
                   className="order-details-button" 

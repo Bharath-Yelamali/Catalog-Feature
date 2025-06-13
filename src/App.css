@@ -1034,6 +1034,52 @@ body {
   color: #2C7A7B;
 }
 
+/* --- Workflow State Badges --- */
+.order-status-new {
+  background-color: #e3e8ff;
+  color: #2d3a8c;
+}
+.order-status-submitted {
+  background-color: #e6fffa;
+  color: #2c7a7b;
+}
+.order-status-pending-approval {
+  background-color: #fffbe6;
+  color: #b7791f;
+}
+.order-status-assign-shipment {
+  background-color: #e6f7ff;
+  color: #3182ce;
+}
+.order-status-pending-invoice {
+  background-color: #fefcbf;
+  color: #b7791f;
+}
+.order-status-invoice {
+  background-color: #f0fff4;
+  color: #38a169;
+}
+.order-status-pending-payment {
+  background-color: #fefcbf;
+  color: #b7791f;
+}
+.order-status-paid {
+  background-color: #e6fffa;
+  color: #319795;
+}
+.order-status-complete {
+  background-color: #e6fffa;
+  color: #2c7a7b;
+}
+.order-status-on-hold {
+  background-color: #f0e8ff;
+  color: #805ad5;
+}
+.order-status-cancel {
+  background-color: #ffe0e0;
+  color: #c53030;
+}
+
 .orders-search-container {
   margin: 0 0 16px 0; /* Reduced bottom margin from 28px to 16px */
   display: flex;
