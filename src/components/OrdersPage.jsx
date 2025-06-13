@@ -355,6 +355,55 @@ const OrdersPage = ({ username, accessToken }) => {
                     <div>{selectedOrder['state'] || '—'}</div>
                   </div>
                 </div>
+                {/* Procurement Workflow Diagram */}
+                <div className="order-details-section" style={{margin: '0 0 24px 0', padding: '32px 32px', background: '#f0f7fa', borderRadius: 12, border: '2px solid #b6d4e2'}}>
+                  <h4 style={{margin: '0 0 18px 0', fontWeight: 600, fontSize: 20}}>Procurement Workflow</h4>
+                  <div style={{width: '100%', overflowX: 'auto', overflowY: 'hidden', position: 'relative'}}>
+                    {/* On Hold above Submitted with upward arrow centered */}
+                    <div style={{position: 'absolute', left: 190, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 60}}>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>On Hold</div>
+                      <span style={{fontSize: 18, color: '#4a5568', margin: '2px 0'}}>↑</span>
+                    </div>
+                    {/* On Hold above Pending Approval with upward arrow centered */}
+                    <div style={{position: 'absolute', left: 300, top: 7, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>On Hold</div>
+                      <span style={{fontSize: 18, color: '#4a5568', margin: '2px 0'}}>↑</span>
+                    </div>
+                    {/* Cancel below Pending Approval with downward arrow */}
+                    <div style={{position: 'absolute', left: 300, top: 90, display: 'flex', flexDirection: 'column', alignItems: 'center', width: 100}}>
+                      <span style={{fontSize: 18, color: '#a00', margin: '2px 0'}}>↓</span>
+                      <div style={{padding: '2px 8px', background: '#ffe0e0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center', color: '#a00'}}>Cancel</div>
+                    </div>
+                    <div style={{display: 'flex', alignItems: 'center', flexWrap: 'nowrap', gap: 0, minHeight: 160, minWidth: 1800, justifyContent: 'flex-start'}}>
+                      {/* Start, New, Submitted, Pending Approval, Assign Shipment, and additional states with simple arrows */}
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 40, textAlign: 'center'}}>Start</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 40, textAlign: 'center'}}>New</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Submitted</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 100, textAlign: 'center'}}>Pending Approval</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 100, textAlign: 'center'}}>Assign Shipment</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 100, textAlign: 'center'}}>Pending Invoice</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Invoice</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 110, textAlign: 'center'}}>Pending Payment</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 110, textAlign: 'center'}}>Pending Payment</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Paid</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 60, textAlign: 'center'}}>Paid</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 80, textAlign: 'center'}}>Complete</div>
+                      <span style={{margin: '0 10px', fontSize: 18, color: '#4a5568'}}>→</span>
+                      <div style={{padding: '2px 8px', background: '#e2e8f0', borderRadius: 14, fontWeight: 600, fontSize: 12, minWidth: 80, textAlign: 'center'}}>Complete</div>
+                    </div>
+                  </div>
+                </div>
                 <div className="order-details-grid">
                   {/* Only show the curated list of fields, grouped and labeled, but skip those already in the main table and those that are empty/null */}
                   {/* 1. Project & Supplier */}
