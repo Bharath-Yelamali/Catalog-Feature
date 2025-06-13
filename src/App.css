@@ -689,7 +689,7 @@ body {
 
 .homepage-banner {
   width: 100vw;
-  min-height: 340px;
+  min-height: 450px;
   background: #f5f8fc url('/images/banner-bg.jpg') center center/cover no-repeat;
   margin: 0;
   border-radius: 0;
