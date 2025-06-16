@@ -18,6 +18,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     datasheet: '',
     // Add more fields as needed for a new part
   });
+  const [editIndex, setEditIndex] = useState(null);
+  const [editPartFields, setEditPartFields] = useState({});
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
@@ -46,6 +48,31 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       datasheet: '',
       // Add more fields as needed for a new part
     });
+  };
+
+  const handleEditPart = (idx) => {
+    setEditIndex(idx);
+    setEditPartFields({ ...newParts[idx] });
+  };
+
+  const handleEditPartFieldChange = (e) => {
+    const { name, value } = e.target;
+    setEditPartFields(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveEditPart = () => {
+    setNewParts(prev => prev.map((part, idx) => idx === editIndex ? { ...editPartFields } : part));
+    setEditIndex(null);
+    setEditPartFields({});
+  };
+
+  const handleCancelEditPart = () => {
+    setEditIndex(null);
+    setEditPartFields({});
+  };
+
+  const handleDeletePart = (idx) => {
+    setNewParts(prev => prev.filter((_, i) => i !== idx));
   };
 
   // Helper to check if all required fields are filled
@@ -302,17 +329,39 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <th style={{ border: '1px solid #ccc', padding: 8 }}>Manufacturer Part #</th>
                 <th style={{ border: '1px solid #ccc', padding: 8 }}>Category</th>
                 <th style={{ border: '1px solid #ccc', padding: 8 }}>Description</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {newParts.map((part, idx) => (
                 <tr key={idx}>
-                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.partNumber || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.classification || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgName || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgPartNumber || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.category || ''}</td>
-                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.description || ''}</td>
+                  {editIndex === idx ? (
+                    <>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="partNumber" value={editPartFields.partNumber || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="classification" value={editPartFields.classification || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="mfgName" value={editPartFields.mfgName || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="mfgPartNumber" value={editPartFields.mfgPartNumber || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="category" value={editPartFields.category || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="description" value={editPartFields.description || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                        <button onClick={handleSaveEditPart} style={{ marginRight: 8 }}>Save</button>
+                        <button onClick={handleCancelEditPart}>Cancel</button>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.partNumber || ''}</td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.classification || ''}</td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgName || ''}</td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgPartNumber || ''}</td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.category || ''}</td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.description || ''}</td>
+                      <td style={{ border: '1px solid #ccc', padding: 8 }}>
+                        <button onClick={() => handleEditPart(idx)} style={{ marginRight: 8 }}>Edit</button>
+                        <button onClick={() => handleDeletePart(idx)}>Delete</button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
