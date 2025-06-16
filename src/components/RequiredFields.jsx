@@ -26,17 +26,26 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
 
   const handleNewPartFieldChange = (e) => {
     const { name, value } = e.target;
-    setNewParts(prev => {
-      const updated = [...prev];
-      updated[updated.length - 1] = { ...updated[updated.length - 1], [name]: value };
-      return updated;
-    });
+    setNewPartFields(prev => ({ ...prev, [name]: value }));
   };
 
   const handleAddNewPart = () => {
     setNewParts(prev => [...prev, { ...newPartFields }]);
     setShowNewPartForm(false);
-    // Optionally clear fields or show a success message
+    setNewPartFields({
+      itemNumber: '',
+      mfgPartNumber: '',
+      mfgName: '',
+      inventoryDescription: '',
+      category: '',
+      unitOfMeasure: '',
+      estimatedUnitPrice: '',
+      currency: '',
+      supplierName: '',
+      supplierPartNumber: '',
+      datasheet: '',
+      // Add more fields as needed for a new part
+    });
   };
 
   // Helper to check if all required fields are filled
@@ -110,6 +119,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         )}
         <button
           onClick={() => setShowNewPartForm(true)}
+          id="add-new-part-btn"
           style={{
             width: '100%',
             background: '#2d72d9',
@@ -130,15 +140,22 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
           + Add New Part (Not in Database)
         </button>
         {showNewPartForm && (
-          <div style={{
-            background: '#fff',
-            border: '1px solid #bbb',
-            borderRadius: 10,
-            padding: 24,
-            margin: '16px 0',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.10)',
-            width: '100%'
-          }}>
+          <div
+            style={{
+              width: '100%',
+              background: '#fff',
+              border: '1px solid #bbb',
+              borderRadius: 10,
+              padding: 24,
+              margin: '0 0 16px 0',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.10)',
+              boxSizing: 'border-box',
+              position: 'relative',
+              display: 'block',
+              minWidth: 0,
+              wordBreak: 'break-word',
+            }}
+          >
             <h3 style={{marginTop:0}}>Add New Part</h3>
             <div style={{
               display: 'grid',
@@ -271,6 +288,37 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
           </div>
         )}
       </div>
+
+      {/* New Parts Table Section (only show if there are new parts) */}
+      {newParts && newParts.length > 0 && (
+        <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
+          <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>New Parts Added (Not in Database)</h2>
+          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', margin: '0 auto' }}>
+            <thead>
+              <tr style={{ background: '#f5f5f5' }}>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Part Number</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Classification</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Manufacturer Name</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Manufacturer Part #</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Category</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {newParts.map((part, idx) => (
+                <tr key={idx}>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.partNumber || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.classification || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgName || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgPartNumber || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.category || ''}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.description || ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Purchase Request Section */}
       <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
