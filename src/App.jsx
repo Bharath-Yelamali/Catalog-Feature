@@ -76,6 +76,8 @@ function App() {
   const [identities, setIdentities] = useState([]);
   const abortControllerRef = useRef();
   const [justSearched, setJustSearched] = useState(false);
+  // Track if default search has been triggered to avoid infinite loop
+  const [defaultSearchTriggered, setDefaultSearchTriggered] = useState(false);
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
@@ -288,11 +290,22 @@ function App() {
 
   // Auto-trigger search fetch if redirected to search page, even if search is blank
   useEffect(() => {
-    if (page === 'search' && !loading && accessToken && justSearched) {
-      handleSearch({ key: 'Enter' });
-      setJustSearched(false);
+    if (page === 'search' && !loading && accessToken) {
+      if ((!search || search.trim() === '') && !defaultSearchTriggered) {
+        setDefaultSearchTriggered(true);
+        handleSearch({ key: 'Enter' });
+      }
+    } else if (page !== 'search' && defaultSearchTriggered) {
+      setDefaultSearchTriggered(false); // Reset when leaving search page
     }
-  }, [page, loading, accessToken, justSearched]);
+  }, [page, loading, accessToken, search, defaultSearchTriggered]);
+
+  // Reset defaultSearchTriggered if user types in the search bar
+  useEffect(() => {
+    if (search && defaultSearchTriggered) {
+      setDefaultSearchTriggered(false);
+    }
+  }, [search]);
 
   return (
     <div>
@@ -410,6 +423,7 @@ function App() {
             preqFields={preqFields}
             newParts={newParts}
             setNewParts={setNewParts}
+            isAdmin={isAdmin}
           />
         )}
         {page === 'confirmationSummary' && (
