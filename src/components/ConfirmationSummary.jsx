@@ -1,9 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import jsPDF from "jspdf";
 import { PDFDocument } from "pdf-lib";
 import "../App.css";
+import { postNewInventoryPart } from '../api/parts';
 
-function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit }) {
+function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState(null);
+
   // Helper to generate a simple PDF summary and merge with PDF attachment
   const handleExportPDF = async () => {
     const doc = new jsPDF();
@@ -190,6 +194,47 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
     }
   };
 
+  // Submit handler: POST all new parts to backend
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitResult(null);
+    try {
+      if (newParts && newParts.length > 0) {
+        for (const part of newParts) {
+          // Map all relevant frontend fields to OData m_Inventory fields
+          const mappedPart = {
+            item_number: part.partNumber || '',
+            classification: part.classification || '',
+            m_uheight: part.uHeight || '',
+            m_mfg_name: part.mfgName || '',
+            m_mfg_part_number: part.mfgPartNumber || '',
+            m_category: part.category || '',
+            m_eccn: part.eccn || '',
+            m_hts: part.hts || '',
+            m_ppu: part.ppu || '',
+            m_coo: part.coo || '',
+            m_rev: part.onepdmRevision || 'A',
+            m_maturity: part.maturity || '',
+            m_description: part.description || '',
+            m_aka: part.akaReferences || '',
+            // Add more mappings as needed for your UI fields
+          };
+          // Only send non-empty fields
+          Object.keys(mappedPart).forEach(key => {
+            if (mappedPart[key] === '') delete mappedPart[key];
+          });
+          await postNewInventoryPart(mappedPart, accessToken);
+        }
+      }
+      setSubmitResult('success');
+      if (onSubmit) onSubmit();
+    } catch (err) {
+      setSubmitResult('error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <div className="confirmation-summary-container">
       <h2 className="confirmation-summary-title">Purchase Request Summary</h2>
@@ -353,9 +398,13 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       )}
       <div className="confirmation-summary-buttons">
         <button onClick={goBack} className="confirmation-summary-button-back">Back</button>
-        <button onClick={onSubmit} className="confirmation-summary-button-submit">Submit</button>
+        <button onClick={handleSubmit} className="confirmation-summary-button-submit" disabled={submitting}>
+          {submitting ? 'Submitting...' : 'Submit'}
+        </button>
         <button onClick={handleExportPDF} className="export-btn">Export as PDF</button>
       </div>
+      {submitResult === 'success' && <div style={{color:'green',marginTop:8}}>New parts submitted successfully!</div>}
+      {submitResult === 'error' && <div style={{color:'red',marginTop:8}}>Failed to submit new parts. Please try again.</div>}
     </div>
   );
 }

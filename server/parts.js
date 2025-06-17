@@ -175,4 +175,57 @@ router.get('/parts', async (req, res) => {
   }
 });
 
+// POST endpoint for new inventory item part (forwards to OData API)
+router.post('/m_Inventory', async (req, res) => {
+  try {
+    const newPart = req.body;
+    const token = req.headers['authorization']; // Bearer <token>
+    const preferHeader = req.headers['prefer'] || 'return=representation';
+    const odataUrl = 'https://chievmimsiiss01/IMSStage/Server/odata/m_Inventory';
+
+    // Log the incoming request
+    console.log('POST /api/m_Inventory called');
+    console.log('Request body:', newPart);
+    console.log('Authorization header:', token);
+    console.log('Prefer header:', preferHeader);
+    console.log('Forwarding to OData URL:', odataUrl);
+
+    const response = await fetch(odataUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token,
+        'Prefer': preferHeader,
+      },
+      body: JSON.stringify(newPart),
+    });
+
+    // Log OData response status and headers
+    console.log('OData response status:', response.status);
+    console.log('OData response headers:', response.headers.raw ? response.headers.raw() : response.headers);
+
+    if (preferHeader === 'return=minimal' && response.status === 204) {
+      res.status(204);
+      if (response.headers.get('Location')) {
+        res.set('Location', response.headers.get('Location'));
+      }
+      return res.send();
+    } else if (response.status === 201) {
+      const data = await response.json();
+      res.status(201);
+      if (response.headers.get('Location')) {
+        res.set('Location', response.headers.get('Location'));
+      }
+      return res.json(data);
+    } else {
+      const errorText = await response.text();
+      console.error('OData error response:', errorText);
+      return res.status(response.status).send(errorText);
+    }
+  } catch (err) {
+    console.error('Error adding new inventory part:', err);
+    res.status(500).json({ error: 'Failed to add new inventory part: ' + err.message, stack: err.stack });
+  }
+});
+
 module.exports = router;
