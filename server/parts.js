@@ -3,6 +3,7 @@ const router = express.Router();
 
 // Move these constants here since they're only used for parts
 const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
+const IMS_ODATA_URL = process.env.IMS_ODATA_URL || 'https://chievmimsiiss01/IMSStage/Server/odata';
 
 // /parts endpoint (not /api/parts)
 router.get('/parts', async (req, res) => {
@@ -225,6 +226,46 @@ router.post('/m_Inventory', async (req, res) => {
   } catch (err) {
     console.error('Error adding new inventory part:', err);
     res.status(500).json({ error: 'Failed to add new inventory part: ' + err.message, stack: err.stack });
+  }
+});
+
+// PATCH endpoint to update spare_value for a specific instance
+router.patch('/m_Instance/:id/spare-value', async (req, res) => {
+  const { id } = req.params;
+  const { spare_value } = req.body;
+  if (typeof spare_value !== 'number') {
+    return res.status(400).json({ error: 'spare_value must be a number' });
+  }
+  // Accept Authorization and Prefer headers from the request
+  const token = req.headers['authorization']; // Bearer <token>
+  const preferHeader = req.headers['prefer'] || 'return=representation';
+  try {    // Forward PATCH to IMS OData backend (m_Instance)
+    const odataUrl = `${IMS_ODATA_URL}/m_Instance('${id}')`;
+    // No debug logging for production
+    const response = await fetch(odataUrl, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': '*',
+        ...(token ? { 'Authorization': token } : {}),
+        'Prefer': preferHeader,
+      },
+      body: JSON.stringify({ spare_value }),
+    });    if (!response.ok) {
+      const text = await response.text();
+      // Only log errors in case of failure
+      return res.status(response.status).json({ error: text });
+    }
+    // Handle Location header if present
+    if (response.headers.get('Location')) {
+      res.set('Location', response.headers.get('Location'));
+    }
+    // Return the IMS response (could be 204 or 200)
+    if (response.status === 204) return res.status(204).end();
+    const data = await response.json();
+    res.json(data);  } catch (err) {
+    // Keep error logging in case of exceptions, but make it more concise
+    res.status(500).json({ error: 'Failed to update spare_value in IMS: ' + err.message });
   }
 });
 
