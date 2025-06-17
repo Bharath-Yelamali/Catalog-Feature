@@ -397,6 +397,7 @@ function App() {
                 search={lastSearch}
                 setPage={page => setPage(page)}
                 isAdmin={isAdmin}
+                accessToken={accessToken}
               />
             </>
           )}
@@ -412,8 +413,7 @@ function App() {
               <OrdersPage username={username} accessToken={accessToken} />
             )}
           </>
-        )}
-        {page === 'requiredFields' && (
+        )}        {page === 'requiredFields' && (
           <RequiredFields
             selected={selected}
             quantities={quantities}

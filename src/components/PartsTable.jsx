@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { updateSpareValue } from '../api/parts';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -10,6 +11,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [selectAll, setSelectAll] = useState(false);
   // State for filtering instances by General Inventory per group
   const [generalInventoryFilter, setGeneralInventoryFilter] = useState({});
+  // Spare threshold feedback state
+  const [spareFeedback, setSpareFeedback] = useState({}); // { [instanceId]: 'success' | 'error' | null }
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -267,12 +270,34 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                             value={group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value}
                             onChange={e => {
                               const newValue = parseFloat(e.target.value);
-                              // Update spare_value for all instances in this group
+                              // Update spare_value for all instances in this group locally
                               group.instances.forEach(instance => {
                                 instance.spare_value = isNaN(newValue) ? 0 : newValue;
                               });
                               // Force re-render
                               setSelected(selected => ({ ...selected }));
+                            }}                            onBlur={async e => {
+                              const newValue = parseFloat(e.target.value);
+                              try {
+                                // For each instance, call backend to update spare_value
+                                await Promise.all(
+                                  group.instances.map(async instance => {
+                                    try {
+                                      await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken);
+                                      setSpareFeedback(prev => ({ ...prev, [instance.id]: 'success' }));
+                                      setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 1500);
+                                    } catch (err) {
+                                      setSpareFeedback(prev => ({ ...prev, [instance.id]: 'error' }));
+                                      setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 2500);
+                                      throw err; // Rethrow to handle in the outer catch
+                                    }
+                                  })
+                                );
+                                // Log a single success message for the entire group
+                                console.log(`Spare threshold successfully updated to ${isNaN(newValue) ? 0 : newValue} for ${group.instances.length} instances of ${group.itemNumber}.`);
+                              } catch (err) {
+                                console.error('Failed to update spare threshold:', err);
+                              }
                             }}
                             style={{ width: 60, marginLeft: 6, fontWeight: 600, color: '#2d6a4f', border: '1px solid #bcd6f7', borderRadius: 4, padding: '2px 6px', background: '#f8fafc' }}
                             aria-label="Edit spare threshold for this item"

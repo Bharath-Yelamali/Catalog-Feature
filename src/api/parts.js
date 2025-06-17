@@ -46,3 +46,21 @@ export async function postNewInventoryPart(part, accessToken) {
   if (!response.ok) throw new Error('Failed to add new inventory part');
   return await response.json();
 }
+
+// Update spare_value for a specific instance
+export async function updateSpareValue(instanceId, spareValue, accessToken) {
+  const url = `http://localhost:3001/api/m_Instance/${instanceId}/spare-value`;
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers,
+    body: JSON.stringify({ spare_value: spareValue }),
+  });
+  if (!response.ok) throw new Error('Failed to update spare value');
+  return response.status === 204 ? null : await response.json();
+}
