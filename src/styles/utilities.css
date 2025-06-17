@@ -1,0 +1,117 @@
+/* ==========================================================================
+   Utilities & Animations
+   ========================================================================== */
+
+/* Animations */
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Session popup styles */
+.session-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(2px);
+}
+
+.session-popup {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  width: 90%;
+  max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.session-popup-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #2d72d9;
+  text-align: center;
+}
+
+.session-popup-fields {
+  margin-bottom: 20px;
+}
+
+.session-popup-field {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.session-popup-field:last-child {
+  border-bottom: none;
+}
+
+.session-popup-field span:first-child {
+  font-weight: 500;
+  color: #444;
+}
+
+.session-popup-field span:last-child {
+  color: #222;
+}
+
+.session-popup-close {
+  align-self: center;
+  margin-top: 4px;
+  padding: 6px 22px;
+  border-radius: 6px;
+  border: none;
+  background: #2d72d9;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+
+.session-popup-close:hover {
+  background: #1a4e8a;
+}
+
+/* Error states */
+.orders-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+  color: #e53e3e;
+}
+
+.orders-error-icon {
+  font-size: 1.5rem;
+}
+
+.orders-error-message {
+  font-weight: 500;
+}

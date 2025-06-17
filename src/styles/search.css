@@ -1,0 +1,96 @@
+/* ==========================================================================
+   Search Page & Search Bar
+   ========================================================================== */
+.searchbar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 72px;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  padding: 0;
+  border-bottom: 1px solid #eee;
+}
+
+.searchbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.searchbar-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchbar-controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchbar-result-count {
+  margin-left: 8px;
+  min-width: 90px;
+  color: #444;
+  font-size: 15px;
+  text-align: left;
+  display: inline-block;
+}
+
+.searchbar-spinner {
+  margin-left: 8px;
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  background: none;
+}
+
+.searchbar-spinner svg {
+  width: 22px;
+  height: 22px;
+}
+
+.searchbar-spinner-fixedwidth {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px; /* Enough for '999 results' or spinner */
+  max-width: 140px;
+  height: 22px;
+  box-sizing: border-box;
+}
+
+.searchbar-export-btn-container {
+  width: 120px; /* Reserve space for export button */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.searchbar-input {
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border-radius: 4px 0 0 4px;
+  border: none;
+  border-right: none;
+  width: 700px; /* Increased from 320px to 600px */
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.searchbar-select {
+  padding: 0.5rem;
+  font-size: 1rem;
+  border-radius: 0 4px 4px 0;
+  border: none;
+  border-left: none;
+  min-width: 100px; /* Decreased from 180px to 100px */
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}

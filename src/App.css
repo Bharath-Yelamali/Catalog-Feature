@@ -1,3 +1,21 @@
+/* ==========================================================================
+   TABLE OF CONTENTS:
+   1. Global Layout & Root Styles
+   2. Navigation & Header (Taskbar)
+   3. Home Page
+   4. Login Page
+   5. Search Page & Search Bar
+   6. Parts Table
+   7. Required Fields
+   8. Confirmation Summary
+   9. Orders Page
+   10. Common UI Elements (Buttons, Forms, etc.)
+   11. Utilities & Animations
+   ========================================================================== */
+
+/* ==========================================================================
+   1. Global Layout & Root Styles
+   ========================================================================== */
 #root {
   max-width: 100%; /* Changed from 1280px to 100% to use full screen width */
   margin: 0 auto;
@@ -6,6 +24,15 @@
   background: #f7fafd;
 }
 
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Logo styles */
 .logo {
   height: 6em;
   padding: 1.5em;
@@ -19,6 +46,7 @@
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+/* Logo animation */
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -34,14 +62,9 @@
   }
 }
 
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-
+/* ==========================================================================
+   2. Navigation & Header (Taskbar)
+   ========================================================================== */
 .taskbar {
   position: fixed;
   top: 0;
@@ -84,6 +107,9 @@ body {
   background: #f7fafd;
 }
 
+/* ==========================================================================
+   5. Search Page & Search Bar
+   ========================================================================== */
 .searchbar-container {
   display: flex;
   justify-content: center;
@@ -170,13 +196,15 @@ body {
   padding: 0.5rem;
   font-size: 1rem;
   border-radius: 0 4px 4px 0;
-  border: none;
-  border-left: none;
+  border: none;  border-left: none;
   min-width: 100px; /* Decreased from 180px to 100px */
   background: #fff;
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
+/* ==========================================================================
+   6. Parts Table
+   ========================================================================== */
 .search-results-dropdown {
   position: fixed;
   top: 120px; /* 72px (searchbar top) + ~48px (searchbar height) = 120px; adjust if needed */
@@ -308,8 +336,7 @@ body {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.export-btn-disabled {
-  background: #e0e0e0;
+.export-btn-disabled {  background: #e0e0e0;
   color: #888;
   cursor: not-allowed;
   box-shadow: none;
@@ -320,6 +347,9 @@ body {
   margin-top: 80px;
 }
 
+/* ==========================================================================
+   10. Common UI Elements (Buttons, Forms, etc.)
+   ========================================================================== */
 .next-fixed-btn {
   position: fixed;
   bottom: 0;
@@ -366,10 +396,12 @@ body {
   cursor: not-allowed;
 }
 .back-fixed-btn:not(:disabled) {
-  opacity: 1;
-  cursor: pointer;
+  opacity: 1;  cursor: pointer;
 }
 
+/* ==========================================================================
+   8. Confirmation Summary
+   ========================================================================== */
 .confirmation-summary-container {
   max-width: 900px;
   margin: 60px auto 0 auto;
@@ -483,6 +515,9 @@ body {
   color: #aaa;
 }
 
+/* ==========================================================================
+   7. Required Fields
+   ========================================================================== */
 .required-fields-attachments-box {
   width: 40vw;
   min-width: 320px;
@@ -560,6 +595,9 @@ body {
   margin: 0;
 }
 
+/* ==========================================================================
+   4. Login Page
+   ========================================================================== */
 .login-page-container {
   min-height: 100vh;
   display: flex;
@@ -687,6 +725,9 @@ body {
   justify-content: center; /* Center horizontally */
 }
 
+/* ==========================================================================
+   3. Home Page
+   ========================================================================== */
 .homepage-banner {
   width: 100vw;
   min-height: 450px;
@@ -975,6 +1016,9 @@ body {
   background: #1a4e8a;
 }
 
+/* ==========================================================================
+   9. Orders Page
+   ========================================================================== */
 .orders-page-container {
   width: 100%;
   max-width: 100%;
@@ -1529,6 +1573,9 @@ body {
   height: 60px;
 }
 
+/* ==========================================================================
+   11. Utilities & Animations
+   ========================================================================== */
 .login-info {
   margin-bottom: 18px;
   color: #2d72d9;
