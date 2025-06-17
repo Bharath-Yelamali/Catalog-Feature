@@ -423,6 +423,7 @@ function App() {
             newParts={newParts}
             setNewParts={setNewParts}
             isAdmin={isAdmin}
+            accessToken={accessToken}
           />
         )}
         {page === 'confirmationSummary' && (

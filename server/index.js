@@ -111,6 +111,10 @@ app.use('/api', partsRouter);
 const ordersRouter = require('./orders');
 app.use('/api', ordersRouter);
 
+// Register generic API route (for projects, etc)
+const projectRouter = require('./project');
+app.use('/api', projectRouter);
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
