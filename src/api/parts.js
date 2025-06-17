@@ -28,3 +28,21 @@ export async function fetchParts({ classification, top, search, filterType, sign
   console.log('Fetched parts from backend API:', data); // Log the API response to the terminal
   return data;
 }
+
+// Post a new inventory part to the backend
+export async function postNewInventoryPart(part, accessToken) {
+  const url = 'http://localhost:3001/api/m_Inventory';
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(part),
+  });
+  if (!response.ok) throw new Error('Failed to add new inventory part');
+  return await response.json();
+}

@@ -421,6 +421,7 @@ function App() {
             attachments={preqFields.attachments || []}
             goBack={() => setPage('requiredFields')}
             onSubmit={() => {/* TODO: handle final submit */}}
+            accessToken={accessToken}
           />
         )}
       </main>
