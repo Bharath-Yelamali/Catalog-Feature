@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import '../styles/projectpopup.css';
+import { fetchProjects } from '../api/project';
 
-function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts, isAdmin }) {
+function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts, isAdmin, accessToken }) {
   const [showParts, setShowParts] = useState(false);
   const [showNewPartForm, setShowNewPartForm] = useState(false);
   const [newPartFields, setNewPartFields] = useState({
@@ -22,6 +24,27 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
 
   // For cell expansion
   const [expandedCell, setExpandedCell] = useState({ idx: null, field: '', value: '' });
+  const [showProjectPopup, setShowProjectPopup] = useState(false);
+  // Project popup state
+  const [projectSearch, setProjectSearch] = useState('');
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectList, setProjectList] = useState([]);
+  React.useEffect(() => {
+    if (showProjectPopup) {
+      // Log only the fetch event, not the token
+      console.log('Fetching projects from backend...');
+      fetchProjects(accessToken)
+        .then(data => {
+          console.log('Fetched projects:', data);
+          setProjectList(data);
+        })
+        .catch(err => {
+          console.error('Error fetching projects:', err);
+          setProjectList([]);
+        });
+    }
+  }, [showProjectPopup, accessToken]);
+  const filteredProjects = projectList.filter(p => p.name.toLowerCase().includes((projectSearch || '').toLowerCase()));
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
@@ -421,9 +444,6 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             <label style={{ fontWeight: 500 }}>Title
               <input type="text" name="title" value={preqFields.title} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Title" />
             </label>
-            <label style={{ fontWeight: 500 }}>PO Number
-              <input type="text" name="poNumber" value={preqFields.poNumber} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Number" />
-            </label>
             <label style={{ fontWeight: 500 }}>PO Owner Alias <span style={{color:'red'}}>*</span>
               <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
             </label>
@@ -439,8 +459,15 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         <fieldset style={{ border: '1px solid #bbb', borderRadius: 6, padding: 24, marginBottom: 32, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
           <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Project & Supplier</legend>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <label style={{ fontWeight: 500 }}>Project <span style={{color:'red'}}>*</span>
-              <input type="text" name="project" value={preqFields.project} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Project" />
+            <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Project <span style={{color:'red'}}>*</span>
+              <input type="text" name="project" value={preqFields.project} onChange={handleFieldChange} style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Project" />
+              <button
+                type="button"
+                style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
+                onClick={() => setShowProjectPopup(true)}
+              >
+                Select
+              </button>
             </label>
             <label style={{ fontWeight: 500 }}>Supplier <span style={{color:'red'}}>*</span>
               <input type="text" name="supplier" value={preqFields.supplier} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Supplier" />
@@ -606,7 +633,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       </div>
 
       {/* Attachments Section */}
-      <div style={{ width: 900, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
+      <div style={{ width: 900, margin: '0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
         <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>Attachments</h2>
         <div className="required-fields-attachments-box">
           <label className="required-fields-attachments-label">
@@ -639,6 +666,48 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
           Next
         </button>
       </div>
+
+      {/* Project Selection Popup */}
+      {showProjectPopup && (
+        <div className="project-popup-overlay" onClick={() => setShowProjectPopup(false)}>
+          <div className="project-popup-modal" onClick={e => e.stopPropagation()}>
+            <button className="project-popup-close" onClick={() => setShowProjectPopup(false)}>&times;</button>
+            <div className="project-popup-title">Select Project</div>
+            <input
+              className="project-popup-search"
+              type="text"
+              placeholder="Search projects..."
+              value={projectSearch || ''}
+              onChange={e => setProjectSearch(e.target.value)}
+              autoFocus
+            />
+            <div className="project-popup-list">
+              {(filteredProjects.length > 0 ? filteredProjects : [{ name: 'No results found', disabled: true }]).map((proj, idx) => (
+                <div
+                  key={proj.id || proj.name || idx}
+                  className={`project-popup-item${selectedProject === proj ? ' selected' : ''}${proj.disabled ? ' disabled' : ''}`}
+                  style={proj.disabled ? { color: '#aaa', cursor: 'not-allowed' } : {}}
+                  onClick={() => !proj.disabled && setSelectedProject(proj)}
+                >
+                  {proj.name}
+                </div>
+              ))}
+            </div>
+            <button
+              style={{ marginTop: 8, padding: '8px 18px', borderRadius: 6, background: '#2d72d9', color: '#fff', border: 'none', fontWeight: 600, fontSize: 15, cursor: selectedProject ? 'pointer' : 'not-allowed', opacity: selectedProject ? 1 : 0.6 }}
+              disabled={!selectedProject}
+              onClick={() => {
+                if (selectedProject) {
+                  setPreqFields(prev => ({ ...prev, project: selectedProject.name }));
+                  setShowProjectPopup(false);
+                }
+              }}
+            >
+              Select
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
