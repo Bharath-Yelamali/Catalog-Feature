@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import '../App.css'; // Import the CSS file for class-based styling
 
-function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts }) {
+function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts, isAdmin }) {
   const [showParts, setShowParts] = useState(false);
   const [showNewPartForm, setShowNewPartForm] = useState(false);
   const [newPartFields, setNewPartFields] = useState({
@@ -20,6 +20,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
   });
   const [editIndex, setEditIndex] = useState(null);
   const [editPartFields, setEditPartFields] = useState({});
+
+  // For cell expansion
+  const [expandedCell, setExpandedCell] = useState({ idx: null, field: '', value: '' });
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
@@ -87,10 +90,16 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
   const requiredBooleans = ['capex', 'fid', 'reviewedByLabTpm', 'deliverToMsftPoc'];
   const allRequiredFilled = requiredFields.every(f => preqFields[f] && preqFields[f].toString().trim() !== '') && requiredBooleans.every(f => preqFields[f] !== undefined);
 
+  // Helper to truncate text
+  const truncate = (str, max = 20) => {
+    if (!str || str.length <= max) return str;
+    return str.slice(0, max) + '...';
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh', padding: '40px 0 80px 0', background: '#f0f4fa' }}>
       {/* Selected Parts Section */}
-      <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
+      <div style={{ width: 900, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
         <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>Selected Parts</h2>
         <button
           onClick={() => setShowParts(v => !v)}
@@ -144,28 +153,31 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </table>
           </div>
         )}
-        <button
-          onClick={() => setShowNewPartForm(true)}
-          id="add-new-part-btn"
-          style={{
-            width: '100%',
-            background: '#2d72d9',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            padding: 14,
-            fontSize: 17,
-            fontWeight: 600,
-            cursor: 'pointer',
-            marginBottom: 12,
-            zIndex: 1,
-            position: 'relative',
-            transition: 'margin-top 0.2s',
-            marginTop: 0
-          }}
-        >
-          + Add New Part (Not in Database)
-        </button>
+        {/* Only show Add New Part button if admin */}
+        {isAdmin && (
+          <button
+            onClick={() => setShowNewPartForm(true)}
+            id="add-new-part-btn"
+            style={{
+              width: '100%',
+              background: '#2d72d9',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              padding: 14,
+              fontSize: 17,
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginBottom: 12,
+              zIndex: 1,
+              position: 'relative',
+              transition: 'margin-top 0.2s',
+              marginTop: 0
+            }}
+          >
+            + Add New Part (Not in Database)
+          </button>
+        )}
         {showNewPartForm && (
           <div
             style={{
@@ -181,6 +193,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               display: 'block',
               minWidth: 0,
               wordBreak: 'break-word',
+              maxWidth: '100%',
+              overflow: 'hidden'
             }}
           >
             <h3 style={{marginTop:0}}>Add New Part</h3>
@@ -188,30 +202,31 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
               gap: 20,
-              marginBottom: 12
+              marginBottom: 12,
+              maxWidth: '100%'
             }}>
-              <label style={{ fontWeight: 500, gridColumn: '1 / 2' }}>Part Number <span style={{color:'red'}}>*</span>
-                <input type="text" name="partNumber" value={newPartFields.partNumber || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Part Number" />
+              <label style={{ fontWeight: 500, gridColumn: '1 / 2', maxWidth: '100%', overflow: 'hidden' }}>Part Number <span style={{color:'red'}}>*</span>
+                <input type="text" name="partNumber" value={newPartFields.partNumber || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="Part Number" />
               </label>
-              <label style={{ fontWeight: 500, gridColumn: '2 / 3' }}>Classification <span style={{color:'red'}}>*</span>
-                <select name="classification" value={newPartFields.classification || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
+              <label style={{ fontWeight: 500, gridColumn: '2 / 3', maxWidth: '100%', overflow: 'hidden' }}>Classification <span style={{color:'red'}}>*</span>
+                <select name="classification" value={newPartFields.classification || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }}>
                   <option value="">Select Classification</option>
                   <option value="IMS">IMS</option>
                   <option value="OnePDM">OnePDM</option>
                   <option value="Variscale">Variscale</option>
                 </select>
               </label>
-              <label style={{ fontWeight: 500 }}>U Height
-                <input type="text" name="uHeight" value={newPartFields.uHeight || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="U Height" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>U Height
+                <input type="text" name="uHeight" value={newPartFields.uHeight || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="U Height" />
               </label>
-              <label style={{ fontWeight: 500 }}>Manufacturer Name <span style={{color:'red'}}>*</span>
-                <input type="text" name="mfgName" value={newPartFields.mfgName || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Manufacturer Name" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>Manufacturer Name <span style={{color:'red'}}>*</span>
+                <input type="text" name="mfgName" value={newPartFields.mfgName || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="Manufacturer Name" />
               </label>
-              <label style={{ fontWeight: 500 }}>Manufacturer Part Number <span style={{color:'red'}}>*</span>
-                <input type="text" name="mfgPartNumber" value={newPartFields.mfgPartNumber || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Manufacturer Part Number" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>Manufacturer Part Number <span style={{color:'red'}}>*</span>
+                <input type="text" name="mfgPartNumber" value={newPartFields.mfgPartNumber || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="Manufacturer Part Number" />
               </label>
-              <label style={{ fontWeight: 500 }}>Select Category <span style={{color:'red'}}>*</span>
-                <select name="category" value={newPartFields.category || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>Select Category <span style={{color:'red'}}>*</span>
+                <select name="category" value={newPartFields.category || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }}>
                   <option value="">Select Category</option>
                   <option value="SSD">SSD</option>
                   <option value="IN-RACK POWER">IN-RACK POWER</option>
@@ -264,41 +279,35 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                   <option value="other">other</option>
                 </select>
               </label>
-              <label style={{ fontWeight: 500 }}>ECCN
-                <input type="text" name="eccn" value={newPartFields.eccn || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="ECCN" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>ECCN
+                <input type="text" name="eccn" value={newPartFields.eccn || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="ECCN" />
               </label>
-              <label style={{ fontWeight: 500 }}>HTS
-                <input type="text" name="hts" value={newPartFields.hts || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="HTS" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>HTS
+                <input type="text" name="hts" value={newPartFields.hts || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="HTS" />
               </label>
-              <label style={{ fontWeight: 500 }}>PPU
-                <input type="text" name="ppu" value={newPartFields.ppu || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PPU" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>PPU
+                <input type="text" name="ppu" value={newPartFields.ppu || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="PPU" />
               </label>
-              <label style={{ fontWeight: 500 }}>COO
-                <input type="text" name="coo" value={newPartFields.coo || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="COO" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>COO
+                <input type="text" name="coo" value={newPartFields.coo || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="COO" />
               </label>
-              <label style={{ fontWeight: 500 }}>OnePDM Revision
-                <input type="text" name="onepdmRevision" value={newPartFields.onepdmRevision || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="OnePDM Revision" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>OnePDM Revision
+                <input type="text" name="onepdmRevision" value={newPartFields.onepdmRevision || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="OnePDM Revision" />
               </label>
-              <label style={{ fontWeight: 500 }}>Maturity
-                <input type="text" name="maturity" value={newPartFields.maturity || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Maturity" />
+              <label style={{ fontWeight: 500, maxWidth: '100%', overflow: 'hidden' }}>Maturity
+                <input type="text" name="maturity" value={newPartFields.maturity || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="Maturity" />
               </label>
-              <label style={{ fontWeight: 500, gridColumn: '1 / -1' }}>Description <span style={{color:'red'}}>*</span>
-                <input type="text" name="description" value={newPartFields.description || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Description" />
+              <label style={{ fontWeight: 500, gridColumn: '1 / -1', maxWidth: '100%', overflow: 'hidden' }}>Description <span style={{color:'red'}}>*</span>
+                <input type="text" name="description" value={newPartFields.description || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="Description" />
               </label>
-              <label style={{ fontWeight: 500, gridColumn: '1 / -1' }}>AKA References
-                <input type="text" name="akaReferences" value={newPartFields.akaReferences || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="AKA References" />
+              <label style={{ fontWeight: 500, gridColumn: '1 / -1', maxWidth: '100%', overflow: 'hidden' }}>AKA References
+                <input type="text" name="akaReferences" value={newPartFields.akaReferences || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="AKA References" />
               </label>
-              <label style={{ fontWeight: 500, gridColumn: '1 / -1' }}>Part Image Attachment
-                <input
-                  type="file"
-                  name="partImage"
-                  accept="image/*"
-                  onChange={e => setNewPartFields(prev => ({ ...prev, partImage: e.target.files[0] }))}
-                  style={{ marginTop: 8 }}
-                />
+              <label style={{ fontWeight: 500, gridColumn: '1 / -1', maxWidth: '100%', overflow: 'hidden' }}>Part Image Attachment
+                <input type="text" name="partImageAttachment" value={newPartFields.partImageAttachment || ''} onChange={handleNewPartFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, maxWidth: '100%' }} placeholder="Part Image Attachment" />
               </label>
             </div>
-            <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
+            <div style={{ display: 'flex', gap: 12, marginTop: 18, maxWidth: '100%', overflow: 'hidden' }}>
               <button
                 onClick={handleAddNewPart}
                 style={{ background: '#2d72d9', color: '#fff', border: 'none', borderRadius: 6, padding: '10px 22px', fontWeight: 600, fontSize: 15, cursor: 'pointer' }}
@@ -318,18 +327,18 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
 
       {/* New Parts Table Section (only show if there are new parts) */}
       {newParts && newParts.length > 0 && (
-        <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
+        <div style={{ width: 900, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
           <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>New Parts Added (Not in Database)</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', margin: '0 auto' }}>
+          <table style={{ width: '100%', maxWidth: '100%', minWidth: 0, tableLayout: 'fixed', borderCollapse: 'collapse', background: '#fff', borderRadius: 8, boxShadow: '0 1px 8px rgba(0,0,0,0.06)', margin: 0, fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f5f5f5' }}>
-                <th style={{ border: '1px solid #ccc', padding: 8 }}>Part Number</th>
-                <th style={{ border: '1px solid #ccc', padding: 8 }}>Classification</th>
-                <th style={{ border: '1px solid #ccc', padding: 8 }}>Manufacturer Name</th>
-                <th style={{ border: '1px solid #ccc', padding: 8 }}>Manufacturer Part #</th>
-                <th style={{ border: '1px solid #ccc', padding: 8 }}>Category</th>
-                <th style={{ border: '1px solid #ccc', padding: 8 }}>Description</th>
-                <th style={{ border: '1px solid #ccc', padding: 8 }}>Actions</th>
+                <th style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>Part Number</th>
+                <th style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>Classification</th>
+                <th style={{ border: '1px solid #ccc', padding: '6px 4px', width: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>Manufacturer Name</th>
+                <th style={{ border: '1px solid #ccc', padding: '6px 4px', width: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>Manufacturer Part #</th>
+                <th style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>Category</th>
+                <th style={{ border: '1px solid #ccc', padding: '6px 4px', width: 210, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}>Description</th>
+                <th style={{ border: '1px solid #ccc', padding: '6px 2px', width: 60, whiteSpace: 'nowrap', fontSize: 13 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -337,28 +346,46 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <tr key={idx}>
                   {editIndex === idx ? (
                     <>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="partNumber" value={editPartFields.partNumber || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="classification" value={editPartFields.classification || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="mfgName" value={editPartFields.mfgName || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="mfgPartNumber" value={editPartFields.mfgPartNumber || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="category" value={editPartFields.category || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}><input type="text" name="description" value={editPartFields.description || ''} onChange={handleEditPartFieldChange} style={{ width: '100%' }} /></td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                        <button onClick={handleSaveEditPart} style={{ marginRight: 8 }}>Save</button>
-                        <button onClick={handleCancelEditPart}>Cancel</button>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}><input type="text" name="partNumber" value={editPartFields.partNumber || ''} onChange={handleEditPartFieldChange} style={{ width: '100%', fontSize: 13 }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}><input type="text" name="classification" value={editPartFields.classification || ''} onChange={handleEditPartFieldChange} style={{ width: '100%', fontSize: 13 }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}><input type="text" name="mfgName" value={editPartFields.mfgName || ''} onChange={handleEditPartFieldChange} style={{ width: '100%', fontSize: 13 }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}><input type="text" name="mfgPartNumber" value={editPartFields.mfgPartNumber || ''} onChange={handleEditPartFieldChange} style={{ width: '100%', fontSize: 13 }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}><input type="text" name="category" value={editPartFields.category || ''} onChange={handleEditPartFieldChange} style={{ width: '100%', fontSize: 13 }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 210, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13 }}><input type="text" name="description" value={editPartFields.description || ''} onChange={handleEditPartFieldChange} style={{ width: '100%', fontSize: 13 }} /></td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 2px', width: 60, whiteSpace: 'nowrap', fontSize: 13 }}>
+                        <button onClick={handleSaveEditPart} style={{ marginRight: 4, fontSize: 12, padding: '2px 6px' }}>Save</button>
+                        <button onClick={handleCancelEditPart} style={{ fontSize: 12, padding: '2px 6px' }}>Cancel</button>
                       </td>
                     </>
                   ) : (
                     <>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.partNumber || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.classification || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgName || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.mfgPartNumber || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.category || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>{part.description || ''}</td>
-                      <td style={{ border: '1px solid #ccc', padding: 8 }}>
-                        <button onClick={() => handleEditPart(idx)} style={{ marginRight: 8 }}>Edit</button>
-                        <button onClick={() => handleDeletePart(idx)}>Delete</button>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, cursor: part.partNumber && part.partNumber.length > 20 ? 'pointer' : 'default' }}
+                        onClick={() => part.partNumber && part.partNumber.length > 20 && setExpandedCell({ idx, field: 'Part Number', value: part.partNumber })}>
+                        {truncate(part.partNumber)}
+                      </td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, cursor: part.classification && part.classification.length > 20 ? 'pointer' : 'default' }}
+                        onClick={() => part.classification && part.classification.length > 20 && setExpandedCell({ idx, field: 'Classification', value: part.classification })}>
+                        {truncate(part.classification)}
+                      </td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, cursor: part.mfgName && part.mfgName.length > 20 ? 'pointer' : 'default' }}
+                        onClick={() => part.mfgName && part.mfgName.length > 20 && setExpandedCell({ idx, field: 'Manufacturer Name', value: part.mfgName })}>
+                        {truncate(part.mfgName)}
+                      </td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, cursor: part.mfgPartNumber && part.mfgPartNumber.length > 20 ? 'pointer' : 'default' }}
+                        onClick={() => part.mfgPartNumber && part.mfgPartNumber.length > 20 && setExpandedCell({ idx, field: 'Manufacturer Part #', value: part.mfgPartNumber })}>
+                        {truncate(part.mfgPartNumber)}
+                      </td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, cursor: part.category && part.category.length > 20 ? 'pointer' : 'default' }}
+                        onClick={() => part.category && part.category.length > 20 && setExpandedCell({ idx, field: 'Category', value: part.category })}>
+                        {truncate(part.category)}
+                      </td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 4px', width: 210, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, cursor: part.description && part.description.length > 20 ? 'pointer' : 'default' }}
+                        onClick={() => part.description && part.description.length > 20 && setExpandedCell({ idx, field: 'Description', value: part.description })}>
+                        {truncate(part.description)}
+                      </td>
+                      <td style={{ border: '1px solid #ccc', padding: '6px 2px', width: 60, whiteSpace: 'nowrap', fontSize: 13 }}>
+                        <button onClick={() => handleEditPart(idx)} style={{ marginRight: 4, fontSize: 12, padding: '2px 6px' }}>Edit</button>
+                        <button onClick={() => handleDeletePart(idx)} style={{ fontSize: 12, padding: '2px 6px' }}>Delete</button>
                       </td>
                     </>
                   )}
@@ -366,11 +393,27 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               ))}
             </tbody>
           </table>
+          {/* Expanded cell modal */}
+          {expandedCell.idx !== null && (
+            <div style={{
+              position: 'fixed',
+              top: 0, left: 0, width: '100vw', height: '100vh',
+              background: 'rgba(0,0,0,0.3)',
+              zIndex: 9999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }} onClick={() => setExpandedCell({ idx: null, field: '', value: '' })}>
+              <div style={{ background: '#fff', padding: 32, borderRadius: 12, minWidth: 320, maxWidth: 600, boxShadow: '0 2px 12px rgba(0,0,0,0.18)', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                <div style={{ fontWeight: 700, marginBottom: 12 }}>{expandedCell.field}</div>
+                <div style={{ wordBreak: 'break-all', fontSize: 16 }}>{expandedCell.value}</div>
+                <button style={{ position: 'absolute', top: 12, right: 12 }} onClick={() => setExpandedCell({ idx: null, field: '', value: '' })}>Close</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Purchase Request Section */}
-      <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
+      <div style={{ width: 900, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
         <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>Purchase Request Details</h2>
         {/* Requester Info */}
         <fieldset style={{ border: '1px solid #bbb', borderRadius: 6, padding: 24, marginBottom: 32, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
