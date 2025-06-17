@@ -1,0 +1,34 @@
+/* Main CSS Index File - Imports all component styles */
+
+/* 1. Global Layout & Root Styles */
+@import './global.css';
+
+/* 2. Navigation & Header (Taskbar) */
+@import './navigation.css';
+
+/* 3. Home Page */
+@import './home.css';
+
+/* 4. Login Page */
+@import './login.css';
+
+/* 5. Search Page & Search Bar */
+@import './search.css';
+
+/* 6. Parts Table */
+@import './partstable.css';
+
+/* 7. Required Fields */
+@import './requiredfields.css';
+
+/* 8. Confirmation Summary */
+@import './confirmationsummary.css';
+
+/* 9. Orders Page */
+@import './orders.css';
+
+/* 10. Common UI Elements */
+@import './common.css';
+
+/* 11. Utilities & Animations */
+@import './utilities.css';

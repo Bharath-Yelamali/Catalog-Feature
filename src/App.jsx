@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
 import * as XLSX from 'xlsx';
-import './App.css'
 import SearchBar from './components/SearchBar';
 import PartsTable from './components/PartsTable';
 import RequiredFields from './components/RequiredFields';

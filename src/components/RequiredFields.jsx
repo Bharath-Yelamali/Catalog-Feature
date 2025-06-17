@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import '../App.css'; // Import the CSS file for class-based styling
 
 function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts, isAdmin }) {
   const [showParts, setShowParts] = useState(false);
@@ -607,7 +606,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       </div>
 
       {/* Attachments Section */}
-      <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
+      <div style={{ width: 900, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
         <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>Attachments</h2>
         <div className="required-fields-attachments-box">
           <label className="required-fields-attachments-label">

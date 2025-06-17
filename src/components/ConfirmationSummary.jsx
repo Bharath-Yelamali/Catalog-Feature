@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import jsPDF from "jspdf";
 import { PDFDocument } from "pdf-lib";
-import "../App.css";
 import { postNewInventoryPart } from '../api/parts';
 
 function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
