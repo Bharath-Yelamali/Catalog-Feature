@@ -204,7 +204,49 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       // Add all fields except attachments
       Object.entries(preqFields).forEach(([key, value]) => {
         if (key !== 'attachments' && value !== undefined && value !== null) {
-          formData.append(key, value);
+          if (key === 'invoiceApproverId') {
+            formData.append('m_invoice_approver', value);
+          } else if (key === 'poOwnerId') {
+            formData.append('m_po_owner', value);
+          } else if (key === 'supplierId') {
+            formData.append('m_supplier', value);
+          } else if (key === 'projectId') {
+            formData.append('m_project', value);
+          } else if (key === 'reviewer') {
+            formData.append('m_reviewer', value);
+          } else if (key === 'fidNumber') {
+            formData.append('m_fid_code', value);
+          } else if (key === 'poNumber') {
+            formData.append('m_po_num', value);
+          } else if (key === 'ioCc') {
+            formData.append('m_io_num', value);
+          } else if (key === 'deliveryContactEmail') {
+            formData.append('m_email', value);
+          } else if (key === 'deliveryContactPhone') {
+            formData.append('m_contact', value);
+          } else if (key === 'deliverToMsftAlias') {
+            formData.append('m_deliverto_msft', value);
+          } else if (key === 'interimApproverAlias') {
+            formData.append('m_interim_approver', value);
+          } else if (key === 'safeApprover') {
+            formData.append('m_safe_appover', value);
+          } else if (key === 'ccListAlias') {
+            formData.append('m_cc_list', value);
+          } else if (key === 'businessJustificationNotes') {
+            formData.append('m_notes_proc', value);
+          } else if (key === 'purchaseType') {
+            formData.append('m_purchase_type', value);
+          } else if (key === 'deliveryLocation') {
+            formData.append('m_delivery_location', value);
+          } else if (
+            key !== 'invoiceApprover' &&
+            key !== 'poOwnerAlias' &&
+            key !== 'supplier' &&
+            key !== 'project' &&
+            key !== 'reviewerName'
+          ) {
+            formData.append(key, value);
+          }
         }
       });
       // Attach the first file as m_quote (required)

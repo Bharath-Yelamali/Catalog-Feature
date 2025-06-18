@@ -116,6 +116,10 @@ app.use('/api', partsRouter);
 const projectRouter = require('./project');
 app.use('/api', projectRouter);
 
+// Register supplier route
+const supplierRouter = require('./supplier');
+app.use('/api', supplierRouter);
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

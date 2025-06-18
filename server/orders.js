@@ -239,7 +239,8 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     });
 
     // Required fields validation
-    const requiredFields = ['title', 'poOwnerAlias', 'project', 'supplier'];
+    // Updated to match new payload: require IDs, not names/aliases
+    const requiredFields = ['title', 'm_po_owner', 'm_project', 'm_supplier'];
     const validation = validateRequiredFields(req.body || {}, requiredFields);
     if (!validation.valid) {
       return res.status(400).json({
@@ -256,8 +257,20 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     delete fields.attachments;
     // Map frontend field names to backend-required names
     if (fields.invoiceApprover) {
-      fields.m_invoice_approver = fields.invoiceApprover;
-      delete fields.invoiceApprover;
+      // Map invoice approver logic
+      if (fields.invoiceApprover === 'PO Owner' && fields.poOwnerId) {
+        fields.m_invoice_approver = fields.poOwnerId;
+        delete fields.invoiceApprover;
+        delete fields.poOwnerId;
+      } else if (fields.invoiceApprover === 'Other' && fields.invoiceApproverId) {
+        fields.m_invoice_approver = fields.invoiceApproverId;
+        delete fields.invoiceApprover;
+        delete fields.invoiceApproverId;
+      } else if (fields.invoiceApprover) {
+        // For 'Procurement Team' or any other value, leave as is for now
+        fields.m_invoice_approver = fields.invoiceApprover;
+        delete fields.invoiceApprover;
+      }
     }
     if (fields.poOwnerAlias) {
       fields.m_po_owner = fields.poOwnerAlias;
@@ -278,6 +291,37 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     if (fields.title) {
       fields.m_title = fields.title;
       delete fields.title;
+    }
+    // Map boolean fields to OData expected fields and types
+    const booleanFieldMap = [
+      { from: 'capex', to: 'm_is_capex' },
+      { from: 'fid', to: 'm_is_fid' },
+      { from: 'reviewedByLabTpm', to: 'm_is_lab_tpm' },
+      { from: 'deliverToMsftPoc', to: 'm_is_msft_poc' },
+      { from: 'urgent', to: 'm_is_po_urgent' },
+    ];
+    booleanFieldMap.forEach(({ from, to }) => {
+      if (fields[from] !== undefined) {
+        // Accept both boolean and string 'true'/'false'
+        fields[to] = fields[from] === true || fields[from] === 'true';
+        delete fields[from];
+      }
+    });
+    // Ensure m_deliverto_third_party is set to 'No' if not provided (required text field)
+    if (!fields.m_deliverto_third_party) {
+      fields.m_deliverto_third_party = 'No';
+    }
+    // Concatenate business justification fields into m_detail_info
+    if (!fields.m_detail_info) {
+      const justificationParts = [
+        fields.businessJustificationProject,
+        fields.businessJustificationLocation,
+        fields.businessJustificationWhat,
+        fields.businessJustificationWhy,
+        fields.businessJustificationImpact,
+        fields.businessJustificationNotes
+      ].filter(Boolean);
+      fields.m_detail_info = justificationParts.length > 0 ? justificationParts.join('. ') + '.' : 'No business justification provided.';
     }
     // Add more mappings as needed for other required fields
     let odataPayload = { ...fields };
