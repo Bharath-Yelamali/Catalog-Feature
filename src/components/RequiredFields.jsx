@@ -470,6 +470,14 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 Select
               </button>
             </label>
+            {/* Project ID box appears if a projectId is present */}
+            {preqFields.projectId && (
+              <div style={{ gridColumn: '1 / 2', marginTop: -16 }}>
+                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Project ID
+                  <input type="text" name="projectId" value={preqFields.projectId} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
+                </label>
+              </div>
+            )}
             <label style={{ fontWeight: 500 }}>Supplier <span style={{color:'red'}}>*</span>
               <input type="text" name="supplier" value={preqFields.supplier} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Supplier" />
             </label>
@@ -698,7 +706,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               disabled={!selectedProject}
               onClick={() => {
                 if (selectedProject) {
-                  setPreqFields(prev => ({ ...prev, project: selectedProject.name }));
+                  setPreqFields(prev => ({ ...prev, project: selectedProject.name, projectId: selectedProject.id }));
                   setShowProjectPopup(false);
                 }
               }}

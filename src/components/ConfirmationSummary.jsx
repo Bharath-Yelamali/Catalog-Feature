@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import jsPDF from "jspdf";
 import { PDFDocument } from "pdf-lib";
 import { postNewInventoryPart } from '../api/parts';
+import { postProcurementRequest, postProcurementRequestFile } from '../api/procurementRequest';
 
 function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
   const [submitting, setSubmitting] = useState(false);
@@ -193,43 +194,33 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
     }
   };
 
-  // Submit handler: POST all new parts to backend
+  // Submit handler: POST procurement request (step 1 of 2)
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitResult(null);
     try {
-      if (newParts && newParts.length > 0) {
-        for (const part of newParts) {
-          // Map all relevant frontend fields to OData m_Inventory fields
-          const mappedPart = {
-            item_number: part.partNumber || '',
-            classification: part.classification || '',
-            m_uheight: part.uHeight || '',
-            m_mfg_name: part.mfgName || '',
-            m_mfg_part_number: part.mfgPartNumber || '',
-            m_category: part.category || '',
-            m_eccn: part.eccn || '',
-            m_hts: part.hts || '',
-            m_ppu: part.ppu || '',
-            m_coo: part.coo || '',
-            m_rev: part.onepdmRevision || 'A',
-            m_maturity: part.maturity || '',
-            m_description: part.description || '',
-            m_aka: part.akaReferences || '',
-            // Add more mappings as needed for your UI fields
-          };
-          // Only send non-empty fields
-          Object.keys(mappedPart).forEach(key => {
-            if (mappedPart[key] === '') delete mappedPart[key];
-          });
-          await postNewInventoryPart(mappedPart, accessToken);
+      // Prepare FormData for multipart/form-data
+      const formData = new FormData();
+      // Add all fields except attachments
+      Object.entries(preqFields).forEach(([key, value]) => {
+        if (key !== 'attachments' && value !== undefined && value !== null) {
+          formData.append(key, value);
         }
-        setSubmitResult('success');
-        if (onSubmit) onSubmit();
+      });
+      // Attach the first file as m_quote (required)
+      if (attachments && attachments.length > 0) {
+        formData.append('m_quote', attachments[0]);
+        console.log('FormData m_quote:', formData.get('m_quote'));
       } else {
-        setSubmitResult('none'); // No new parts to submit
+        console.log('No attachment found for m_quote');
+        throw new Error('No attachment found');
       }
+      // Post procurement request with file
+      await postProcurementRequest(formData, accessToken, true);
+      setSubmitResult('success');
+      if (onSubmit) onSubmit();
     } catch (err) {
+      console.error('Error submitting procurement request:', err);
       setSubmitResult('error');
     } finally {
       setSubmitting(false);

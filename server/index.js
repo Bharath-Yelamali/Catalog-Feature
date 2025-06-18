@@ -54,6 +54,11 @@ async function getToken() {
 // Restrict CORS to only allow requests from your frontend
 const allowedOrigin = 'http://localhost:5173';
 app.use(cors({ origin: allowedOrigin }));
+// Register orders route (with file upload) BEFORE express.json()
+const ordersRouter = require('./orders');
+app.use('/api', ordersRouter);
+
+// Now apply express.json() for all other routes
 app.use(express.json());
 
 app.get('/', (req, res) => {
@@ -106,10 +111,6 @@ app.use('/api', identityRouter);
 // Register parts route
 const partsRouter = require('./parts');
 app.use('/api', partsRouter);
-
-// Register orders route
-const ordersRouter = require('./orders');
-app.use('/api', ordersRouter);
 
 // Register generic API route (for projects, etc)
 const projectRouter = require('./project');
