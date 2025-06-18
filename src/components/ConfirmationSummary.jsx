@@ -224,9 +224,11 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
           });
           await postNewInventoryPart(mappedPart, accessToken);
         }
+        setSubmitResult('success');
+        if (onSubmit) onSubmit();
+      } else {
+        setSubmitResult('none'); // No new parts to submit
       }
-      setSubmitResult('success');
-      if (onSubmit) onSubmit();
     } catch (err) {
       setSubmitResult('error');
     } finally {
@@ -412,6 +414,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
         <button onClick={handleExportPDF} className="export-btn">Export as PDF</button>
       </div>
       {submitResult === 'success' && <div style={{color:'green',marginTop:8}}>New parts submitted successfully!</div>}
+      {submitResult === 'none' && <div style={{color:'orange',marginTop:8}}>No new parts to submit.</div>}
       {submitResult === 'error' && <div style={{color:'red',marginTop:8}}>Failed to submit new parts. Please try again.</div>}
     </div>
   );
