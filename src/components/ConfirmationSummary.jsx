@@ -194,12 +194,45 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
     }
   };
 
-  // Submit handler: POST procurement request (step 1 of 2)
+  // Submit handler: POST new parts, then procurement request (step 1 of 2)
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitResult(null);
     try {
-      // Prepare FormData for multipart/form-data
+      // 1. Post new parts if any
+      if (newParts && newParts.length > 0) {
+        for (const part of newParts) {
+          // Map all relevant frontend fields to OData m_Inventory fields
+          const mappedPart = {
+            item_number: part.partNumber || '',
+            classification: part.classification || '',
+            m_uheight: part.uHeight || '',
+            m_mfg_name: part.mfgName || '',
+            m_mfg_part_number: part.mfgPartNumber || '',
+            m_category: part.category || '',
+            m_eccn: part.eccn || '',
+            m_hts: part.hts || '',
+            m_ppu: part.ppu || '',
+            m_coo: part.coo || '',
+            m_rev: part.onepdmRevision || 'A',
+            m_maturity: part.maturity || '',
+            m_description: part.description || '',
+            m_aka: part.akaReferences || '',
+            // Add more mappings as needed for your UI fields
+          };
+          // Only send non-empty fields
+          Object.keys(mappedPart).forEach(key => {
+            if (mappedPart[key] === '') delete mappedPart[key];
+          });
+          const res = await postNewInventoryPart(mappedPart, accessToken);
+          if (!res || res.error) {
+            setSubmitResult('error');
+            setSubmitting(false);
+            return;
+          }
+        }
+      }
+      // 2. Prepare FormData for multipart/form-data
       const formData = new FormData();
       // Add all fields except attachments
       Object.entries(preqFields).forEach(([key, value]) => {
