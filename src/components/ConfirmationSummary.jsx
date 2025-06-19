@@ -198,11 +198,11 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitResult(null);
+    let newPartAdded = false;
     try {
       // 1. Post new parts if any
       if (newParts && newParts.length > 0) {
         for (const part of newParts) {
-          // Map all relevant frontend fields to OData m_Inventory fields
           const mappedPart = {
             item_number: part.partNumber || '',
             classification: part.classification || '',
@@ -218,17 +218,23 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             m_maturity: part.maturity || '',
             m_description: part.description || '',
             m_aka: part.akaReferences || '',
-            // Add more mappings as needed for your UI fields
           };
-          // Only send non-empty fields
           Object.keys(mappedPart).forEach(key => {
             if (mappedPart[key] === '') delete mappedPart[key];
           });
-          const res = await postNewInventoryPart(mappedPart, accessToken);
-          if (!res || res.error) {
-            setSubmitResult('error');
-            setSubmitting(false);
-            return;
+          try {
+            await postNewInventoryPart(mappedPart, accessToken);
+            newPartAdded = true;
+          } catch (err) {
+            if (err.isDuplicate || err.message === 'part_already_exists') {
+              setSubmitResult('part_exists');
+              setSubmitting(false);
+              return;
+            } else {
+              setSubmitResult('error');
+              setSubmitting(false);
+              return;
+            }
           }
         }
       }
@@ -285,17 +291,13 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       // Attach the first file as m_quote (required)
       if (attachments && attachments.length > 0) {
         formData.append('m_quote', attachments[0]);
-        console.log('FormData m_quote:', formData.get('m_quote'));
       } else {
-        console.log('No attachment found for m_quote');
         throw new Error('No attachment found');
       }
-      // Post procurement request with file
       await postProcurementRequest(formData, accessToken, true);
-      setSubmitResult('success');
+      setSubmitResult(newPartAdded ? 'both_success' : 'preq_success');
       if (onSubmit) onSubmit();
     } catch (err) {
-      console.error('Error submitting procurement request:', err);
       setSubmitResult('error');
     } finally {
       setSubmitting(false);
@@ -481,7 +483,10 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       </div>
       {submitResult === 'success' && <div style={{color:'green',marginTop:8}}>New parts submitted successfully!</div>}
       {submitResult === 'none' && <div style={{color:'orange',marginTop:8}}>No new parts to submit.</div>}
-      {submitResult === 'error' && <div style={{color:'red',marginTop:8}}>Failed to submit new parts. Please try again.</div>}
+      {submitResult === 'error' && <div style={{color:'red',marginTop:8}}>Failed to submit new parts or request. Please try again.</div>}
+      {submitResult === 'preq_success' && <div style={{color:'green',marginTop:8}}>New Purchase Request submitted successfully!</div>}
+      {submitResult === 'both_success' && <div style={{color:'green',marginTop:8}}>New Purchase Request and Part Submitted successfully!</div>}
+      {submitResult === 'part_exists' && <div style={{color:'red',marginTop:8}}>Error: part already exists, request canceled</div>}
     </div>
   );
 }
