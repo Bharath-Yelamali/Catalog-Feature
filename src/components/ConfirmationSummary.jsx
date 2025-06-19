@@ -73,7 +73,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       ["FID", preqFields.fid],
       ["FID Number", preqFields.fidNumber],
       ["Reviewed by Lab TPM", typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : 'Not specified'],
-      ["Reviewer", preqFields.reviewer],
+      ["Reviewer", preqFields.reviewerName],
       ["Interim Approver Alias", preqFields.interimApproverAlias],
       ["SAFE Approver", preqFields.safeApprover],
       ["CC List Alias", preqFields.ccListAlias],
@@ -364,7 +364,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             <dt>Reviewed by Lab TPM</dt>
             <dd>{typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Reviewer</dt>
-            <dd>{preqFields.reviewer || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{preqFields.reviewerName || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Interim Approver Alias</dt>
             <dd>{preqFields.interimApproverAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>SAFE Approver</dt>

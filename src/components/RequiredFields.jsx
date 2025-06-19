@@ -545,23 +545,17 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               <input type="text" name="title" value={preqFields.title} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Title" />
             </label>
             <label style={{ fontWeight: 500 }}>PO Owner Alias <span style={{color:'red'}}>*</span>
-              <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
-              <button
-                type="button"
-                style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
-                onClick={() => setShowPoOwnerPopup(true)}
-              >
-                Select
-              </button>
-            </label>
-            {/* PO Owner ID box appears if a poOwnerId is present */}
-            {preqFields.poOwnerId && (
-              <div style={{ gridColumn: '1 / 2', marginTop: -16 }}>
-                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>PO Owner ID
-                  <input type="text" name="poOwnerId" value={preqFields.poOwnerId} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
-                </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
+                <button
+                  type="button"
+                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
+                  onClick={() => setShowPoOwnerPopup(true)}
+                >
+                  Select
+                </button>
               </div>
-            )}
+            </label>
             <label style={{ fontWeight: 500 }}>Coordinator
               <input type="text" name="coordinator" value={preqFields.coordinator} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Coordinator" />
             </label>
@@ -574,42 +568,30 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         <fieldset style={{ border: '1px solid #bbb', borderRadius: 6, padding: 24, marginBottom: 32, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
           <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Project & Supplier</legend>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Project <span style={{color:'red'}}>*</span>
-              <input type="text" name="project" value={preqFields.project} onChange={handleFieldChange} style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Project" />
-              <button
-                type="button"
-                style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
-                onClick={() => setShowProjectPopup(true)}
-              >
-                Select
-              </button>
-            </label>
-            {/* Project ID box appears if a projectId is present */}
-            {preqFields.projectId && (
-              <div style={{ gridColumn: '1 / 2', marginTop: -16 }}>
-                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Project ID
-                  <input type="text" name="projectId" value={preqFields.projectId} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
-                </label>
+            <label style={{ fontWeight: 500 }}>Project <span style={{color:'red'}}>*</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="text" name="project" value={preqFields.project} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Project" />
+                <button
+                  type="button"
+                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
+                  onClick={() => setShowProjectPopup(true)}
+                >
+                  Select
+                </button>
               </div>
-            )}
-            <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Supplier <span style={{color:'red'}}>*</span>
-              <input type="text" name="supplier" value={preqFields.supplier} onChange={handleFieldChange} style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Supplier" />
-              <button
-                type="button"
-                style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
-                onClick={() => setShowSupplierPopup(true)}
-              >
-                Select
-              </button>
             </label>
-            {/* Supplier ID box appears if a supplierId is present */}
-            {preqFields.supplierId && (
-              <div style={{ gridColumn: '2 / 3', marginTop: -16 }}>
-                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Supplier ID
-                  <input type="text" name="supplierId" value={preqFields.supplierId} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
-                </label>
+            <label style={{ fontWeight: 500 }}>Supplier <span style={{color:'red'}}>*</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="text" name="supplier" value={preqFields.supplier} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Supplier" />
+                <button
+                  type="button"
+                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
+                  onClick={() => setShowSupplierPopup(true)}
+                >
+                  Select
+                </button>
               </div>
-            )}
+            </label>
             <label style={{ fontWeight: 500 }}>Purchase Type <span style={{color:'red'}}>*</span>
               <select name="purchaseType" value={preqFields.purchaseType} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} required>
                 <option value="">Select Purchase Type</option>
@@ -711,11 +693,11 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                   value={preqFields.reviewerName || ''}
                   readOnly
                   placeholder="Select Reviewer"
-                  style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }}
+                  style={{ flex: 1, padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }}
                 />
                 <button
                   type="button"
-                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
+                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 35, lineHeight: '20px' }}
                   onClick={() => setShowReviewerPopup(true)}
                 >
                   {preqFields.reviewerName ? 'Change' : 'Select'}
@@ -730,14 +712,6 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 </button>
               </div>
             </label>
-            {/* Reviewer ID display if selected */}
-            {preqFields.reviewer && (
-              <div style={{ gridColumn: '1 / 2', marginTop: -16 }}>
-                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Reviewer ID
-                  <input type="text" name="reviewer" value={preqFields.reviewer} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
-                </label>
-              </div>
-            )}
             <label style={{ fontWeight: 500 }}>Interim Approver Alias
               <input type="text" name="interimApproverAlias" value={preqFields.interimApproverAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Interim Approver Alias" />
             </label>
@@ -781,30 +755,6 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 </select>
               )}
             </label>
-            {/* Show Invoice Approver ID if PO Owner is selected */}
-            {preqFields.invoiceApprover === 'PO Owner' && preqFields.poOwnerId && (
-              <div style={{ gridColumn: '2 / 3', marginTop: -16 }}>
-                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Invoice Approver ID
-                  <input type="text" name="invoiceApproverId" value={preqFields.poOwnerId} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
-                </label>
-              </div>
-            )}
-            {/* Show PO Owner ID if PO Owner is selected (legacy, can be removed if not needed) */}
-            {/* {preqFields.invoiceApprover === 'PO Owner' && preqFields.poOwnerId && (
-              <div style={{ gridColumn: '2 / 3', marginTop: -16 }}>
-                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>PO Owner ID
-                  <input type="text" name="poOwnerId" value={preqFields.poOwnerId} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
-                </label>
-              </div>
-            )} */}
-            {/* Show Invoice Approver ID if Other is selected and an approver is chosen */}
-            {preqFields.invoiceApprover === 'Other' && preqFields.invoiceApproverId && (
-              <div style={{ gridColumn: '2 / 3', marginTop: -16 }}>
-                <label style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>Invoice Approver ID
-                  <input type="text" name="invoiceApproverId" value={preqFields.invoiceApproverId} readOnly style={{ flex: 1, padding: 8, marginTop: 0, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }} />
-                </label>
-              </div>
-            )}
           </div>
         </fieldset>
         <fieldset style={{ border: '1px solid #bbb', borderRadius: 6, padding: 24, marginTop: 0, marginBottom: 0, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
@@ -988,6 +938,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               }}
             >
               Select
+
             </button>
           </div>
         </div>
