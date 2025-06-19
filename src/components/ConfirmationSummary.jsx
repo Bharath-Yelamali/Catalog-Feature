@@ -223,6 +223,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             if (mappedPart[key] === '') delete mappedPart[key];
           });
           try {
+            console.log('Posting new part to backend:', mappedPart); // <-- Log for new part
             await postNewInventoryPart(mappedPart, accessToken);
             newPartAdded = true;
           } catch (err) {
@@ -294,6 +295,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       } else {
         throw new Error('No attachment found');
       }
+      console.log('Submitting purchase request to backend:', Object.fromEntries(formData.entries())); // <-- Log for purchase request
       await postProcurementRequest(formData, accessToken, true);
       setSubmitResult(newPartAdded ? 'both_success' : 'preq_success');
       if (onSubmit) onSubmit();
