@@ -243,10 +243,10 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       const formData = new FormData();
       // Add all fields except attachments
       Object.entries(preqFields).forEach(([key, value]) => {
-        if (key !== 'attachments' && value !== undefined && value !== null) {
-          if (key === 'invoiceApproverId') {
+        if (key !== 'attachments' && value !== undefined && value !== null) {          if (key === 'invoiceApproverId') {
             formData.append('m_invoice_approver', value);
-          } else if (key === 'poOwnerId') {
+          } else if (key === 'poOwnerAlias') {
+            console.log('Setting m_po_owner from poOwnerAlias:', value);
             formData.append('m_po_owner', value);
           } else if (key === 'supplierId') {
             formData.append('m_supplier', value);
@@ -278,13 +278,13 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             formData.append('m_purchase_type', value);
           } else if (key === 'deliveryLocation') {
             formData.append('m_delivery_location', value);
-          } else if (
+          }          else if (
             key !== 'invoiceApprover' &&
             key !== 'poOwnerAlias' &&
             key !== 'supplier' &&
             key !== 'project' &&
             key !== 'reviewerName'
-          ) {
+          ){
             formData.append(key, value);
           }
         }

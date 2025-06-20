@@ -6,6 +6,12 @@ const router = express.Router();
 const fetch = require('node-fetch');
 const multer = require('multer');
 
+// Helper function to check if a string is a UUID
+function isUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 // Configure multer with limits and file validation
 const upload = multer({
   limits: {
@@ -240,13 +246,24 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
 
     // Required fields validation
     // Updated to match new payload: require IDs, not names/aliases
-    const requiredFields = ['title', 'm_po_owner', 'm_project', 'm_supplier'];
-    const validation = validateRequiredFields(req.body || {}, requiredFields);
+    // Either m_po_owner or poOwnerAlias is required, but we'll check for this separately
+    const requiredFields = ['title', 'm_project', 'm_supplier'];    const validation = validateRequiredFields(req.body || {}, requiredFields);
     if (!validation.valid) {
       return res.status(400).json({
         error: {
           status: 400,
           message: validation.error,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+    
+    // Check for PO owner specifically - either poOwnerAlias or m_po_owner must be present
+    if (!req.body.poOwnerAlias && !req.body.m_po_owner) {
+      return res.status(400).json({
+        error: {
+          status: 400,
+          message: "Missing required field: PO Owner Alias",
           timestamp: new Date().toISOString()
         }
       });
@@ -271,10 +288,15 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
         fields.m_invoice_approver = fields.invoiceApprover;
         delete fields.invoiceApprover;
       }
-    }
+    }    // Always use poOwnerAlias for m_po_owner if available, overriding any existing m_po_owner
     if (fields.poOwnerAlias) {
       fields.m_po_owner = fields.poOwnerAlias;
       delete fields.poOwnerAlias;
+      console.log("Using poOwnerAlias for m_po_owner:", fields.m_po_owner);
+    } else if (fields.m_po_owner) {
+      console.log("Using existing m_po_owner:", fields.m_po_owner);
+    } else if (fields.poOwnerId) {
+      console.log("Warning: poOwnerId found without accompanying poOwnerAlias. This might result in ID being stored instead of alias.");
     }
     if (fields.projectId) {
       fields.m_project = fields.projectId;
@@ -324,6 +346,16 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
       fields.m_detail_info = justificationParts.length > 0 ? justificationParts.join('. ') + '.' : 'No business justification provided.';
     }
     // Add more mappings as needed for other required fields
+    // Final validation for m_po_owner to ensure it doesn't contain a UUID
+    if (fields.m_po_owner && isUUID(fields.m_po_owner)) {
+      console.log('WARNING: m_po_owner contains a UUID instead of an alias. This is likely incorrect.');
+      // If we have poOwnerAlias in the original request, use that instead
+      if (req.body.poOwnerAlias) {
+        console.log(`Replacing m_po_owner UUID with alias: ${req.body.poOwnerAlias}`);
+        fields.m_po_owner = req.body.poOwnerAlias;
+      }
+    }
+    
     let odataPayload = { ...fields };
     if (req.file) {
       // Deep insert: add file as related entity
@@ -338,11 +370,10 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     } else {
       console.log('No file attached (file will be uploaded separately)');
     }
-    console.log('Outgoing OData payload:', { ...odataPayload, ...(odataPayload.m_Procurement_Request_Files ? { m_Procurement_Request_Files: '[file omitted]' } : {}) });
-    console.log('Forwarding to OData URL:', odataUrl);
+    console.log('Outgoing OData payload:', { ...odataPayload, ...(odataPayload.m_Procurement_Request_Files ? { m_Procurement_Request_Files: '[file omitted]' } : {}) });    console.log('Forwarding to OData URL:', odataUrl);
 
-    // Log possible invalid ID fields
-    const idFields = ['m_project', 'm_supplier', 'm_po_owner', 'm_invoice_approver'];
+    // Log possible invalid ID fields (m_po_owner is excluded as it should contain alias text, not an ID)
+    const idFields = ['m_project', 'm_supplier', 'm_invoice_approver'];
     idFields.forEach(field => {
       if (odataPayload[field] && typeof odataPayload[field] === 'string' && !/^[A-F0-9-]{8,}$/.test(odataPayload[field])) {
         console.warn(`WARNING: Field ${field} has suspicious value: '${odataPayload[field]}' (may not be a valid ID)`);

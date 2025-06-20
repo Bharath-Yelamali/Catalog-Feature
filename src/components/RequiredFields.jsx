@@ -198,13 +198,15 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     if (!str || str.length <= max) return str;
     return str.slice(0, max) + '...';
   };
-
   // When PO Owner alias is changed, update Invoice Approver ID if needed
   const handlePoOwnerSelect = (user) => {
+    console.log('PO Owner selected:', user);
     setPreqFields(prev => {
       const update = { ...prev, poOwnerAlias: user.alias, poOwnerId: user.id };
+      console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);
       if (prev.invoiceApprover === 'PO Owner') {
         update.invoiceApproverId = user.id;
+        console.log('Also setting invoiceApproverId to:', user.id);
       }
       return update;
     });
