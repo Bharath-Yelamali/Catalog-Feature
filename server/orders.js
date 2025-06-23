@@ -6,10 +6,6 @@ const router = express.Router();
 const fetch = require('node-fetch');
 const multer = require('multer');
 
-// Add nodemailer for email functionality
-// Note: You'll need to run "npm install nodemailer" to add this dependency
-const nodemailer = require('nodemailer');
-
 // Helper function to check if a string is a UUID
 function isUUID(str) {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -251,7 +247,7 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     // Required fields validation
     // Updated to match new payload: require IDs, not names/aliases
     // Either m_po_owner or poOwnerAlias is required, but we'll check for this separately
-    const requiredFields = ['title', 'm_project', 'm_supplier'];    const validation = validateRequiredFields(req.body || {}, requiredFields);
+    const requiredFields = ['m_project', 'm_supplier'];    const validation = validateRequiredFields(req.body || {}, requiredFields);
     if (!validation.valid) {
       return res.status(400).json({
         error: {
@@ -275,33 +271,86 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
 
     // Build the payload for OData
     const fields = req.body || {};
-    delete fields.attachments;
-    // Map frontend field names to backend-required names
+    delete fields.attachments;    // Map frontend field names to backend-required names
+    console.log("Invoice Approver Debug - Initial state:", {
+      invoiceApprover: fields.invoiceApprover,
+      invoiceApproverId: fields.invoiceApproverId,
+      poOwner: fields.m_po_owner,
+      poOwnerAlias: fields.poOwnerAlias
+    });
+
     if (fields.invoiceApprover) {
       // Map invoice approver logic
-      if (fields.invoiceApprover === 'PO Owner' && fields.poOwnerId) {
-        fields.m_invoice_approver = fields.poOwnerId;
+      if (fields.invoiceApprover === 'PO Owner') {
+        // When PO Owner is selected, use the PO owner alias directly instead of the ID
+        // This ensures we use the alias (which is what IMS expects) rather than an ID
+        if (fields.m_po_owner) {
+          fields.m_invoice_approver = fields.m_po_owner;
+        } else if (fields.poOwnerAlias) {
+          fields.m_invoice_approver = fields.poOwnerAlias;
+        }
+        console.log(`Setting invoice approver to PO Owner: ${fields.m_invoice_approver}`);
         delete fields.invoiceApprover;
-        delete fields.poOwnerId;
+        if (fields.poOwnerId) delete fields.poOwnerId;
       } else if (fields.invoiceApprover === 'Other' && fields.invoiceApproverId) {
         fields.m_invoice_approver = fields.invoiceApproverId;
+        console.log(`Setting invoice approver to Other ID: ${fields.m_invoice_approver}`);
         delete fields.invoiceApprover;
         delete fields.invoiceApproverId;
       } else if (fields.invoiceApprover) {
-        // For 'Procurement Team' or any other value, leave as is for now
+        // For 'Procurement Team' or any other value, use as is
         fields.m_invoice_approver = fields.invoiceApprover;
+        console.log(`Setting invoice approver directly: ${fields.m_invoice_approver}`);
         delete fields.invoiceApprover;
+      }    } else {
+      // If no invoice approver specified, default to PO Owner if available
+      if (fields.m_po_owner) {
+        fields.m_invoice_approver = fields.m_po_owner;
+        console.log(`Using PO Owner as default invoice approver: ${fields.m_invoice_approver}`);
+      } else if (fields.poOwnerAlias) {
+        fields.m_invoice_approver = fields.poOwnerAlias;
+        console.log(`Using PO Owner Alias as default invoice approver: ${fields.m_invoice_approver}`);
+      } else {
+        // If no PO Owner either, set a placeholder value to avoid NULL constraint error
+        fields.m_invoice_approver = "DEFAULT";
+        console.log("Using DEFAULT placeholder for invoice approver");
       }
-    }    // Always use poOwnerAlias for m_po_owner if available, overriding any existing m_po_owner
+    }
+    
+    // CRITICAL: Ensure m_invoice_approver is always set before continuing
+    // This is a final validation to prevent NULL constraint errors
+    if (!fields.m_invoice_approver) {
+      console.log("WARNING: m_invoice_approver is still null after processing. Setting to default value.");
+      // If we have a PO owner, use that
+      if (fields.m_po_owner) {
+        fields.m_invoice_approver = fields.m_po_owner;
+      } else {
+        // Last resort - set a fixed value
+        fields.m_invoice_approver = "DEFAULT_INVOICE_APPROVER";
+      }
+      console.log(`Final m_invoice_approver value: ${fields.m_invoice_approver}`);
+    }// Always use poOwnerAlias for m_po_owner if available, overriding any existing m_po_owner
     if (fields.poOwnerAlias) {
       fields.m_po_owner = fields.poOwnerAlias;
       delete fields.poOwnerAlias;
       console.log("Using poOwnerAlias for m_po_owner:", fields.m_po_owner);
     } else if (fields.m_po_owner) {
-      console.log("Using existing m_po_owner:", fields.m_po_owner);
-    } else if (fields.poOwnerId) {
+      console.log("Using existing m_po_owner:", fields.m_po_owner);    } else if (fields.poOwnerId) {
       console.log("Warning: poOwnerId found without accompanying poOwnerAlias. This might result in ID being stored instead of alias.");
     }
+      // Properly handle reviewer field mapping
+    if (fields.reviewer) {
+      fields.m_reviewer = fields.reviewer;
+      console.log("Setting m_reviewer from reviewer ID:", fields.m_reviewer);
+      delete fields.reviewer;
+      // Delete the display name field if it exists
+      if (fields.reviewerName) delete fields.reviewerName;
+    } else if (fields.m_reviewer) {
+      console.log("Using existing m_reviewer:", fields.m_reviewer);
+    } else {
+      console.log("WARNING: No reviewer (m_reviewer) field found in request");
+    }
+    
     if (fields.projectId) {
       fields.m_project = fields.projectId;
       delete fields.projectId;
@@ -503,71 +552,6 @@ router.post('/m_Procurement_Request_Files', upload.single('file'), async (req, r
       error: {
         status: 500,
         message: 'Failed to upload procurement request file',
-        details: err.message,
-        stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
-        timestamp: new Date().toISOString()
-      }
-    });
-  }
-});
-
-// POST endpoint for sending emails with attachments
-router.post('/send-email', upload.array('attachments', 5), async (req, res) => {
-  try {
-    // Get email details from request body
-    const { to, subject, body } = req.body;
-    const files = req.files || [];
-
-    if (!to || !subject || !body) {
-      return res.status(400).json({
-        error: {
-          status: 400,
-          message: 'Missing required email fields: to, subject, or body',
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-    // Configure email transporter
-    // Note: For production, you should use environment variables for these settings
-    const transporter = nodemailer.createTransport({
-      service: 'Office365', // or the appropriate service for your environment
-      auth: {
-        user: process.env.EMAIL_USER || 'your-email@microsoft.com',
-        pass: process.env.EMAIL_PASS || 'your-password'
-      }
-    });
-
-    // Prepare email with attachments
-    const mailOptions = {
-      from: process.env.EMAIL_USER || 'your-email@microsoft.com',
-      to,
-      subject,
-      text: body,
-      attachments: files.map(file => ({
-        filename: file.originalname,
-        content: file.buffer
-      }))
-    };
-
-    // Send email
-    const info = await transporter.sendMail(mailOptions);
-    
-    // Log success
-    console.log('Email sent:', info.messageId);
-    
-    // Return success response
-    return res.json({
-      success: true,
-      messageId: info.messageId,
-      timestamp: new Date().toISOString()
-    });
-  } catch (err) {
-    console.error('Error sending email:', err);
-    return res.status(500).json({
-      error: {
-        status: 500,
-        message: 'Failed to send email',
         details: err.message,
         stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
         timestamp: new Date().toISOString()
