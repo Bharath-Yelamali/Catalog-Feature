@@ -12,6 +12,7 @@
   "dependencies": {
     "jspdf": "^3.0.1",
     "multer": "^2.0.1",
+    "nodemailer": "^7.0.3",
     "papaparse": "^5.5.3",
     "pdf-lib": "^1.17.1",
     "react": "^19.1.0",

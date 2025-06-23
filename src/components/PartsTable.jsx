@@ -364,13 +364,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         </>
       )}
       {/* Next button fixed to the very bottom right, always visible */}
-      <button
-        className="next-fixed-btn"
-        disabled={!(selectedIds.length > 0 && selectedIds.every(id => quantities[id] && quantities[id].trim() !== ''))}
-        onClick={() => setPage('requiredFields')}
-      >
-        Next
-      </button>
+      <div className="confirmation-summary-buttons" style={{ position: 'fixed', bottom: 0, right: 15, zIndex: 100, display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+        <button
+          className="confirmation-summary-button-submit"
+          style={{ fontSize: 22, padding: '6px 48px', minWidth: 90, borderRadius: 10 }}
+          disabled={!(selectedIds.length > 0 && selectedIds.every(id => quantities[id] && quantities[id].trim() !== ''))}
+          onClick={() => setPage('requiredFields')}
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { postProcurementRequest, postProcurementRequestFile } from '../api/procu
 function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
+  // Helper function to create an email with all request details
+  // Removed the handleEmailRequest function as per the code change
 
   // Helper to generate a simple PDF summary and merge with PDF attachment
   const handleExportPDF = async () => {
@@ -25,23 +27,42 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
     y += 7;
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    // Table header
+    // Table header (bold)
+    doc.setFont('helvetica', 'bold');
     doc.text("Qty", 10, y);
     doc.text("Item #", 25, y);
     doc.text("Mfg #", 55, y);
     doc.text("Mfg Name", 90, y);
     doc.text("Description", 130, y);
-    y += 6;
+    // Draw a solid line under the header
+    y += 3;
+    doc.setLineWidth(0.8);
+    doc.line(10, y, 200, y); // solid line from x=10 to x=200
+    y += 5;
+    doc.setFont('helvetica', 'normal');
     Object.entries(selected).forEach(([itemNumber, group]) => {
       const qty = quantities[itemNumber] || '';
       const part = Array.isArray(group.instances) ? group.instances[0] : group;
-      doc.text(String(qty), 10, y);
-      doc.text(part.m_inventory_item?.item_number || 'N/A', 25, y);
-      doc.text(part.m_mfg_part_number || 'N/A', 55, y);
-      doc.text(part.m_mfg_name || 'N/A', 90, y);
-      doc.text((part.m_inventory_description || part.m_description || 'N/A').substring(0, 60), 130, y);
-      y += 6;
-      if (y > 270) { doc.addPage(); y = 15; }
+      // Prepare all fields, wrap description
+      const qtyStr = String(qty);
+      const itemNum = part.m_inventory_item?.item_number || 'N/A';
+      const mfgPartNum = part.m_mfg_part_number || 'N/A';
+      const mfgName = part.m_mfg_name || 'N/A';
+      const description = part.m_inventory_description || part.m_description || 'N/A';
+      // Wrap description to fit within 70mm width
+      const descLines = doc.splitTextToSize(description, 70);
+      // Optionally wrap other fields if needed (not likely for qty/itemNum/mfgPartNum/mfgName)
+      const maxLines = Math.max(1, descLines.length);
+      for (let i = 0; i < maxLines; i++) {
+        doc.text(i === 0 ? qtyStr : '', 10, y);
+        doc.text(i === 0 ? itemNum : '', 25, y);
+        doc.text(i === 0 ? mfgPartNum : '', 55, y);
+        doc.text(i === 0 ? mfgName : '', 90, y);
+        doc.text(descLines[i] || '', 130, y);
+        y += 6;
+        if (y > 270) { doc.addPage(); y = 15; }
+      }
+      y += 2; // Add a space (2 units) between each part
     });
     y += 8;
 
@@ -482,6 +503,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
           {submitting ? 'Submitting...' : 'Submit'}
         </button>
         <button onClick={handleExportPDF} className="export-btn">Export as PDF</button>
+        {/* Email This Request button removed */}
       </div>
       {submitResult === 'success' && <div style={{color:'green',marginTop:8}}>New parts submitted successfully!</div>}
       {submitResult === 'none' && <div style={{color:'orange',marginTop:8}}>No new parts to submit.</div>}

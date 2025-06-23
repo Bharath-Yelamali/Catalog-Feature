@@ -7,6 +7,7 @@ import { fetchAllIdentities } from '../api/identity';
 function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts, isAdmin, accessToken }) {
   const [showParts, setShowParts] = useState(false);
   const [showNewPartForm, setShowNewPartForm] = useState(false);
+  const [showOnlyRequired, setShowOnlyRequired] = useState(false);
   const [newPartFields, setNewPartFields] = useState({
     itemNumber: '',
     mfgPartNumber: '',
@@ -178,10 +179,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       setPreqFields(prev => ({ ...prev, invoiceApproverId: prev.poOwnerId }));
     }
   }, [preqFields.invoiceApprover, preqFields.poOwnerId]);
-
   // Helper to check if all required fields are filled
   const requiredFields = [
-    'title', // Title is now required
+    // 'title' is no longer required
     'poOwnerAlias', 'project', 'supplier', 'purchaseType', 'deliveryContactEmail',
     'deliverToMsftAlias', 'deliveryContactPhone', 'deliveryLocation', 'fidNumber',
     'reviewer', 'invoiceApprover',
@@ -534,18 +534,27 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </div>
           )}
         </div>
-      )}
-
-      {/* Purchase Request Section */}
-      <div style={{ width: 900, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
-        <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>Purchase Request Details</h2>
+      )}      {/* Purchase Request Section */}      <div style={{ width: 900, margin: '0 auto 32px auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
+        <div style={{ position: 'relative', textAlign: 'center', marginBottom: 18 }}>
+          <h2 style={{ margin: 0, fontWeight: 700, fontSize: 22, display: 'inline-block' }}>Purchase Request Details</h2>
+          <label style={{ display: 'flex', alignItems: 'center', fontSize: 15, fontWeight: 500, cursor: 'pointer', position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>
+            <input 
+              type="checkbox" 
+              checked={showOnlyRequired} 
+              onChange={() => setShowOnlyRequired(prev => !prev)} 
+              style={{ marginRight: 8 }}
+            />
+            Show only required fields
+          </label>
+        </div>
         {/* Requester Info */}
         <fieldset style={{ border: '1px solid #bbb', borderRadius: 6, padding: 24, marginBottom: 32, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
-          <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Requester Info</legend>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <label style={{ fontWeight: 500 }}>Title <span style={{color:'red'}}>*</span>
-              <input type="text" name="title" value={preqFields.title} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Title" />
-            </label>
+          <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Requester Info</legend>          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>Title
+                <input type="text" name="title" value={preqFields.title || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Title" />
+              </label>
+            )}
             <label style={{ fontWeight: 500 }}>PO Owner Alias <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
@@ -557,13 +566,15 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                   Select
                 </button>
               </div>
-            </label>
-            <label style={{ fontWeight: 500 }}>Coordinator
-              <input type="text" name="coordinator" value={preqFields.coordinator} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Coordinator" />
-            </label>
-            <label style={{ fontWeight: 500 }}>Email Alias
-              <input type="text" name="emailAlias" value={preqFields.emailAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Email Alias" />
-            </label>
+            </label>            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>Coordinator
+                <input type="text" name="coordinator" value={preqFields.coordinator || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Coordinator" />
+              </label>
+            )}            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>Email Alias
+                <input type="text" name="emailAlias" value={preqFields.emailAlias || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Email Alias" />
+              </label>
+            )}
           </div>
         </fieldset>
         {/* Project & Supplier */}
@@ -632,10 +643,11 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
-            </label>
-            <label style={{ fontWeight: 500 }}>IO/CC
-              <input type="text" name="ioCc" value={preqFields.ioCc} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="IO/CC" />
-            </label>
+            </label>            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>IO/CC
+                <input type="text" name="ioCc" value={preqFields.ioCc || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="IO/CC" />
+              </label>
+            )}
           </div>
         </fieldset>
         {/* Delivery Details */}
@@ -660,10 +672,11 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </label>
             <label style={{ fontWeight: 500 }}>Deliver to MSFT Alias <span style={{color:'red'}}>*</span>
               <input type="text" name="deliverToMsftAlias" value={preqFields.deliverToMsftAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Deliver to MSFT Alias" />
-            </label>
-            <label style={{ fontWeight: 500 }}>Shipping Comments
-              <textarea name="shippingComments" value={preqFields.shippingComments} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, minHeight: 32, resize: 'vertical' }} placeholder="Shipping Comments" />
-            </label>
+            </label>            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>Shipping Comments
+                <textarea name="shippingComments" value={preqFields.shippingComments || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, minHeight: 32, resize: 'vertical' }} placeholder="Shipping Comments" />
+              </label>
+            )}
           </div>
         </fieldset>
         {/* Approval & Review */}
@@ -713,16 +726,21 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                   Clear
                 </button>
               </div>
-            </label>
-            <label style={{ fontWeight: 500 }}>Interim Approver Alias
-              <input type="text" name="interimApproverAlias" value={preqFields.interimApproverAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Interim Approver Alias" />
-            </label>
-            <label style={{ fontWeight: 500 }}>SAFE Approver
-              <input type="text" name="safeApprover" value={preqFields.safeApprover} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="SAFE Approver" />
-            </label>
-            <label style={{ fontWeight: 500 }}>CC List Alias
-              <input type="text" name="ccListAlias" value={preqFields.ccListAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="CC List Alias" />
-            </label>
+            </label>            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>Interim Approver Alias
+                <input type="text" name="interimApproverAlias" value={preqFields.interimApproverAlias || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Interim Approver Alias" />
+              </label>
+            )}
+            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>SAFE Approver
+                <input type="text" name="safeApprover" value={preqFields.safeApprover || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="SAFE Approver" />
+              </label>
+            )}
+            {!showOnlyRequired && (
+              <label style={{ fontWeight: 500 }}>CC List Alias
+                <input type="text" name="ccListAlias" value={preqFields.ccListAlias || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="CC List Alias" />
+              </label>
+            )}
             <label style={{ fontWeight: 500 }}>Invoice Approver <span style={{color:'red'}}>*</span>
               {preqFields.invoiceApprover === 'Other' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -802,20 +820,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       </div>
 
       {/* Navigation Buttons */}
-      <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-        <button
-          className="back-fixed-btn"
-          onClick={goBack}
-        >
-          Back
-        </button>
-        <button
-          className="next-fixed-btn"
-          disabled={!allRequiredFilled}
-          onClick={() => setPage('confirmationSummary')}
-        >
-          Next
-        </button>
+      <div className="confirmation-summary-buttons" style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 32 }}>
+        <button onClick={goBack} className="confirmation-summary-button-back" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}>Back</button>
+        <button onClick={() => setPage('confirmationSummary')} className="confirmation-summary-button-submit" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }} disabled={!allRequiredFilled}>Next</button>
       </div>
 
       {/* Project Selection Popup */}
@@ -944,7 +951,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </button>
           </div>
         </div>
-      )}
+           )}
 
       {/* Invoice Approver Alias Selection Popup */}
       {showInvoiceApproverPopup && (
