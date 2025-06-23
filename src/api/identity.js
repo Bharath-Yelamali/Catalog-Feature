@@ -11,3 +11,17 @@ export async function fetchIdentities({ accessToken, signal } = {}) {
   const data = await response.json();
   return data;
 }
+
+// Fetch all user aliases and IDs (for PO Owner selection)
+export async function fetchAllIdentities(token) {
+  const response = await fetch('/api/all-identities', {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch identities');
+  }
+  const data = await response.json();
+  return data.value || [];
+}

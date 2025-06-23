@@ -43,7 +43,32 @@ export async function postNewInventoryPart(part, accessToken) {
     headers,
     body: JSON.stringify(part),
   });
-  if (!response.ok) throw new Error('Failed to add new inventory part');
+  if (!response.ok) {
+    let errorText = await response.text();
+    let duplicate = false;
+    try {
+      // Try to parse as JSON
+      const errorObj = JSON.parse(errorText);
+      if (
+        errorObj.error &&
+        errorObj.error.message &&
+        errorObj.error.message.toLowerCase().includes('already exists')
+      ) {
+        duplicate = true;
+      }
+    } catch (e) {
+      // If not JSON, fallback to text search
+      if (errorText.toLowerCase().includes('already exists')) {
+        duplicate = true;
+      }
+    }
+    if (duplicate) {
+      const err = new Error('part_already_exists');
+      err.isDuplicate = true;
+      throw err;
+    }
+    throw new Error('Failed to add new inventory part');
+  }
   return await response.json();
 }
 

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import jsPDF from "jspdf";
 import { PDFDocument } from "pdf-lib";
 import { postNewInventoryPart } from '../api/parts';
+import { postProcurementRequest, postProcurementRequestFile } from '../api/procurementRequest';
 
 function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +73,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       ["FID", preqFields.fid],
       ["FID Number", preqFields.fidNumber],
       ["Reviewed by Lab TPM", typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : 'Not specified'],
-      ["Reviewer", preqFields.reviewer],
+      ["Reviewer", preqFields.reviewerName],
       ["Interim Approver Alias", preqFields.interimApproverAlias],
       ["SAFE Approver", preqFields.safeApprover],
       ["CC List Alias", preqFields.ccListAlias],
@@ -193,14 +194,15 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
     }
   };
 
-  // Submit handler: POST all new parts to backend
+  // Submit handler: POST new parts, then procurement request (step 1 of 2)
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitResult(null);
+    let newPartAdded = false;
     try {
+      // 1. Post new parts if any
       if (newParts && newParts.length > 0) {
         for (const part of newParts) {
-          // Map all relevant frontend fields to OData m_Inventory fields
           const mappedPart = {
             item_number: part.partNumber || '',
             classification: part.classification || '',
@@ -216,16 +218,86 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             m_maturity: part.maturity || '',
             m_description: part.description || '',
             m_aka: part.akaReferences || '',
-            // Add more mappings as needed for your UI fields
           };
-          // Only send non-empty fields
           Object.keys(mappedPart).forEach(key => {
             if (mappedPart[key] === '') delete mappedPart[key];
           });
-          await postNewInventoryPart(mappedPart, accessToken);
+          try {
+            console.log('Posting new part to backend:', mappedPart); // <-- Log for new part
+            await postNewInventoryPart(mappedPart, accessToken);
+            newPartAdded = true;
+          } catch (err) {
+            if (err.isDuplicate || err.message === 'part_already_exists') {
+              setSubmitResult('part_exists');
+              setSubmitting(false);
+              return;
+            } else {
+              setSubmitResult('error');
+              setSubmitting(false);
+              return;
+            }
+          }
         }
       }
-      setSubmitResult('success');
+      // 2. Prepare FormData for multipart/form-data
+      const formData = new FormData();
+      // Add all fields except attachments
+      Object.entries(preqFields).forEach(([key, value]) => {
+        if (key !== 'attachments' && value !== undefined && value !== null) {          if (key === 'invoiceApproverId') {
+            formData.append('m_invoice_approver', value);
+          } else if (key === 'poOwnerAlias') {
+            console.log('Setting m_po_owner from poOwnerAlias:', value);
+            formData.append('m_po_owner', value);
+          } else if (key === 'supplierId') {
+            formData.append('m_supplier', value);
+          } else if (key === 'projectId') {
+            formData.append('m_project', value);
+          } else if (key === 'reviewer') {
+            formData.append('m_reviewer', value);
+          } else if (key === 'fidNumber') {
+            formData.append('m_fid_code', value);
+          } else if (key === 'poNumber') {
+            formData.append('m_po_num', value);
+          } else if (key === 'ioCc') {
+            formData.append('m_io_num', value);
+          } else if (key === 'deliveryContactEmail') {
+            formData.append('m_email', value);
+          } else if (key === 'deliveryContactPhone') {
+            formData.append('m_contact', value);
+          } else if (key === 'deliverToMsftAlias') {
+            formData.append('m_deliverto_msft', value);
+          } else if (key === 'interimApproverAlias') {
+            formData.append('m_interim_approver', value);
+          } else if (key === 'safeApprover') {
+            formData.append('m_safe_appover', value);
+          } else if (key === 'ccListAlias') {
+            formData.append('m_cc_list', value);
+          } else if (key === 'businessJustificationNotes') {
+            formData.append('m_notes_proc', value);
+          } else if (key === 'purchaseType') {
+            formData.append('m_purchase_type', value);
+          } else if (key === 'deliveryLocation') {
+            formData.append('m_delivery_location', value);
+          }          else if (
+            key !== 'invoiceApprover' &&
+            key !== 'poOwnerAlias' &&
+            key !== 'supplier' &&
+            key !== 'project' &&
+            key !== 'reviewerName'
+          ){
+            formData.append(key, value);
+          }
+        }
+      });
+      // Attach the first file as m_quote (required)
+      if (attachments && attachments.length > 0) {
+        formData.append('m_quote', attachments[0]);
+      } else {
+        throw new Error('No attachment found');
+      }
+      console.log('Submitting purchase request to backend:', Object.fromEntries(formData.entries())); // <-- Log for purchase request
+      await postProcurementRequest(formData, accessToken, true);
+      setSubmitResult(newPartAdded ? 'both_success' : 'preq_success');
       if (onSubmit) onSubmit();
     } catch (err) {
       setSubmitResult('error');
@@ -329,7 +401,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             <dt>Reviewed by Lab TPM</dt>
             <dd>{typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Reviewer</dt>
-            <dd>{preqFields.reviewer || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{preqFields.reviewerName || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Interim Approver Alias</dt>
             <dd>{preqFields.interimApproverAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>SAFE Approver</dt>
@@ -412,7 +484,11 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
         <button onClick={handleExportPDF} className="export-btn">Export as PDF</button>
       </div>
       {submitResult === 'success' && <div style={{color:'green',marginTop:8}}>New parts submitted successfully!</div>}
-      {submitResult === 'error' && <div style={{color:'red',marginTop:8}}>Failed to submit new parts. Please try again.</div>}
+      {submitResult === 'none' && <div style={{color:'orange',marginTop:8}}>No new parts to submit.</div>}
+      {submitResult === 'error' && <div style={{color:'red',marginTop:8}}>Failed to submit new parts or request. Please try again.</div>}
+      {submitResult === 'preq_success' && <div style={{color:'green',marginTop:8}}>New Purchase Request submitted successfully!</div>}
+      {submitResult === 'both_success' && <div style={{color:'green',marginTop:8}}>New Purchase Request and Part Submitted successfully!</div>}
+      {submitResult === 'part_exists' && <div style={{color:'red',marginTop:8}}>Error: part already exists, request canceled</div>}
     </div>
   );
 }

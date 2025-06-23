@@ -59,4 +59,38 @@ router.get('/identities', async (req, res) => {
   }
 });
 
+// GET /api/all-identities - fetch all user aliases and IDs from User entity
+router.get('/all-identities', async (req, res) => {
+  const authHeader = req.headers['authorization'];
+  let token = null;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring('Bearer '.length);
+  }
+  if (!token) {
+    return res.status(400).json({ error: 'Missing Authorization header' });
+  }
+  try {
+    const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
+    let odataUrl = `${BASE_URL}User?$select=id,login_name,first_name,last_name`;
+    const response = await fetch(odataUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `Failed to fetch identities: ${errorText}` });
+    }
+    const data = await response.json();
+    const identities = (data.value || []).map(u => ({
+      id: u.id,
+      alias: u.login_name,
+      name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.login_name
+    }));
+    res.json({ value: identities });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
+  }
+});
+
 module.exports = router;
