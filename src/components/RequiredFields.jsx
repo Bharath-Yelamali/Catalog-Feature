@@ -820,20 +820,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       </div>
 
       {/* Navigation Buttons */}
-      <div style={{ width: '99%', maxWidth: 1700, margin: '0 auto', display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-        <button
-          className="back-fixed-btn"
-          onClick={goBack}
-        >
-          Back
-        </button>
-        <button
-          className="next-fixed-btn"
-          disabled={!allRequiredFilled}
-          onClick={() => setPage('confirmationSummary')}
-        >
-          Next
-        </button>
+      <div className="confirmation-summary-buttons" style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 32 }}>
+        <button onClick={goBack} className="confirmation-summary-button-back" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}>Back</button>
+        <button onClick={() => setPage('confirmationSummary')} className="confirmation-summary-button-submit" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }} disabled={!allRequiredFilled}>Next</button>
       </div>
 
       {/* Project Selection Popup */}
@@ -962,7 +951,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </button>
           </div>
         </div>
-      )}
+           )}
 
       {/* Invoice Approver Alias Selection Popup */}
       {showInvoiceApproverPopup && (
