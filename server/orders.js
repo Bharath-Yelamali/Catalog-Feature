@@ -6,6 +6,10 @@ const router = express.Router();
 const fetch = require('node-fetch');
 const multer = require('multer');
 
+// Add nodemailer for email functionality
+// Note: You'll need to run "npm install nodemailer" to add this dependency
+const nodemailer = require('nodemailer');
+
 // Helper function to check if a string is a UUID
 function isUUID(str) {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -499,6 +503,71 @@ router.post('/m_Procurement_Request_Files', upload.single('file'), async (req, r
       error: {
         status: 500,
         message: 'Failed to upload procurement request file',
+        details: err.message,
+        stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+// POST endpoint for sending emails with attachments
+router.post('/send-email', upload.array('attachments', 5), async (req, res) => {
+  try {
+    // Get email details from request body
+    const { to, subject, body } = req.body;
+    const files = req.files || [];
+
+    if (!to || !subject || !body) {
+      return res.status(400).json({
+        error: {
+          status: 400,
+          message: 'Missing required email fields: to, subject, or body',
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+    // Configure email transporter
+    // Note: For production, you should use environment variables for these settings
+    const transporter = nodemailer.createTransport({
+      service: 'Office365', // or the appropriate service for your environment
+      auth: {
+        user: process.env.EMAIL_USER || 'your-email@microsoft.com',
+        pass: process.env.EMAIL_PASS || 'your-password'
+      }
+    });
+
+    // Prepare email with attachments
+    const mailOptions = {
+      from: process.env.EMAIL_USER || 'your-email@microsoft.com',
+      to,
+      subject,
+      text: body,
+      attachments: files.map(file => ({
+        filename: file.originalname,
+        content: file.buffer
+      }))
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    
+    // Log success
+    console.log('Email sent:', info.messageId);
+    
+    // Return success response
+    return res.json({
+      success: true,
+      messageId: info.messageId,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Error sending email:', err);
+    return res.status(500).json({
+      error: {
+        status: 500,
+        message: 'Failed to send email',
         details: err.message,
         stack: process.env.NODE_ENV === 'production' ? undefined : err.stack,
         timestamp: new Date().toISOString()

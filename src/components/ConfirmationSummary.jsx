@@ -7,6 +7,179 @@ import { postProcurementRequest, postProcurementRequestFile } from '../api/procu
 function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
+  // Helper function to create an email with all request details
+  const handleEmailRequest = () => {
+    // Construct email subject
+    const subject = `Purchase Request Summary: ${preqFields.title || 'New Request'}`;
+    
+    // Start building the email body
+    let body = `PURCHASE REQUEST SUMMARY\n\n`;
+      // Add Selected Parts section (only if there are parts)
+    if (Object.entries(selected).length > 0) {
+      body += `** SELECTED PARTS **\n`;
+      body += `------------------------------------------------------------\n`;
+      
+      // Fixed-width column formatting for better alignment in plain text email
+      // Determine column widths based on data
+      const qtyWidth = 5;  // "Qty" + padding
+      const itemWidth = 15; // "Item #" + padding
+      const mfgPartWidth = 15; // "Mfg Part #" + padding
+      const mfgNameWidth = 15; // "Mfg Name" + padding
+      
+      // Format table header with fixed-width columns
+      body += `${"Qty".padEnd(qtyWidth)}${"Item #".padEnd(itemWidth)}${"Mfg Part #".padEnd(mfgPartWidth)}${"Mfg Name".padEnd(mfgNameWidth)}Description\n`;
+      
+      // Add a separator line for visual clarity
+      body += `${"-".repeat(qtyWidth)}${"-".repeat(itemWidth)}${"-".repeat(mfgPartWidth)}${"-".repeat(mfgNameWidth)}${"-".repeat(20)}\n`;
+      
+      // Format each row with the same fixed-width columns
+      Object.entries(selected).forEach(([itemNumber, group]) => {
+        const qty = quantities[itemNumber] || '';
+        const part = Array.isArray(group.instances) ? group.instances[0] : group;
+        const itemNum = part.m_inventory_item?.item_number || 'N/A';
+        const mfgPartNum = part.m_mfg_part_number || 'N/A';
+        const mfgName = part.m_mfg_name || 'N/A';
+        const description = part.m_inventory_description || part.m_description || 'N/A';
+        
+        body += `${String(qty).padEnd(qtyWidth)}${String(itemNum).padEnd(itemWidth)}${String(mfgPartNum).padEnd(mfgPartWidth)}${String(mfgName).padEnd(mfgNameWidth)}${description}\n`;
+      });
+      body += `\n`;
+    }
+    
+    // Requester Info (only include fields with values)
+    body += `** REQUESTER INFO **\n`;
+    body += `------------------------------------------------------------\n`;
+    
+    if (preqFields.title) body += `Title: ${preqFields.title}\n`;
+    if (preqFields.poNumber) body += `PO Number: ${preqFields.poNumber}\n`;
+    if (preqFields.poOwnerAlias) body += `PO Owner Alias: ${preqFields.poOwnerAlias}\n`;
+    if (preqFields.coordinator) body += `Coordinator: ${preqFields.coordinator}\n`;
+    if (preqFields.emailAlias) body += `Email Alias: ${preqFields.emailAlias}\n`;
+    body += `\n`;
+    
+    // Project & Supplier
+    body += `** PROJECT & SUPPLIER **\n`;
+    body += `------------------------------------------------------------\n`;
+    
+    if (preqFields.project) body += `Project: ${preqFields.project}\n`;
+    if (preqFields.supplier) body += `Supplier: ${preqFields.supplier}\n`;
+    if (preqFields.purchaseType) body += `Purchase Type: ${preqFields.purchaseType}\n`;
+    if (preqFields.currency) body += `Currency: ${preqFields.currency}\n`;
+    if (typeof preqFields.capex === 'boolean') body += `Capex: ${preqFields.capex ? 'Yes' : 'No'}\n`;
+    if (preqFields.ioCc) body += `IO/CC: ${preqFields.ioCc}\n`;
+    body += `\n`;
+    
+    // Delivery Details
+    body += `** DELIVERY DETAILS **\n`;
+    body += `------------------------------------------------------------\n`;
+    
+    if (preqFields.deliveryContactEmail) body += `Delivery Contact Email: ${preqFields.deliveryContactEmail}\n`;
+    if (preqFields.deliveryContactPhone) body += `Delivery Contact Phone: ${preqFields.deliveryContactPhone}\n`;
+    if (preqFields.deliveryLocation) body += `Delivery Location: ${preqFields.deliveryLocation}\n`;
+    if (typeof preqFields.deliverToMsftPoc === 'boolean') body += `Deliver to MSFT POC: ${preqFields.deliverToMsftPoc ? 'Yes' : 'No'}\n`;
+    if (preqFields.deliverToMsftAlias) body += `Deliver to MSFT Alias: ${preqFields.deliverToMsftAlias}\n`;
+    if (preqFields.shippingComments) body += `Shipping Comments: ${preqFields.shippingComments}\n`;
+    body += `\n`;
+    
+    // Approval & Review
+    body += `** APPROVAL & REVIEW **\n`;
+    body += `------------------------------------------------------------\n`;
+    
+    if (typeof preqFields.fid === 'boolean') body += `FID: ${preqFields.fid ? 'Yes' : 'No'}\n`;
+    if (preqFields.fidNumber) body += `FID Number: ${preqFields.fidNumber}\n`;
+    if (typeof preqFields.reviewedByLabTpm === 'boolean') body += `Reviewed by Lab TPM: ${preqFields.reviewedByLabTpm ? 'Yes' : 'No'}\n`;
+    if (preqFields.reviewerName) body += `Reviewer: ${preqFields.reviewerName}\n`;
+    if (preqFields.interimApproverAlias) body += `Interim Approver Alias: ${preqFields.interimApproverAlias}\n`;
+    if (preqFields.safeApprover) body += `SAFE Approver: ${preqFields.safeApprover}\n`;
+    if (preqFields.ccListAlias) body += `CC List Alias: ${preqFields.ccListAlias}\n`;
+    if (preqFields.invoiceApprover) body += `Invoice Approver: ${preqFields.invoiceApprover}\n`;
+    if (typeof preqFields.urgent === 'boolean') body += `Urgent: ${preqFields.urgent ? 'Yes' : 'No'}\n`;
+    body += `\n`;
+    
+    // Business Justification
+    body += `** BUSINESS JUSTIFICATION **\n`;
+    body += `------------------------------------------------------------\n`;
+    
+    const fields = preqFields || {};
+    const parts = [
+      fields.businessJustificationProject,
+      fields.businessJustificationLocation,
+      fields.businessJustificationWhat,
+      fields.businessJustificationWhy,
+      fields.businessJustificationImpact,
+      fields.businessJustificationNotes,
+    ].filter(Boolean);
+    
+    body += parts.length > 0 ? parts.join('. ') + '.' : 'No business justification provided.';
+      // New Parts (if any)
+    if (newParts && newParts.length > 0) {
+      body += `\n\n** NEW PARTS TO ADD **\n`;
+      body += `------------------------------------------------------------\n`;
+      const allFields = Object.keys(newParts[0]);
+      const filledFields = allFields.filter(field => 
+        newParts.some(part => part[field] && String(part[field]).trim() !== ''));
+      const displayFields = filledFields.slice(0, 5); // Limit to 5 fields for better readability
+      
+      // Calculate column widths based on field names and values
+      const columnWidths = {};
+      displayFields.forEach(field => {
+        // Start with the field name length plus some padding
+        let maxWidth = field.length + 3;
+        
+        // Check all values for this field to find the longest one
+        newParts.forEach(part => {
+          const value = part[field] && part[field].name ? part[field].name : (part[field] || 'N/A');
+          maxWidth = Math.max(maxWidth, String(value).length + 3);
+        });
+        
+        // Cap at 20 characters to avoid very wide columns
+        columnWidths[field] = Math.min(maxWidth, 20);
+      });
+      
+      // Format header row with fixed-width columns
+      body += displayFields.map(field => field.padEnd(columnWidths[field])).join('') + '\n';
+      
+      // Add a separator line
+      body += displayFields.map(field => '-'.repeat(columnWidths[field])).join('') + '\n';
+      
+      // Format each data row with fixed-width columns
+      newParts.forEach(part => {
+        body += displayFields.map(field => {
+          const value = part[field] && part[field].name ? part[field].name : (part[field] || 'N/A');
+          return String(value).substring(0, columnWidths[field] - 1).padEnd(columnWidths[field]);
+        }).join('') + '\n';
+      });
+    }
+      // Add a section for attachments/quotes at the bottom
+    if (attachments && attachments.length > 0) {
+      body += `\n\n** ATTACHMENT INFORMATION **\n`;
+      body += `------------------------------------------------------------\n`;
+      
+      const pdfAttachment = attachments.find(f => f.type === 'application/pdf');
+      const otherAttachments = attachments.filter(f => f.type !== 'application/pdf');
+      
+      // Specific mention of PDF quote if it exists
+      if (pdfAttachment) {
+        body += `QUOTE: ${pdfAttachment.name}\n`;
+        body += `(Please manually attach this quote PDF to this email)\n\n`;
+      }
+      
+      // List other attachments if any
+      if (otherAttachments.length > 0) {
+        body += `Additional files that were included with this request:\n`;
+        otherAttachments.forEach((file, idx) => {
+          body += `${idx + 1}. ${file.name}\n`;
+        });
+      }
+    }
+    
+    // Encode the body for mailto URL
+    const encodedBody = encodeURIComponent(body);
+    const encodedSubject = encodeURIComponent(subject);
+    
+    // Open default email client with pre-populated fields
+    window.location.href = `mailto:?subject=${encodedSubject}&body=${encodedBody}`;
+  };
 
   // Helper to generate a simple PDF summary and merge with PDF attachment
   const handleExportPDF = async () => {
@@ -482,6 +655,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
           {submitting ? 'Submitting...' : 'Submit'}
         </button>
         <button onClick={handleExportPDF} className="export-btn">Export as PDF</button>
+        <button onClick={handleEmailRequest} className="email-btn">Email This Request</button>
       </div>
       {submitResult === 'success' && <div style={{color:'green',marginTop:8}}>New parts submitted successfully!</div>}
       {submitResult === 'none' && <div style={{color:'orange',marginTop:8}}>No new parts to submit.</div>}
