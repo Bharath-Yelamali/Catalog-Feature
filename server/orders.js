@@ -5,6 +5,124 @@ const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
 const multer = require('multer');
+const FormData = require('form-data');
+
+// Helper function to decode JWT token and extract login name
+function getLoginNameFromToken(token) {
+  try {
+    // JWT tokens have 3 parts separated by dots: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Invalid JWT token format');
+    }
+    
+    // Decode the payload (second part)
+    const payload = parts[1];
+    // Add padding if needed for base64 decode
+    const paddedPayload = payload + '='.repeat((4 - payload.length % 4) % 4);
+    const decodedPayload = Buffer.from(paddedPayload, 'base64url').toString();
+    const tokenData = JSON.parse(decodedPayload);
+    
+    console.log('JWT token payload:', tokenData);
+    
+    // Common JWT claim names for login name/username
+    const loginName = tokenData.preferred_username || tokenData.username || tokenData.unique_name || 
+                     tokenData.upn || tokenData.sub || tokenData.name || tokenData.email;
+    
+    if (!loginName) {
+      throw new Error('Login name not found in JWT token');
+    }
+    
+    console.log('Extracted login name from token:', loginName);
+    return loginName;
+  } catch (error) {
+    console.error('Error decoding JWT token:', error);
+    throw new Error(`Failed to extract login name from token: ${error.message}`);
+  }
+}
+
+// Helper function to get current user's vault ID
+async function getCurrentUserVaultId(token, baseUrl) {
+  try {
+    console.log('Phase 1 Step 1: Getting current user vault ID...');
+      // Step 1: Extract login name from JWT token
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+    const loginName = getLoginNameFromToken(cleanToken);
+    console.log('Extracted login name from token:', loginName);
+    
+    // Step 2: Find the User record by login_name to get the actual User ID
+    const userLookupEndpoint = `${baseUrl}User?$filter=login_name eq '${loginName}'&$select=id,login_name,default_vault`;
+    console.log(`Looking up user by login_name: ${userLookupEndpoint}`);
+    
+    const userLookupResponse = await fetch(userLookupEndpoint, {
+      headers: {
+        'Authorization': `Bearer ${cleanToken}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!userLookupResponse.ok) {
+      const errorText = await userLookupResponse.text();
+      console.log(`User lookup failed (${userLookupResponse.status}): ${errorText}`);
+      throw new Error(`Failed to lookup user by login_name: ${userLookupResponse.status} ${errorText}`);
+    }
+    
+    const userLookupData = await userLookupResponse.json();
+    console.log('User lookup response:', userLookupData);
+    
+    if (!userLookupData.value || userLookupData.value.length === 0) {
+      throw new Error(`No User found with login_name: ${loginName}`);
+    }
+    
+    const user = userLookupData.value[0];
+    const userId = user.id;
+    
+    if (!userId) {
+      throw new Error('User ID not found in user lookup response');
+    }
+    
+    console.log(`Found User ID: ${userId} for login_name: ${loginName}`);
+    
+    // Step 3: Get the vault_id using the actual User ID
+    const vaultEndpoint = `${baseUrl}User('${userId}')?$select=default_vault`;
+    console.log(`Getting vault ID: ${vaultEndpoint}`);
+    
+    const vaultResponse = await fetch(vaultEndpoint, {
+      headers: {
+        'Authorization': `Bearer ${cleanToken}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!vaultResponse.ok) {
+      const errorText = await vaultResponse.text();
+      console.log(`Vault query failed (${vaultResponse.status}): ${errorText}`);
+      throw new Error(`Failed to get user vault info: ${vaultResponse.status} ${errorText}`);
+    }
+    
+    const vaultData = await vaultResponse.json();
+    console.log('Vault endpoint response:', vaultData);
+    
+    // Extract vault_id from response (as per Aras documentation)
+    let vaultId = null;
+    if (vaultData['default_vault@aras.id']) {
+      vaultId = vaultData['default_vault@aras.id'];
+    } else if (vaultData.default_vault) {
+      vaultId = vaultData.default_vault;
+    }
+    
+    if (!vaultId) {
+      throw new Error('default_vault not found in user response');
+    }
+    
+    console.log('✓ Found vault_id:', vaultId);
+    return vaultId;
+    
+  } catch (error) {
+    console.error('Error getting user vault ID:', error);
+    throw error;
+  }
+}
 
 // Helper function to check if a string is a UUID
 function isUUID(str) {
@@ -86,6 +204,523 @@ function validateRequiredFields(payload, requiredFields) {
     };
   }
   return { valid: true };
+}
+
+// Helper function to get Aras session cookie for vault authentication
+async function getArasSessionCookie(token) {
+  try {
+    console.log('Getting Aras session cookie for vault authentication...');
+    
+    // Clean the token if it has 'Bearer ' prefix
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+    
+    // Make a lightweight OData request to obtain session cookie
+    const baseODataUrl = 'https://chievmimsiiss01/IMSStage/Server/odata/';
+    const sessionUrl = `${baseODataUrl}User?$top=1&$select=id`;
+    
+    const response = await fetch(sessionUrl, {
+      headers: {
+        'Authorization': `Bearer ${cleanToken}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to get session cookie: ${response.status}`);
+    }
+    
+    // Extract Aras.Server.Session cookie from response headers
+    const setCookieHeader = response.headers.get('set-cookie');
+    if (!setCookieHeader) {
+      throw new Error('No set-cookie header found in OData response');
+    }
+    
+    console.log('Set-Cookie header:', setCookieHeader);
+    
+    // Extract the Aras.Server.Session cookie value
+    const sessionMatch = setCookieHeader.match(/Aras\.Server\.Session=([^;]+)/);
+    if (!sessionMatch) {
+      throw new Error('Aras.Server.Session cookie not found in response');
+    }
+    
+    const sessionCookie = `Aras.Server.Session=${sessionMatch[1]}`;
+    console.log('✓ Extracted session cookie for vault authentication');
+    return sessionCookie;
+    
+  } catch (error) {
+    console.error('Error getting Aras session cookie:', error);
+    throw error;
+  }
+}
+
+// Helper function to upload file using Aras Vault OData interface (3-step process)
+async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeType) {
+  try {
+    console.log('Phase 2: Uploading file using Aras Vault OData interface...');
+    
+    // Clean the token if it has 'Bearer ' prefix
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
+    
+    // Generate client GUID for file ID (remove dashes, uppercase as per Aras convention)
+    const { v4: uuidv4 } = require('uuid');
+    const fileId = uuidv4().replace(/-/g, '').toUpperCase();
+    
+    console.log(`Generated file ID: ${fileId}`);
+    console.log(`Vault ID: ${vaultId}`);
+    console.log(`File: ${fileName} (${mimeType}, ${fileBuffer.length} bytes)`);
+    
+    // Try different vault base URLs based on Aras documentation
+    const vaultBaseUrls = [
+      'https://chievmimsiiss01/IMSStage/vault/odata/',
+      'https://chievmimsiiss01/vault/odata/',
+      'https://chievmimsiiss01/IMSStage/Server/vault/odata/'
+    ];
+    
+    let lastError = null;
+    let transactionId = null;
+    let workingVaultUrl = null;
+    
+    // Step 1: Begin transaction
+    console.log('Step 1: Beginning vault transaction...');
+    for (const baseUrl of vaultBaseUrls) {
+      const beginUrl = `${baseUrl}vault.BeginTransaction`;
+      console.log(`Trying BeginTransaction with: ${beginUrl}`);
+      
+      try {
+        const response = await fetch(beginUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${cleanToken}`,
+            'VAULTID': vaultId,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({})
+        });
+        
+        console.log(`BeginTransaction response status: ${response.status}`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          transactionId = data.transactionId;
+          workingVaultUrl = baseUrl;
+          console.log(`✓ SUCCESS: Got transaction ID: ${transactionId}`);
+          break;
+        } else {
+          const errorText = await response.text();
+          lastError = new Error(`BeginTransaction failed (${response.status}): ${errorText}`);
+          console.log(`✗ FAILED with ${beginUrl}: ${lastError.message}`);
+        }
+      } catch (error) {
+        lastError = error;
+        console.log(`✗ ERROR with ${beginUrl}: ${error.message}`);
+      }
+    }
+    
+    if (!transactionId) {
+      throw lastError || new Error('Failed to begin vault transaction with all URLs');
+    }
+    
+    // Step 2: Upload file chunk
+    console.log('Step 2: Uploading file chunk...');
+    const uploadUrl = `${workingVaultUrl}vault.UploadFile?fileId=${fileId}`;
+    console.log(`Uploading to: ${uploadUrl}`);
+    
+    // Encode filename for Content-Disposition header as per Aras documentation
+    const encodedFileName = encodeURIComponent(fileName);
+    
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${cleanToken}`,
+        'VAULTID': vaultId,
+        'transactionid': transactionId,
+        'Content-Disposition': `attachment; filename*=utf-8''${encodedFileName}`,
+        'Content-Length': fileBuffer.length.toString(),
+        'Content-Range': `bytes 0-${fileBuffer.length - 1}/${fileBuffer.length}`,
+        'Content-Type': 'application/octet-stream'
+        // Note: Skipping checksum headers for now (can be added later if needed)
+      },
+      body: fileBuffer
+    });
+    
+    console.log(`File upload response status: ${uploadResponse.status}`);
+    
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      throw new Error(`File upload failed (${uploadResponse.status}): ${errorText}`);
+    }
+    
+    console.log('✓ File chunk uploaded successfully');
+    
+    // Step 3: Commit transaction and create File item
+    console.log('Step 3: Committing transaction...');
+    const commitUrl = `${workingVaultUrl}vault.CommitTransaction`;
+    console.log(`Committing to: ${commitUrl}`);
+    
+    // Create the multipart/mixed batch request body for File item creation
+    const boundary = `batch_${Date.now()}`;
+    const changesetBoundary = `changeset_${Date.now()}`;
+    
+    // Construct the batch request body as per Aras documentation
+    const batchBody = [
+      `--${boundary}`,
+      `Content-Type: multipart/mixed; boundary=${changesetBoundary}`,
+      ``,
+      `--${changesetBoundary}`,
+      `Content-Type: application/http`,
+      `Content-Transfer-Encoding: binary`,
+      ``,
+      `POST File HTTP/1.1`,
+      `Content-Type: application/json`,
+      ``,
+      JSON.stringify({
+        id: fileId,
+        filename: fileName,
+        file_size: fileBuffer.length,
+        located: [
+          {
+            file_version: 1,
+            related_id: vaultId
+          }
+        ]
+      }),
+      `--${changesetBoundary}--`,
+      `--${boundary}--`
+    ].join('\r\n');
+    
+    const commitResponse = await fetch(commitUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${cleanToken}`,
+        'VAULTID': vaultId,
+        'transactionid': transactionId,
+        'Content-Type': `multipart/mixed; boundary=${boundary}`,
+        'Prefer': 'return=minimal',
+        'OData-Version': '4.0'
+      },
+      body: batchBody
+    });
+    
+    console.log(`Commit transaction response status: ${commitResponse.status}`);
+    
+    if (!commitResponse.ok) {
+      const errorText = await commitResponse.text();
+      throw new Error(`Commit transaction failed (${commitResponse.status}): ${errorText}`);
+    }
+    
+    console.log('✓ Transaction committed successfully');
+    
+    // Parse response to extract any returned data
+    let uploadResult = {
+      fileId: fileId,
+      fileName: fileName,
+      mimeType: mimeType,
+      size: fileBuffer.length,
+      vaultId: vaultId,
+      transactionId: transactionId
+    };
+    
+    console.log('✓ File uploaded to Aras Vault using OData interface successfully');
+    return uploadResult;
+    
+  } catch (error) {
+    console.error('Error uploading file to Aras Vault:', error);
+    throw error;
+  }
+}
+
+// Helper function to create File item reference after vault upload
+async function createFileItemAfterVaultUpload(token, vaultId, uploadResult) {
+  try {
+    console.log('Phase 3: Processing File item after vault upload...');
+    
+    // With the OData vault interface, the File item is created during CommitTransaction
+    // We just need to return the file ID that can be used in procurement requests
+    const fileItemId = uploadResult.fileId;
+    
+    if (!fileItemId) {
+      throw new Error('File ID not found in upload result');
+    }
+    
+    console.log('✓ File item reference ready:', fileItemId);
+    return {
+      fileItemId: fileItemId,
+      fileName: uploadResult.fileName,
+      mimeType: uploadResult.mimeType,
+      size: uploadResult.size
+    };
+    
+  } catch (error) {
+    console.error('Error processing File item after vault upload:', error);
+    throw error;
+  }
+}
+
+// Legacy helper function (kept for reference but not used)
+async function beginVaultTransaction(token, vaultId) {
+  try {
+    console.log('Phase 1 Step 2: Beginning vault transaction...');
+    
+    // Try different vault URL patterns based on Aras documentation
+    const vaultUrls = [
+      'https://chievmimsiiss01/IMSStage/vault/odata/vault.BeginTransaction', // Current attempt
+      'https://chievmimsiiss01/vault/odata/vault.BeginTransaction',          // Alternative 1: Direct vault URL
+      'https://chievmimsiiss01/IMSStage/Server/vault/odata/vault.BeginTransaction' // Alternative 2: Server/vault path
+    ];
+    
+    let lastError = null;
+    
+    for (const vaultUrl of vaultUrls) {
+      console.log(`Trying vault URL: ${vaultUrl}`);
+      console.log(`Using vault_id: ${vaultId}`);
+      console.log(`Token preview: ${token.substring(0, 20)}...`);
+      
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'VAULTID': vaultId,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      };
+      
+      console.log('Request headers:', headers);
+      
+      const response = await fetch(vaultUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({})
+      });
+      
+      console.log(`BeginTransaction response status: ${response.status}`);
+      console.log(`Response headers:`, response.headers.raw ? response.headers.raw() : 'No headers available');
+      
+      if (response.ok) {
+        console.log(`✓ SUCCESS with vault URL: ${vaultUrl}`);
+        const data = await response.json();
+        console.log('BeginTransaction response:', data);
+        
+        const transactionId = data.transactionId || data.transaction_id || data.id;
+        if (!transactionId) {
+          throw new Error('transactionId not found in BeginTransaction response');
+        }
+        
+        console.log('✓ Got transaction_id:', transactionId);
+        return transactionId;
+      } else {
+        const errorText = await response.text();
+        lastError = new Error(`BeginTransaction failed with ${vaultUrl} (${response.status}): ${errorText}`);
+        console.log(`✗ FAILED with vault URL: ${vaultUrl} - ${lastError.message}`);
+      }
+    }
+    
+    // If all URLs failed, throw the last error
+    throw lastError;  } catch (error) {
+    console.error('Error beginning vault transaction:', error);
+    throw error;
+  }
+}
+
+// Helper function to upload file content to vault
+async function uploadFileToVault(token, vaultId, transactionId, fileBuffer, fileName, mimeType) {
+  try {
+    console.log('Phase 1 Step 3: Uploading file to vault...');
+    
+    // Generate client GUID for file ID (remove dashes, uppercase as per Aras convention)
+    const { v4: uuidv4 } = require('uuid');
+    const fileId = uuidv4().replace(/-/g, '').toUpperCase();
+    
+    const vaultUrl = `https://chievmimsiiss01/IMSStage/vault/odata/vault.UploadFile?fileId=${fileId}`;
+    console.log(`Vault UploadFile URL: ${vaultUrl}`);
+    console.log(`File ID: ${fileId}`);
+    
+    // Encode filename for Content-Disposition header
+    const encodedFileName = encodeURIComponent(fileName);
+    
+    const response = await fetch(vaultUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'VAULTID': vaultId,
+        'transactionid': transactionId,
+        'Content-Disposition': `attachment; filename*=utf-8''${encodedFileName}`,
+        'Content-Length': fileBuffer.length.toString(),
+        'Content-Range': `bytes 0-${fileBuffer.length - 1}/${fileBuffer.length}`,
+        'Content-Type': 'application/octet-stream'
+        // Note: Skipping checksum headers for now (Aras-Content-Range-Checksum)
+      },
+      body: fileBuffer
+    });
+    
+    console.log(`UploadFile response status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`UploadFile failed (${response.status}): ${errorText}`);
+    }
+    
+    console.log('✓ File uploaded to vault successfully');
+    return {
+      fileId: fileId,
+      fileName: fileName,
+      mimeType: mimeType,
+      size: fileBuffer.length
+    };
+  } catch (error) {
+    console.error('Error uploading file to vault:', error);
+    throw error;
+  }
+}
+
+// Helper function to commit vault transaction and create File item
+async function commitVaultTransaction(token, vaultId, transactionId, fileMetadata) {
+  try {
+    console.log('Phase 1 Step 4: Committing vault transaction...');
+    
+    const vaultUrl = 'https://chievmimsiiss01/IMSStage/vault/odata/vault.CommitTransaction';
+    console.log(`Vault CommitTransaction URL: ${vaultUrl}`);
+    
+    // Create the multipart/mixed batch request body for File item creation
+    const boundary = `batch_${Date.now()}`;
+    const changesetBoundary = `changeset_${Date.now()}`;
+    
+    // Construct the batch request body
+    const batchBody = [
+      `--${boundary}`,
+      `Content-Type: multipart/mixed; boundary=${changesetBoundary}`,
+      ``,
+      `--${changesetBoundary}`,
+      `Content-Type: application/http`,
+      `Content-Transfer-Encoding: binary`,
+      ``,
+      `POST File HTTP/1.1`,
+      `Content-Type: application/json`,
+      ``,
+      JSON.stringify({
+        filename: fileMetadata.fileName,
+        file_type: fileMetadata.mimeType,
+        file_size: fileMetadata.size,
+        vault_id: vaultId,
+        actual_filename: fileMetadata.fileId
+      }),
+      `--${changesetBoundary}--`,
+      `--${boundary}--`
+    ].join('\r\n');
+    
+    const response = await fetch(vaultUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'VAULTID': vaultId,
+        'transactionid': transactionId,
+        'Content-Type': `multipart/mixed; boundary=${boundary}`,
+        'Accept': 'application/json'
+      },
+      body: batchBody
+    });
+    
+    console.log(`CommitTransaction response status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`CommitTransaction failed (${response.status}): ${errorText}`);
+    }
+    
+    const responseText = await response.text();
+    console.log('CommitTransaction response:', responseText);
+    
+    // Parse the multipart response to extract the File item ID
+    let fileItemId = null;
+    try {
+      // Look for JSON response in the multipart response
+      const jsonMatch = responseText.match(/\{[^}]*"id"[^}]*\}/);
+      if (jsonMatch) {
+        const fileData = JSON.parse(jsonMatch[0]);
+        fileItemId = fileData.id;
+      }
+    } catch (parseError) {
+      console.log('Could not parse File item ID from response, will extract from location header or response');
+    }
+    
+    if (!fileItemId) {
+      // Try to extract from Location header or other patterns
+      const locationMatch = responseText.match(/Location:\s*.*File\('([^']+)'\)/);
+      if (locationMatch) {
+        fileItemId = locationMatch[1];
+      }
+    }
+    
+    if (!fileItemId) {
+      throw new Error('Could not extract File item ID from CommitTransaction response');
+    }
+    
+    console.log('✓ Vault transaction committed successfully, File item created:', fileItemId);
+    return {
+      fileItemId: fileItemId,
+      fileName: fileMetadata.fileName,
+      mimeType: fileMetadata.mimeType,
+      size: fileMetadata.size
+    };
+  } catch (error) {
+    console.error('Error committing vault transaction:', error);
+    throw error;
+  }
+}
+
+// Helper function to test vault connectivity and authentication
+async function testVaultConnectivity(token, vaultId) {
+  try {
+    console.log('Testing vault connectivity...');
+    
+    // Test different vault base URLs
+    const vaultBaseUrls = [
+      'https://chievmimsiiss01/IMSStage/vault/odata/',
+      'https://chievmimsiiss01/vault/odata/',
+      'https://chievmimsiiss01/IMSStage/Server/vault/odata/'
+    ];
+    
+    for (const baseUrl of vaultBaseUrls) {
+      console.log(`Testing vault base URL: ${baseUrl}`);
+      
+      try {
+        // Try to get vault metadata or service document
+        const metadataUrl = `${baseUrl}$metadata`;
+        const serviceUrl = baseUrl;
+        
+        for (const testUrl of [serviceUrl, metadataUrl]) {
+          console.log(`  Testing endpoint: ${testUrl}`);
+          
+          const response = await fetch(testUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'VAULTID': vaultId,
+              'Accept': 'application/json'
+            }
+          });
+          
+          console.log(`  Response status: ${response.status}`);
+          
+          if (response.ok) {
+            console.log(`  ✓ Success with ${testUrl}`);
+            const responseText = await response.text();
+            console.log(`  Response preview: ${responseText.substring(0, 200)}...`);
+            return baseUrl; // Return the working base URL
+          } else {
+            const errorText = await response.text();
+            console.log(`  ✗ Failed: ${response.status} - ${errorText.substring(0, 100)}`);
+          }
+        }
+      } catch (error) {
+        console.log(`  ✗ Error testing ${baseUrl}: ${error.message}`);
+      }
+    }
+    
+    console.log('No working vault URL found');
+    return null;
+  } catch (error) {
+    console.error('Error testing vault connectivity:', error);
+    return null;
+  }
 }
 
 // GET /orders
@@ -379,8 +1014,7 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     if (fields.title) {
       fields.m_title = fields.title;
       delete fields.title;
-    }
-    // Map boolean fields to OData expected fields and types
+    }    // Map boolean fields to OData expected fields and types
     const booleanFieldMap = [
       { from: 'capex', to: 'm_is_capex' },
       { from: 'fid', to: 'm_is_fid' },
@@ -395,6 +1029,18 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
         delete fields[from];
       }
     });
+    
+    // Handle FID-related fields properly
+    if (fields.m_is_fid === false) {
+      // When FID is false, provide a default reason for not having FID
+      if (!fields.m_fid_reason && !fields.m_fid_code) {
+        fields.m_fid_reason = 'No FID required for this purchase type';
+      }
+    } else if (fields.m_is_fid === true && fields.m_fid_code) {
+      // When FID is true, make sure the FID code is properly set
+      console.log(`FID is true, using FID code: ${fields.m_fid_code}`);
+    }
+    
     // Ensure m_deliverto_third_party is set to 'No' if not provided (required text field)
     if (!fields.m_deliverto_third_party) {
       fields.m_deliverto_third_party = 'No';
@@ -421,20 +1067,54 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
         fields.m_po_owner = req.body.poOwnerAlias;
       }
     }
-    
-    let odataPayload = { ...fields };
+      let odataPayload = { ...fields };    // Vault Integration: Use Aras Vault OData interface (3-step process)
     if (req.file) {
-      // Deep insert: add file as related entity
-      odataPayload.m_Procurement_Request_Files = [
-        {
-          file_name: req.file.originalname,
-          file_content: req.file.buffer.toString('base64'),
-          file_type: req.file.mimetype
-        }
-      ];
-      console.log('Deep insert: including file in m_Procurement_Request_Files');
+      console.log('File detected - testing Aras Vault OData integration...');
+      
+      try {
+        const baseODataUrl = 'https://chievmimsiiss01/IMSStage/Server/odata/';
+        
+        // Step 1: Get vault ID
+        const vaultId = await getCurrentUserVaultId(token, baseODataUrl);
+        console.log('✓ Step 1 SUCCESS: Got vault_id:', vaultId);
+        
+        // Step 2: Upload file to Aras Vault using OData interface (3-step process)
+        const uploadResult = await uploadFileToArasVault(
+          token,
+          vaultId,
+          req.file.buffer,
+          req.file.originalname,
+          req.file.mimetype
+        );
+        console.log('✓ Step 2 SUCCESS: File uploaded to Aras Vault:', uploadResult.fileId);
+        
+        // Step 3: Get File item reference
+        const fileItemResult = await createFileItemAfterVaultUpload(
+          token,
+          vaultId,
+          uploadResult
+        );
+        console.log('✓ Step 3 SUCCESS: File item ready:', fileItemResult.fileItemId);
+        
+        // Use the File item reference instead of deep insert
+        odataPayload.m_quote = fileItemResult.fileItemId;
+        console.log('Aras Vault OData integration: using File item reference in m_quote field');
+        
+      } catch (vaultError) {
+        console.error('Aras Vault OData integration FAILED:', vaultError.message);
+        
+        // Fallback to deep insert for now
+        odataPayload.m_Procurement_Request_Files = [
+          {
+            file_name: req.file.originalname,
+            file_content: req.file.buffer.toString('base64'),
+            file_type: req.file.mimetype
+          }
+        ];
+        console.log('Fallback: using deep insert due to vault operation failure');
+      }
     } else {
-      console.log('No file attached (file will be uploaded separately)');
+      console.log('No file attached');
     }
     console.log('Outgoing OData payload:', { ...odataPayload, ...(odataPayload.m_Procurement_Request_Files ? { m_Procurement_Request_Files: '[file omitted]' } : {}) });    console.log('Forwarding to OData URL:', odataUrl);    // Log possible invalid ID fields (m_po_owner and m_reviewer are excluded as they contain names/aliases, not IDs)
     const idFields = ['m_project', 'm_supplier', 'm_invoice_approver'];
