@@ -168,17 +168,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     setEditIndex(null);
     setEditPartFields({});
   };
-
   const handleDeletePart = (idx) => {
     setNewParts(prev => prev.filter((_, i) => i !== idx));
   };
-
-  // Ensure Invoice Approver ID is always set when 'PO Owner' is selected
-  React.useEffect(() => {
-    if (preqFields.invoiceApprover === 'PO Owner' && preqFields.poOwnerId) {
-      setPreqFields(prev => ({ ...prev, invoiceApproverId: prev.poOwnerId }));
-    }
-  }, [preqFields.invoiceApprover, preqFields.poOwnerId]);
   // Helper to check if all required fields are filled
   const requiredFields = [
     // 'title' is no longer required
@@ -197,19 +189,15 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
   const truncate = (str, max = 20) => {
     if (!str || str.length <= max) return str;
     return str.slice(0, max) + '...';
-  };
-  // When PO Owner alias is changed, update Invoice Approver ID if needed
+  };  // When PO Owner alias is changed
   const handlePoOwnerSelect = (user) => {
     console.log('PO Owner selected:', user);
-    setPreqFields(prev => {
-      const update = { ...prev, poOwnerAlias: user.alias, poOwnerId: user.id };
-      console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);
-      if (prev.invoiceApprover === 'PO Owner') {
-        update.invoiceApproverId = user.id;
-        console.log('Also setting invoiceApproverId to:', user.id);
-      }
-      return update;
-    });
+    setPreqFields(prev => ({
+      ...prev,
+      poOwnerAlias: user.alias,
+      poOwnerId: user.id
+    }));
+    console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);
     setShowPoOwnerPopup(false);
   };
 
@@ -740,9 +728,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               <label style={{ fontWeight: 500 }}>CC List Alias
                 <input type="text" name="ccListAlias" value={preqFields.ccListAlias || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="CC List Alias" />
               </label>
-            )}
-            <label style={{ fontWeight: 500 }}>Invoice Approver <span style={{color:'red'}}>*</span>
-              {preqFields.invoiceApprover === 'Other' ? (
+            )}            <label style={{ fontWeight: 500 }}>Invoice Approver <span style={{color:'red'}}>*</span>
+              {preqFields.invoiceApprover === '2' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input
                     type="text"
@@ -770,8 +757,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               ) : (
                 <select name="invoiceApprover" value={preqFields.invoiceApprover} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} required>
                   <option value="">Select Invoice Approver</option>
-                  <option value="PO Owner">PO Owner</option>
-                  <option value="Other">Other</option>
+                  <option value="0">PO Owner</option>
+                  <option value="1">Procurement team</option>
+                  <option value="2">Other</option>
                 </select>
               )}
             </label>
@@ -946,6 +934,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 }
               }}
             >
+             
               Select
 
             </button>

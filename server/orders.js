@@ -277,59 +277,48 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
       invoiceApproverId: fields.invoiceApproverId,
       poOwner: fields.m_po_owner,
       poOwnerAlias: fields.poOwnerAlias
-    });
-
-    if (fields.invoiceApprover) {
-      // Map invoice approver logic
-      if (fields.invoiceApprover === 'PO Owner') {
-        // When PO Owner is selected, use the PO owner alias directly instead of the ID
-        // This ensures we use the alias (which is what IMS expects) rather than an ID
-        if (fields.m_po_owner) {
-          fields.m_invoice_approver = fields.m_po_owner;
-        } else if (fields.poOwnerAlias) {
-          fields.m_invoice_approver = fields.poOwnerAlias;
+    });    if (fields.invoiceApprover) {
+      // Send numeric values directly to m_invoice_approver dropdown
+      if (fields.invoiceApprover === '0' || fields.invoiceApprover === 'PO Owner') {
+        fields.m_invoice_approver = 0;
+        console.log(`Setting m_invoice_approver to: 0 (PO Owner)`);
+      } else if (fields.invoiceApprover === '1' || fields.invoiceApprover === 'Procurement team') {
+        fields.m_invoice_approver = 1;
+        console.log(`Setting m_invoice_approver to: 1 (Procurement team)`);
+      } else if (fields.invoiceApprover === '2' || fields.invoiceApprover === 'Other') {
+        fields.m_invoice_approver = 2;
+        console.log(`Setting m_invoice_approver to: 2 (Other)`);
+        // For "Other", also set the alias in m_invoice_approver_other
+        if (fields.invoiceApproverDisplay) {
+          fields.m_invoice_approver_other = fields.invoiceApproverDisplay;
+          console.log(`Setting m_invoice_approver_other to: ${fields.invoiceApproverDisplay}`);
         }
-        console.log(`Setting invoice approver to PO Owner: ${fields.m_invoice_approver}`);
-        delete fields.invoiceApprover;
-        if (fields.poOwnerId) delete fields.poOwnerId;
-      } else if (fields.invoiceApprover === 'Other' && fields.invoiceApproverId) {
-        fields.m_invoice_approver = fields.invoiceApproverId;
-        console.log(`Setting invoice approver to Other ID: ${fields.m_invoice_approver}`);
-        delete fields.invoiceApprover;
-        delete fields.invoiceApproverId;
-      } else if (fields.invoiceApprover) {
-        // For 'Procurement Team' or any other value, use as is
-        fields.m_invoice_approver = fields.invoiceApprover;
-        console.log(`Setting invoice approver directly: ${fields.m_invoice_approver}`);
-        delete fields.invoiceApprover;
-      }    } else {
-      // If no invoice approver specified, default to PO Owner if available
-      if (fields.m_po_owner) {
-        fields.m_invoice_approver = fields.m_po_owner;
-        console.log(`Using PO Owner as default invoice approver: ${fields.m_invoice_approver}`);
-      } else if (fields.poOwnerAlias) {
-        fields.m_invoice_approver = fields.poOwnerAlias;
-        console.log(`Using PO Owner Alias as default invoice approver: ${fields.m_invoice_approver}`);
-      } else {
-        // If no PO Owner either, set a placeholder value to avoid NULL constraint error
-        fields.m_invoice_approver = "DEFAULT";
-        console.log("Using DEFAULT placeholder for invoice approver");
       }
+      delete fields.invoiceApprover;
+      if (fields.invoiceApproverDisplay) delete fields.invoiceApproverDisplay;
+    } else {
+      // Default to PO Owner (0) if no invoice approver specified
+      fields.m_invoice_approver = 0;
+      console.log(`Using default m_invoice_approver: 0 (PO Owner)`);
     }
-    
-    // CRITICAL: Ensure m_invoice_approver is always set before continuing
+      // CRITICAL: Ensure m_invoice_approver is always set before continuing
     // This is a final validation to prevent NULL constraint errors
-    if (!fields.m_invoice_approver) {
+    // Note: 0 is a valid value (PO Owner), so we only check for null/undefined
+    if (fields.m_invoice_approver === null || fields.m_invoice_approver === undefined) {
       console.log("WARNING: m_invoice_approver is still null after processing. Setting to default value.");
       // If we have a PO owner, use that
       if (fields.m_po_owner) {
         fields.m_invoice_approver = fields.m_po_owner;
       } else {
         // Last resort - set a fixed value
-        fields.m_invoice_approver = "DEFAULT_INVOICE_APPROVER";
-      }
+        fields.m_invoice_approver = "DEFAULT_INVOICE_APPROVER";      }
       console.log(`Final m_invoice_approver value: ${fields.m_invoice_approver}`);
-    }// Always use poOwnerAlias for m_po_owner if available, overriding any existing m_po_owner
+    }
+    
+    // Debug: Log final m_invoice_approver value after all processing
+    console.log(`✓ Final m_invoice_approver after all checks: ${fields.m_invoice_approver} (type: ${typeof fields.m_invoice_approver})`);
+    
+    // Always use poOwnerAlias for m_po_owner if available, overriding any existing m_po_owner
     if (fields.poOwnerAlias) {
       fields.m_po_owner = fields.poOwnerAlias;
       delete fields.poOwnerAlias;

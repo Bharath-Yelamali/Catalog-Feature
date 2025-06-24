@@ -263,9 +263,10 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       // 2. Prepare FormData for multipart/form-data
       const formData = new FormData();
       // Add all fields except attachments
-      Object.entries(preqFields).forEach(([key, value]) => {
-        if (key !== 'attachments' && value !== undefined && value !== null) {          if (key === 'invoiceApproverId') {
-            formData.append('m_invoice_approver', value);
+      Object.entries(preqFields).forEach(([key, value]) => {        if (key !== 'attachments' && value !== undefined && value !== null) {          if (key === 'invoiceApprover') {
+            formData.append('invoiceApprover', value);
+          } else if (key === 'invoiceApproverDisplay') {
+            formData.append('invoiceApproverDisplay', value);
           } else if (key === 'poOwnerAlias') {
             console.log('Setting m_po_owner from poOwnerAlias:', value);
             formData.append('m_po_owner', value);
@@ -298,9 +299,8 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
           } else if (key === 'purchaseType') {
             formData.append('m_purchase_type', value);
           } else if (key === 'deliveryLocation') {
-            formData.append('m_delivery_location', value);
-          }          else if (
-            key !== 'invoiceApprover' &&
+            formData.append('m_delivery_location', value);          }          else if (
+            key !== 'invoiceApproverId' &&
             key !== 'poOwnerAlias' &&
             key !== 'supplier' &&
             key !== 'project' &&
