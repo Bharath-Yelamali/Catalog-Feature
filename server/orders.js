@@ -113,10 +113,41 @@ async function getCurrentUserVaultId(token, baseUrl) {
     
     if (!vaultId) {
       throw new Error('default_vault not found in user response');
+    }    console.log('✓ Found vault_id:', vaultId);
+    
+    // Step 4: Get the actual Vault entity details to understand vault_url and other fields
+    console.log('Step 4: Fetching Vault entity details...');
+    const vaultEntityEndpoint = `${baseUrl}Vault('${vaultId}')?$select=*`;
+    console.log(`Getting Vault entity details: ${vaultEntityEndpoint}`);
+    
+    let vaultUrl = null;
+    const vaultEntityResponse = await fetch(vaultEntityEndpoint, {
+      headers: {
+        'Authorization': `Bearer ${cleanToken}`,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!vaultEntityResponse.ok) {
+      const errorText = await vaultEntityResponse.text();
+      console.log(`Vault entity lookup failed (${vaultEntityResponse.status}): ${errorText}`);
+      console.log('Continuing without Vault entity details...');
+    } else {
+      const vaultEntityData = await vaultEntityResponse.json();
+      console.log('=== VAULT ENTITY DETAILS ===');
+      console.log(JSON.stringify(vaultEntityData, null, 2));
+      console.log('=== END VAULT ENTITY DETAILS ===');
+      
+      // Extract vault_url for use in batch requests
+      if (vaultEntityData.vault_url) {
+        vaultUrl = vaultEntityData.vault_url;
+        console.log('✓ Found vault_url in Vault entity:', vaultUrl);
+      } else {
+        console.log('! No vault_url field found in Vault entity');
+      }
     }
     
-    console.log('✓ Found vault_id:', vaultId);
-    return vaultId;
+    return { vaultId, vaultUrl };
     
   } catch (error) {
     console.error('Error getting user vault ID:', error);
@@ -254,7 +285,7 @@ async function getArasSessionCookie(token) {
 }
 
 // Helper function to upload file using Aras Vault OData interface (3-step process)
-async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeType) {
+async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeType, vaultUrl = null) {
   try {
     console.log('Phase 2: Uploading file using Aras Vault OData interface...');
     
@@ -267,6 +298,7 @@ async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeT
     
     console.log(`Generated file ID: ${fileId}`);
     console.log(`Vault ID: ${vaultId}`);
+    console.log(`Vault URL from entity: ${vaultUrl || 'Not provided'}`);
     console.log(`File: ${fileName} (${mimeType}, ${fileBuffer.length} bytes)`);
     
     // Try different vault base URLs based on Aras documentation
@@ -350,33 +382,47 @@ async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeT
       const errorText = await uploadResponse.text();
       throw new Error(`File upload failed (${uploadResponse.status}): ${errorText}`);
     }
-    
-    console.log('✓ File chunk uploaded successfully');
-    
-    // Step 3: Commit transaction and create File item
-    console.log('Step 3: Committing transaction...');
+      console.log('✓ File chunk uploaded successfully');
+      // Step 3: Commit vault transaction with File item creation (multipart/mixed batch)
+    console.log('Step 3: Committing vault transaction with File item metadata...');
     const commitUrl = `${workingVaultUrl}vault.CommitTransaction`;
     console.log(`Committing to: ${commitUrl}`);
-    
-    // Create the multipart/mixed batch request body for File item creation
+      // Create multipart/mixed batch request as per Aras Vault OData documentation
     const boundary = `batch_${Date.now()}`;
     const changesetBoundary = `changeset_${Date.now()}`;
     
-    // Construct the batch request body as per Aras documentation
+    // Use the same OData path pattern that works for BeginTransaction and UploadFile
+    // Don't mix ASPX vault_url with OData operations
+    const batchRequestUri = `http://https://chievmimsiiss01/IMSStage/vault/vaultserver.aspx/odata/vault.CommitTransaction`;
+    
+    console.log(`Using batch request URI: ${batchRequestUri}`);
+    
+    // Construct the batch request body with File item metadata
     const batchBody = [
       `--${boundary}`,
       `Content-Type: multipart/mixed; boundary=${changesetBoundary}`,
-      ``,
-      `--${changesetBoundary}`,
+      ``,      `--${changesetBoundary}`,
       `Content-Type: application/http`,
       `Content-Transfer-Encoding: binary`,
-      ``,
-      `POST File HTTP/1.1`,
+      ``,      `POST ${batchRequestUri}`,
       `Content-Type: application/json`,
+      `Content-Length: ${JSON.stringify({
+        id: fileId,
+        filename: fileName,
+        file_type: mimeType,
+        file_size: fileBuffer.length,
+        located: [
+          {
+            file_version: 1,
+            related_id: vaultId
+          }
+        ]
+      }).length}`,
       ``,
       JSON.stringify({
         id: fileId,
         filename: fileName,
+        file_type: mimeType,
         file_size: fileBuffer.length,
         located: [
           {
@@ -389,6 +435,9 @@ async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeT
       `--${boundary}--`
     ].join('\r\n');
     
+    console.log('DEBUG: Batch request body:');
+    console.log(batchBody);
+    
     const commitResponse = await fetch(commitUrl, {
       method: 'POST',
       headers: {
@@ -396,16 +445,40 @@ async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeT
         'VAULTID': vaultId,
         'transactionid': transactionId,
         'Content-Type': `multipart/mixed; boundary=${boundary}`,
-        'Prefer': 'return=minimal',
+        'Accept': 'application/json',
+        'Prefer': 'return=representation',
         'OData-Version': '4.0'
       },
       body: batchBody
     });
-    
-    console.log(`Commit transaction response status: ${commitResponse.status}`);
+      console.log(`Commit transaction response status: ${commitResponse.status}`);
+    console.log('DEBUG: Full response headers from CommitTransaction:');
+    console.log(JSON.stringify([...commitResponse.headers.entries()], null, 2));
     
     if (!commitResponse.ok) {
       const errorText = await commitResponse.text();
+      console.log('DEBUG: Full error response from CommitTransaction:');
+      console.log(errorText);
+      
+      // Try to parse as JSON to get more structured error info
+      try {
+        const errorJson = JSON.parse(errorText);
+        console.log('DEBUG: Parsed error JSON:');
+        console.log(JSON.stringify(errorJson, null, 2));
+        
+        // Look for more specific error details
+        if (errorJson.error) {
+          console.log('DEBUG: Error object details:');
+          console.log('  - Code:', errorJson.error.code);
+          console.log('  - Message:', errorJson.error.message);
+          console.log('  - Target:', errorJson.error.target);
+          console.log('  - Details:', errorJson.error.details);
+          console.log('  - Inner Error:', errorJson.error.innererror);
+        }
+      } catch (parseError) {
+        console.log('DEBUG: Error response is not JSON, raw text above');
+      }
+      
       throw new Error(`Commit transaction failed (${commitResponse.status}): ${errorText}`);
     }
     
@@ -431,19 +504,59 @@ async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeT
 }
 
 // Helper function to create File item reference after vault upload
-async function createFileItemAfterVaultUpload(token, vaultId, uploadResult) {
+async function createFileItemAfterVaultUpload(token, baseODataUrl, uploadResult) {
   try {
-    console.log('Phase 3: Processing File item after vault upload...');
+    console.log('Phase 3: Creating File item in main IMS OData context...');
     
-    // With the OData vault interface, the File item is created during CommitTransaction
-    // We just need to return the file ID that can be used in procurement requests
-    const fileItemId = uploadResult.fileId;
+    // Clean the token if it has 'Bearer ' prefix
+    const cleanToken = token.startsWith('Bearer ') ? token.substring(7) : token;
     
-    if (!fileItemId) {
-      throw new Error('File ID not found in upload result');
+    // Create File item in the main IMS OData context (not vault context)
+    const fileODataUrl = `${baseODataUrl}File`;
+    console.log(`Creating File item at: ${fileODataUrl}`);
+    
+    // Prepare File item payload with vault reference
+    const fileItemPayload = {
+      id: uploadResult.fileId,
+      filename: uploadResult.fileName,
+      file_type: uploadResult.mimeType,
+      file_size: uploadResult.size,
+      // Link to the vault-stored file
+      located: [
+        {
+          file_version: 1,
+          related_id: uploadResult.vaultId
+        }
+      ]
+    };
+    
+    console.log('Creating File item with payload:', fileItemPayload);
+    
+    const fileResponse = await fetch(fileODataUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${cleanToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(fileItemPayload)
+    });
+    
+    console.log(`File item creation response status: ${fileResponse.status}`);
+    
+    if (!fileResponse.ok) {
+      const errorText = await fileResponse.text();
+      console.log('File item creation failed:', errorText);
+      throw new Error(`File item creation failed (${fileResponse.status}): ${errorText}`);
     }
     
-    console.log('✓ File item reference ready:', fileItemId);
+    const fileData = await fileResponse.json();
+    console.log('File item created successfully:', fileData);
+    
+    const fileItemId = fileData.id || uploadResult.fileId;
+    
+    console.log('✓ File item created with ID:', fileItemId);
     return {
       fileItemId: fileItemId,
       fileName: uploadResult.fileName,
@@ -452,7 +565,7 @@ async function createFileItemAfterVaultUpload(token, vaultId, uploadResult) {
     };
     
   } catch (error) {
-    console.error('Error processing File item after vault upload:', error);
+    console.error('Error creating File item after vault upload:', error);
     throw error;
   }
 }
@@ -582,17 +695,14 @@ async function commitVaultTransaction(token, vaultId, transactionId, fileMetadat
     // Create the multipart/mixed batch request body for File item creation
     const boundary = `batch_${Date.now()}`;
     const changesetBoundary = `changeset_${Date.now()}`;
-    
-    // Construct the batch request body
+      // Construct the batch request body
     const batchBody = [
       `--${boundary}`,
       `Content-Type: multipart/mixed; boundary=${changesetBoundary}`,
-      ``,
-      `--${changesetBoundary}`,
+      ``,      `--${changesetBoundary}`,
       `Content-Type: application/http`,
       `Content-Transfer-Encoding: binary`,
-      ``,
-      `POST File HTTP/1.1`,
+      ``,      `POST /odata/File HTTP/1.1`,
       `Content-Type: application/json`,
       ``,
       JSON.stringify({
@@ -1073,35 +1183,34 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
       
       try {
         const baseODataUrl = 'https://chievmimsiiss01/IMSStage/Server/odata/';
-        
-        // Step 1: Get vault ID
-        const vaultId = await getCurrentUserVaultId(token, baseODataUrl);
-        console.log('✓ Step 1 SUCCESS: Got vault_id:', vaultId);
+          // Step 1: Get vault ID and vault URL
+        const vaultInfo = await getCurrentUserVaultId(token, baseODataUrl);
+        console.log('✓ Step 1 SUCCESS: Got vault info:', vaultInfo);
         
         // Step 2: Upload file to Aras Vault using OData interface (3-step process)
         const uploadResult = await uploadFileToArasVault(
           token,
-          vaultId,
+          vaultInfo.vaultId,
           req.file.buffer,
           req.file.originalname,
-          req.file.mimetype
+          req.file.mimetype,
+          vaultInfo.vaultUrl
         );
         console.log('✓ Step 2 SUCCESS: File uploaded to Aras Vault:', uploadResult.fileId);
-        
-        // Step 3: Get File item reference
+          // Step 3: Create File item in main IMS OData context
         const fileItemResult = await createFileItemAfterVaultUpload(
           token,
-          vaultId,
+          baseODataUrl,
           uploadResult
         );
-        console.log('✓ Step 3 SUCCESS: File item ready:', fileItemResult.fileItemId);
+        console.log('✓ Step 3 SUCCESS: File item created in IMS OData context:', fileItemResult.fileItemId);
         
         // Use the File item reference instead of deep insert
         odataPayload.m_quote = fileItemResult.fileItemId;
-        console.log('Aras Vault OData integration: using File item reference in m_quote field');
+        console.log('Aras Vault integration: File uploaded to vault and File item created in IMS OData context - using File item reference in m_quote field');
         
       } catch (vaultError) {
-        console.error('Aras Vault OData integration FAILED:', vaultError.message);
+        console.error('Aras Vault integration FAILED:', vaultError.message);
         
         // Fallback to deep insert for now
         odataPayload.m_Procurement_Request_Files = [
