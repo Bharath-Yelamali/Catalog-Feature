@@ -326,19 +326,43 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     } else if (fields.m_po_owner) {
       console.log("Using existing m_po_owner:", fields.m_po_owner);    } else if (fields.poOwnerId) {
       console.log("Warning: poOwnerId found without accompanying poOwnerAlias. This might result in ID being stored instead of alias.");
-    }
-      // Properly handle reviewer field mapping
+    }    // Properly handle reviewer field mapping - validate and set reviewer name
+    console.log("Reviewer Debug - Initial state:", {
+      reviewer: fields.reviewer,
+      m_reviewer: fields.m_reviewer
+    });
+    
     if (fields.reviewer) {
-      fields.m_reviewer = fields.reviewer;
-      console.log("Setting m_reviewer from reviewer ID:", fields.m_reviewer);
+      // Validate reviewer name against allowed list
+      const validReviewers = ['Jeremy Webster', 'Luke Duchesneau', 'Heather Phan', 'Dave Artz'];
+      if (validReviewers.includes(fields.reviewer)) {
+        fields.m_reviewer = fields.reviewer;
+        console.log(`Setting m_reviewer to: ${fields.m_reviewer}`);
+      } else {
+        console.log(`WARNING: Invalid reviewer name '${fields.reviewer}'. Using default reviewer.`);
+        fields.m_reviewer = 'Jeremy Webster'; // Default to first reviewer
+        console.log(`Setting m_reviewer to default: ${fields.m_reviewer}`);
+      }
       delete fields.reviewer;
-      // Delete the display name field if it exists
+      // Delete any legacy display name field if it exists
       if (fields.reviewerName) delete fields.reviewerName;
     } else if (fields.m_reviewer) {
       console.log("Using existing m_reviewer:", fields.m_reviewer);
     } else {
-      console.log("WARNING: No reviewer (m_reviewer) field found in request");
+      // Default to first reviewer if no reviewer specified
+      fields.m_reviewer = 'Jeremy Webster';
+      console.log(`Using default m_reviewer: ${fields.m_reviewer}`);
     }
+    
+    // Final validation to ensure m_reviewer is always set and valid
+    if (!fields.m_reviewer || !['Jeremy Webster', 'Luke Duchesneau', 'Heather Phan', 'Dave Artz'].includes(fields.m_reviewer)) {
+      console.log("WARNING: m_reviewer is invalid after processing. Setting to default value.");
+      fields.m_reviewer = 'Jeremy Webster';
+      console.log(`Final m_reviewer value: ${fields.m_reviewer}`);
+    }
+    
+    // Debug: Log final m_reviewer value after all processing
+    console.log(`✓ Final m_reviewer after all checks: ${fields.m_reviewer} (type: ${typeof fields.m_reviewer})`);
     
     if (fields.projectId) {
       fields.m_project = fields.projectId;
@@ -412,9 +436,7 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     } else {
       console.log('No file attached (file will be uploaded separately)');
     }
-    console.log('Outgoing OData payload:', { ...odataPayload, ...(odataPayload.m_Procurement_Request_Files ? { m_Procurement_Request_Files: '[file omitted]' } : {}) });    console.log('Forwarding to OData URL:', odataUrl);
-
-    // Log possible invalid ID fields (m_po_owner is excluded as it should contain alias text, not an ID)
+    console.log('Outgoing OData payload:', { ...odataPayload, ...(odataPayload.m_Procurement_Request_Files ? { m_Procurement_Request_Files: '[file omitted]' } : {}) });    console.log('Forwarding to OData URL:', odataUrl);    // Log possible invalid ID fields (m_po_owner and m_reviewer are excluded as they contain names/aliases, not IDs)
     const idFields = ['m_project', 'm_supplier', 'm_invoice_approver'];
     idFields.forEach(field => {
       if (odataPayload[field] && typeof odataPayload[field] === 'string' && !/^[A-F0-9-]{8,}$/.test(odataPayload[field])) {

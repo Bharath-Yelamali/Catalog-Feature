@@ -26,11 +26,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
   const [editPartFields, setEditPartFields] = useState({});
 
   // For cell expansion
-  const [expandedCell, setExpandedCell] = useState({ idx: null, field: '', value: '' });
-  const [showProjectPopup, setShowProjectPopup] = useState(false);
+  const [expandedCell, setExpandedCell] = useState({ idx: null, field: '', value: '' });  const [showProjectPopup, setShowProjectPopup] = useState(false);
   const [showSupplierPopup, setShowSupplierPopup] = useState(false);
   const [showPoOwnerPopup, setShowPoOwnerPopup] = useState(false);
-  const [showReviewerPopup, setShowReviewerPopup] = useState(false); // Reviewer popup state
   // Project popup state
   const [projectSearch, setProjectSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
@@ -103,21 +101,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         .then(data => setInvoiceApproverList(data))
         .catch(() => setInvoiceApproverList([]));
     }
-  }, [showInvoiceApproverPopup, accessToken]);
-  const filteredInvoiceApprovers = invoiceApproverList.filter(u => (u.alias + ' ' + u.name).toLowerCase().includes((invoiceApproverSearch || '').toLowerCase()));
-
-  // Reviewer popup logic
-  const [reviewerSearch, setReviewerSearch] = useState('');
-  const [selectedReviewer, setSelectedReviewer] = useState(null);
-  const [reviewerList, setReviewerList] = useState([]);
-  React.useEffect(() => {
-    if (showReviewerPopup) {
-      fetchAllIdentities(accessToken)
-        .then(data => setReviewerList(data))
-        .catch(() => setReviewerList([]));
-    }
-  }, [showReviewerPopup, accessToken]);
-  const filteredReviewers = reviewerList.filter(u => (u.alias + ' ' + u.name).toLowerCase().includes((reviewerSearch || '').toLowerCase()));
+  }, [showInvoiceApproverPopup, accessToken]);  const filteredInvoiceApprovers = invoiceApproverList.filter(u => (u.alias + ' ' + u.name).toLowerCase().includes((invoiceApproverSearch || '').toLowerCase()));
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
@@ -197,15 +181,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       poOwnerAlias: user.alias,
       poOwnerId: user.id
     }));
-    console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);
-    setShowPoOwnerPopup(false);
-  };
-
-  // Reviewer selection handler
-  const handleReviewerSelect = (user) => {
-    setPreqFields(prev => ({ ...prev, reviewer: user.id, reviewerName: user.name }));
-    setShowReviewerPopup(false);
-    setSelectedReviewer(user);
+    console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);    setShowPoOwnerPopup(false);
   };
 
   return (
@@ -687,34 +663,15 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
-            </label>
-            <label style={{ fontWeight: 500 }}>Reviewer <span style={{color:'red'}}>*</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="text"
-                  name="reviewerName"
-                  value={preqFields.reviewerName || ''}
-                  readOnly
-                  placeholder="Select Reviewer"
-                  style={{ flex: 1, padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }}
-                />
-                <button
-                  type="button"
-                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 35, lineHeight: '20px' }}
-                  onClick={() => setShowReviewerPopup(true)}
-                >
-                  {preqFields.reviewerName ? 'Change' : 'Select'}
-                </button>
-                <button
-                  type="button"
-                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', background: '#fff', color: '#333', fontWeight: 500, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
-                  onClick={() => setPreqFields(prev => ({ ...prev, reviewer: '', reviewerName: '' }))}
-                  disabled={!preqFields.reviewerName}
-                >
-                  Clear
-                </button>
-              </div>
-            </label>            {!showOnlyRequired && (
+            </label>            <label style={{ fontWeight: 500 }}>Reviewer <span style={{color:'red'}}>*</span>
+              <select name="reviewer" value={preqFields.reviewer || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} required>
+                <option value="">Select Reviewer</option>
+                <option value="Jeremy Webster">Jeremy Webster</option>
+                <option value="Luke Duchesneau">Luke Duchesneau</option>
+                <option value="Heather Phan">Heather Phan</option>
+                <option value="Dave Artz">Dave Artz</option>
+              </select>
+            </label>{!showOnlyRequired && (
               <label style={{ fontWeight: 500 }}>Interim Approver Alias
                 <input type="text" name="interimApproverAlias" value={preqFields.interimApproverAlias || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Interim Approver Alias" />
               </label>
@@ -984,49 +941,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             >
               Select
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Reviewer Alias Selection Popup */}
-      {showReviewerPopup && (
-        <div className="project-popup-overlay" onClick={() => setShowReviewerPopup(false)}>
-          <div className="project-popup-modal" onClick={e => e.stopPropagation()}>
-            <button className="project-popup-close" onClick={() => setShowReviewerPopup(false)}>&times;</button>
-            <div className="project-popup-title">Select Reviewer</div>
-            <input
-              className="project-popup-search"
-              type="text"
-              placeholder="Search Reviewer Names..."
-              value={reviewerSearch || ''}
-              onChange={e => setReviewerSearch(e.target.value)}
-              autoFocus
-            />
-            <div className="project-popup-list">
-              {(filteredReviewers.length > 0 ? filteredReviewers : [{ name: 'No results found', disabled: true }]).map((user, idx) => (
-                <div
-                  key={user.id || user.alias || idx}
-                  className={`project-popup-item${selectedReviewer === user ? ' selected' : ''}${user.disabled ? ' disabled' : ''}`}
-                  style={user.disabled ? { color: '#aaa', cursor: 'not-allowed' } : {}}
-                  onClick={() => !user.disabled && setSelectedReviewer(user)}
-                >
-                  {user.name}
-                </div>
-              ))}
-            </div>
-            <button
-              style={{ marginTop: 8, padding: '8px 18px', borderRadius: 6, background: '#2d72d9', color: '#fff', border: 'none', fontWeight: 600, fontSize: 15, cursor: selectedReviewer ? 'pointer' : 'not-allowed', opacity: selectedReviewer ? 1 : 0.6 }}
-              disabled={!selectedReviewer}
-              onClick={() => {
-                if (selectedReviewer) {
-                  handleReviewerSelect(selectedReviewer);
-                }
-              }}
-            >
-              Select
-            </button>
-          </div>
-        </div>
+          </div>        </div>
       )}
     </div>
   );
