@@ -74,8 +74,6 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const details = [
-      ["Title", preqFields.title],
-      ["PO Number", preqFields.poNumber],
       ["PO Owner Alias", preqFields.poOwnerAlias],
       ["Coordinator", preqFields.coordinator],
       ["Email Alias", preqFields.emailAlias],
@@ -88,13 +86,13 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       ["Delivery Contact Email", preqFields.deliveryContactEmail],
       ["Delivery Contact Phone", preqFields.deliveryContactPhone],
       ["Delivery Location", preqFields.deliveryLocation],
-      ["Deliver to MSFT POC", preqFields.deliverToMsftPoc],
+      ["Deliver to MSFT POC", typeof preqFields.deliverToMsftPoc === 'boolean' ? (preqFields.deliverToMsftPoc ? 'Yes' : 'No') : 'Not specified'],
       ["Deliver to MSFT Alias", preqFields.deliverToMsftAlias],
       ["Shipping Comments", preqFields.shippingComments],
       ["FID", preqFields.fid],
       ["FID Number", preqFields.fidNumber],
       ["Reviewed by Lab TPM", typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : 'Not specified'],
-      ["Reviewer", preqFields.reviewerName],
+      ["Reviewer", preqFields.reviewer],
       ["Interim Approver Alias", preqFields.interimApproverAlias],
       ["SAFE Approver", preqFields.safeApprover],
       ["CC List Alias", preqFields.ccListAlias],
@@ -363,10 +361,6 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
         <div className="confirmation-summary-section-card">
           <h4>Requester Info</h4>
           <dl>
-            <dt>Title</dt>
-            <dd>{preqFields.title || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
-            <dt>PO Number</dt>
-            <dd>{preqFields.poNumber || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>PO Owner Alias</dt>
             <dd>{preqFields.poOwnerAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Coordinator</dt>
@@ -404,7 +398,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             <dt>Delivery Location</dt>
             <dd>{preqFields.deliveryLocation || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Deliver to MSFT POC</dt>
-            <dd>{preqFields.deliverToMsftPoc || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{typeof preqFields.deliverToMsftPoc === 'boolean' ? (preqFields.deliverToMsftPoc ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Deliver to MSFT Alias</dt>
             <dd>{preqFields.deliverToMsftAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Shipping Comments</dt>
@@ -422,7 +416,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             <dt>Reviewed by Lab TPM</dt>
             <dd>{typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Reviewer</dt>
-            <dd>{preqFields.reviewerName || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{preqFields.reviewer || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Interim Approver Alias</dt>
             <dd>{preqFields.interimApproverAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>SAFE Approver</dt>
