@@ -386,89 +386,102 @@ async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeT
       // Step 3: Commit vault transaction with File item creation (multipart/mixed batch)
     console.log('Step 3: Committing vault transaction with File item metadata...');
     const commitUrl = `${workingVaultUrl}vault.CommitTransaction`;
-    console.log(`Committing to: ${commitUrl}`);
-      // Create multipart/mixed batch request as per Aras Vault OData documentation
+    console.log(`[DEBUG] CommitTransaction URL:`, commitUrl);
+    // Create multipart/mixed batch request as per Aras Vault OData documentation
     const boundary = `batch_${Date.now()}`;
     const changesetBoundary = `changeset_${Date.now()}`;
+
+    // Target the main Innovator OData endpoint for File creation
+    const batchRequestUri = '/odata/m_Procurement_Request_Files';
+    console.log(`[DEBUG] Using batch request URI: ${batchRequestUri}`);
     
-    // Use the same OData path pattern that works for BeginTransaction and UploadFile
-    // Don't mix ASPX vault_url with OData operations
-    const batchRequestUri = `http://https://chievmimsiiss01/IMSStage/vault/vaultserver.aspx/odata/vault.CommitTransaction`;
+    // Prepare the File item payload for main Innovator context
+    const filePayload = {
+      "id": fileId,
+      "filename": fileName,
+      "file_type": mimeType,
+      "file_size": fileBuffer.length,
+      // Link to the vault-stored file
+      "located": [
+        {
+          "id": fileId,
+          "file_version": 1,
+          "related_id": vaultId
+        }
+      ]
+    };
+    console.log('[DEBUG] File payload for batch:', JSON.stringify(filePayload, null, 2));
     
-    console.log(`Using batch request URI: ${batchRequestUri}`);
+    const filePayloadJson = JSON.stringify(filePayload);
     
     // Construct the batch request body with File item metadata
+    // The POST should target the main Innovator OData endpoint
     const batchBody = [
       `--${boundary}`,
       `Content-Type: multipart/mixed; boundary=${changesetBoundary}`,
-      ``,      `--${changesetBoundary}`,
+      ``,
+      `--${changesetBoundary}`,
       `Content-Type: application/http`,
       `Content-Transfer-Encoding: binary`,
-      ``,      `POST ${batchRequestUri}`,
-      `Content-Type: application/json`,
-      `Content-Length: ${JSON.stringify({
-        id: fileId,
-        filename: fileName,
-        file_type: mimeType,
-        file_size: fileBuffer.length,
-        located: [
-          {
-            file_version: 1,
-            related_id: vaultId
-          }
-        ]
-      }).length}`,
       ``,
-      JSON.stringify({
-        id: fileId,
-        filename: fileName,
-        file_type: mimeType,
-        file_size: fileBuffer.length,
-        located: [
-          {
-            file_version: 1,
-            related_id: vaultId
-          }
-        ]
-      }),
+      `POST ${batchRequestUri}`,
+      `Host: chievmimsiiss01`,
+      `Content-Type: application/json`,
+      `Content-Length: ${filePayloadJson.length}`,
+      ``,
+      filePayloadJson,
       `--${changesetBoundary}--`,
       `--${boundary}--`
     ].join('\r\n');
     
-    console.log('DEBUG: Batch request body:');
+    console.log('[DEBUG] Batch request body being sent to CommitTransaction:');
     console.log(batchBody);
     
-    const commitResponse = await fetch(commitUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${cleanToken}`,
-        'VAULTID': vaultId,
-        'transactionid': transactionId,
-        'Content-Type': `multipart/mixed; boundary=${boundary}`,
-        'Accept': 'application/json',
-        'Prefer': 'return=representation',
-        'OData-Version': '4.0'
-      },
-      body: batchBody
-    });
-      console.log(`Commit transaction response status: ${commitResponse.status}`);
-    console.log('DEBUG: Full response headers from CommitTransaction:');
-    console.log(JSON.stringify([...commitResponse.headers.entries()], null, 2));
+    const commitHeaders = {
+      'Authorization': `Bearer ${cleanToken}`,
+      'VAULTID': vaultId,
+      'transactionid': transactionId,
+      'Content-Type': `multipart/mixed; boundary=${boundary}`,
+      'Accept': 'application/json',
+      'Prefer': 'return=representation',
+      'OData-Version': '4.0'
+    };
+    console.log('[DEBUG] CommitTransaction request headers:', JSON.stringify(commitHeaders, null, 2));
     
+    let commitResponse;
+    try {
+      commitResponse = await fetch(commitUrl, {
+        method: 'POST',
+        headers: commitHeaders,
+        body: batchBody
+      });
+    } catch (err) {
+      console.log('[ERROR] Network or fetch error during CommitTransaction:', err);
+      throw err;
+    }
+    console.log(`[DEBUG] CommitTransaction response status: ${commitResponse.status}`);
+    console.log('[DEBUG] Full response headers from CommitTransaction:');
+    try {
+      console.log(JSON.stringify([...commitResponse.headers.entries()], null, 2));
+    } catch (e) {
+      console.log('[DEBUG] Could not stringify commitResponse.headers:', e);
+    }
+    let commitResponseText;
+    try {
+      commitResponseText = await commitResponse.text();
+      console.log('[DEBUG] Raw response body from CommitTransaction:');
+      console.log(commitResponseText);
+    } catch (e) {
+      console.log('[DEBUG] Could not read commitResponse.text():', e);
+    }
     if (!commitResponse.ok) {
-      const errorText = await commitResponse.text();
-      console.log('DEBUG: Full error response from CommitTransaction:');
-      console.log(errorText);
-      
       // Try to parse as JSON to get more structured error info
       try {
-        const errorJson = JSON.parse(errorText);
-        console.log('DEBUG: Parsed error JSON:');
+        const errorJson = JSON.parse(commitResponseText);
+        console.log('[DEBUG] Parsed error JSON:');
         console.log(JSON.stringify(errorJson, null, 2));
-        
-        // Look for more specific error details
         if (errorJson.error) {
-          console.log('DEBUG: Error object details:');
+          console.log('[DEBUG] Error object details:');
           console.log('  - Code:', errorJson.error.code);
           console.log('  - Message:', errorJson.error.message);
           console.log('  - Target:', errorJson.error.target);
@@ -476,12 +489,10 @@ async function uploadFileToArasVault(token, vaultId, fileBuffer, fileName, mimeT
           console.log('  - Inner Error:', errorJson.error.innererror);
         }
       } catch (parseError) {
-        console.log('DEBUG: Error response is not JSON, raw text above');
+        console.log('[DEBUG] Error response is not JSON, raw text above');
       }
-      
-      throw new Error(`Commit transaction failed (${commitResponse.status}): ${errorText}`);
+      throw new Error(`Commit transaction failed (${commitResponse.status}): ${commitResponseText}`);
     }
-    
     console.log('✓ Transaction committed successfully');
     
     // Parse response to extract any returned data
@@ -702,7 +713,8 @@ async function commitVaultTransaction(token, vaultId, transactionId, fileMetadat
       ``,      `--${changesetBoundary}`,
       `Content-Type: application/http`,
       `Content-Transfer-Encoding: binary`,
-      ``,      `POST /odata/File HTTP/1.1`,
+      ``,      `POST File HTTP/1.1`,
+      `Host: chievmimsiiss01`,
       `Content-Type: application/json`,
       ``,
       JSON.stringify({
