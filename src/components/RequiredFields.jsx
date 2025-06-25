@@ -514,11 +514,6 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         {/* Requester Info */}
         <fieldset style={{ border: '1px solid #bbb', borderRadius: 6, padding: 24, marginBottom: 32, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
           <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Requester Info</legend>          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            {!showOnlyRequired && (
-              <label style={{ fontWeight: 500 }}>Title
-                <input type="text" name="title" value={preqFields.title || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Title" />
-              </label>
-            )}
             <label style={{ fontWeight: 500 }}>PO Owner Alias <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
