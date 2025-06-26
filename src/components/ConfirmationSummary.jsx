@@ -4,7 +4,7 @@ import { PDFDocument } from "pdf-lib";
 import { postNewInventoryPart } from '../api/parts';
 import { postProcurementRequest, postProcurementRequestFile } from '../api/procurementRequest';
 
-function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
+function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken, onAttachmentsChange }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [showImsPopup, setShowImsPopup] = useState(false);
@@ -309,7 +309,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             formData.append('m_cc_list', value);
           } else if (key === 'businessJustificationNotes') {
             formData.append('m_notes_proc', value);
-          } else if (key === 'purchaseType') {
+          } else if (key === 'purchaseTypeId') {
             formData.append('m_purchase_type', value);
           } else if (key === 'deliveryLocation') {
             formData.append('m_delivery_location', value);          }          else if (
@@ -317,12 +317,19 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             key !== 'poOwnerAlias' &&
             key !== 'supplier' &&
             key !== 'project' &&
-            key !== 'reviewerName'
+            key !== 'reviewerName' &&
+            key !== 'purchaseType' // Prevent duplicate mapping
           ){
             formData.append(key, value);
           }
         }
       });
+      // Always send m_lineitem_options = 1
+      formData.append('m_lineitem_options', 1);
+      // If purchaseTypeId is not present, fallback to purchaseType (text/label)
+      if (!preqFields.purchaseTypeId && preqFields.purchaseType) {
+        formData.append('m_purchase_type', preqFields.purchaseType);
+      }
       // Attach the first file as m_quote (required)
       if (attachments && attachments.length > 0) {
         formData.append('m_quote', attachments[0]);
@@ -499,13 +506,32 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
         </div>
         <div className="confirmation-summary-attachments">
           <h4>Attachments</h4>
-          <ul>
+          <ul style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 0, listStyle: 'none', width: '100%' }}>
             {attachments && attachments.length > 0 ? (
               attachments.map((file, idx) => (
-                <li key={idx}>{file.name}</li>
+                <li key={idx} style={{display:'flex',alignItems:'center',gap:8, justifyContent:'center', width: '100%'}}>
+                  {file.name}
+                  <button
+                    type="button"
+                    style={{marginLeft:8,padding:'2px 8px',fontSize:12,borderRadius:4,border:'1px solid #ccc',background:'#f8f8f8',cursor:'pointer'}}
+                    onClick={() => {
+                      // Always use window.confirm() directly to avoid double prompts
+                      if (typeof window !== 'undefined' && window.confirm) {
+                        if (!window.confirm(`Remove attachment '${file.name}'?`)) return;
+                      }
+                      // Remove the file from attachments
+                      if (typeof onAttachmentsChange === 'function') {
+                        const newAttachments = attachments.slice(0, idx).concat(attachments.slice(idx + 1));
+                        onAttachmentsChange(newAttachments);
+                      }
+                    }}
+                  >
+                    Remove
+                  </button>
+                </li>
               ))
             ) : (
-              <li className="confirmation-summary-detail-empty">No attachments uploaded.</li>
+              <li className="confirmation-summary-detail-empty" style={{textAlign:'center', width:'100%'}}>No attachments uploaded.</li>
             )}
           </ul>
         </div>
@@ -581,14 +607,10 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             fontSize: 18,
             color: '#222',
           }}>
-            <h3 style={{marginBottom: 16, color: '#3182ce'}}>Purchase Request Uploaded</h3>
+            <h3 style={{marginBottom: 16, color: '#3182ce'}}>Congratulations! Your Purchase Request is Uploaded</h3>
             <p style={{marginBottom: 18}}>
               <b>Your Purchase Request (PR) has been successfully uploaded to IMS.</b><br/><br/>
-              It is currently in <b>New</b> status and has <b>not yet been submitted</b> for approval.<br/><br/>
-              <b>To complete your request:</b><br/>
-              1. Go to the IMS site.<br/>
-              2. Locate your new PR.<br/>
-              3. Attach the quote and submit the PR for approval.
+              The final step: <b>Click the link below and upload your quote file to complete your request.</b>
             </p>
             {imsPrId && (
               <div style={{marginBottom: 18}}>
