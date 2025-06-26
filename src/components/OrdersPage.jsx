@@ -529,17 +529,18 @@ const OrdersPage = ({ username, accessToken }) => {
                   {/* 6. Workflow & Attachments */}
                   {(selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name']) && <div className="order-details-item"><div className="order-details-label">Current State</div><div className="order-details-value">{selectedOrder['current_state@aras.name'] || selectedOrder['current_state@aras.keyed_name']}</div></div>}
                   {selectedOrder['m_lineitem_options'] && <div className="order-details-item"><div className="order-details-label">Line Items</div><div className="order-details-value">{selectedOrder['m_lineitem_options']}</div></div>}
-                  {selectedOrder['m_Procurement_Request_Files@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Files/Attachments</div><div className="order-details-value"><a href={selectedOrder['m_Procurement_Request_Files@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Files</a></div></div>}
-                  {selectedOrder['m_Procurement_Request_Signoff@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Signoff</div><div className="order-details-value"><a href={selectedOrder['m_Procurement_Request_Signoff@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Signoff</a></div></div>}
-                  {selectedOrder['m_quote@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Quote</div><div className="order-details-value"><a href={selectedOrder['m_quote@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Quote</a></div></div>}
                   {/* 7. Other Metadata */}
                   {selectedOrder['major_rev'] && <div className="order-details-item"><div className="order-details-label">Major Rev</div><div className="order-details-value">{selectedOrder['major_rev']}</div></div>}
                   {selectedOrder['generation'] && <div className="order-details-item"><div className="order-details-label">Generation</div><div className="order-details-value">{selectedOrder['generation']}</div></div>}
                   {selectedOrder['is_current'] && <div className="order-details-item"><div className="order-details-label">Is Current</div><div className="order-details-value">{selectedOrder['is_current'] === '1' || selectedOrder['is_current'] === 1 ? 'Yes' : selectedOrder['is_current'] === '0' || selectedOrder['is_current'] === 0 ? 'No' : selectedOrder['is_current']}</div></div>}
                   {selectedOrder['is_released'] && <div className="order-details-item"><div className="order-details-label">Is Released</div><div className="order-details-value">{selectedOrder['is_released'] === '1' || selectedOrder['is_released'] === 1 ? 'Yes' : selectedOrder['is_released'] === '0' || selectedOrder['is_released'] === 0 ? 'No' : selectedOrder['is_released']}</div></div>}
-                  {selectedOrder['itemtype'] && <div className="order-details-item"><div className="order-details-label">Itemtype</div><div className="order-details-value">{selectedOrder['itemtype']}</div></div>}
-                  {selectedOrder['permission_id@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Permission</div><div className="order-details-value">{selectedOrder['permission_id@aras.keyed_name']}</div></div>}
-                  {selectedOrder['team_id@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Team</div><div className="order-details-value"><a href={selectedOrder['team_id@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Team</a></div></div>}
+                  {/* Removed: itemtype, team, files/attachments, signoff, quote */}
+                  {false && selectedOrder['itemtype']}
+                  {false && selectedOrder['permission_id@aras.keyed_name']}
+                  {false && selectedOrder['team_id@odata.navigationLink']}
+                  {false && selectedOrder['m_Procurement_Request_Files@odata.navigationLink']}
+                  {false && selectedOrder['m_Procurement_Request_Signoff@odata.navigationLink']}
+                  {false && selectedOrder['m_quote@odata.navigationLink']}
                 </div>
               </div>
               <div className="order-details-footer">
