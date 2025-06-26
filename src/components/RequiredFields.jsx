@@ -184,6 +184,49 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);    setShowPoOwnerPopup(false);
   };
 
+  // Lab TPM engagement state for radio selection and textbox
+  const [labTpmOption, setLabTpmOption] = React.useState(null); // 1, 2, or 3
+  const [labTpmOtherText, setLabTpmOtherText] = React.useState('');
+
+  // Add Lab TPM radio button and reason to preqFields state when changed
+  const handleLabTpmOptionChange = (option) => {
+    setLabTpmOption(option);
+    setPreqFields(prev => ({
+      ...prev,
+      m_lab_tpm_radiobtn: option,
+      m_tpm_not_engaged: option === 3 ? labTpmOtherText : ''
+    }));
+  };
+
+  // Example handler for "Others" reason textbox change
+  const handleLabTpmOtherTextChange = (e) => {
+    setLabTpmOtherText(e.target.value);
+    setPreqFields(prev => ({
+      ...prev,
+      m_tpm_not_engaged: e.target.value
+    }));
+  };
+
+  // When submitting the form, ensure m_lab_tpm_radiobtn is set to the correct value (1, 2, or 3) based on labTpmOption
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // ...existing code...
+    let submissionFields = { ...preqFields };
+    if (preqFields.reviewedByLabTpm === false) {
+      submissionFields.m_lab_tpm_radiobtn = labTpmOption;
+      if (labTpmOption === 3) {
+        submissionFields.m_tpm_not_engaged = labTpmOtherText;
+      } else {
+        submissionFields.m_tpm_not_engaged = '';
+      }
+    } else {
+      submissionFields.m_lab_tpm_radiobtn = undefined;
+      submissionFields.m_tpm_not_engaged = '';
+    }
+    // ...submit submissionFields to backend instead of preqFields...
+    // ...existing code...
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh', padding: '40px 0 80px 0', background: '#f0f4fa' }}>
       {/* Selected Parts Section */}
@@ -658,13 +701,59 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <input type="text" name="m_why_not_forecasted" value={preqFields.m_why_not_forecasted || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Reason why there is no FID" />
               </label>
             ) : null}
-            <label style={{ fontWeight: 500 }}>Reviewed by Lab TPM <span style={{color:'red'}}>*</span>
+            <label style={{ fontWeight: 500, marginBottom: 0 }}>Reviewed by Lab TPM <span style={{color:'red'}}>*</span>
               <select name="reviewedByLabTpm" value={preqFields.reviewedByLabTpm === undefined ? '' : preqFields.reviewedByLabTpm ? 'yes' : preqFields.reviewedByLabTpm === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, reviewedByLabTpm: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
                 <option value="">Select</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
-            </label>            <label style={{ fontWeight: 500 }}>Reviewer <span style={{color:'red'}}>*</span>
+              {preqFields.reviewedByLabTpm === false && (
+                <div style={{ margin: '4px 0 0 0', padding: 12, background: '#f5f5f5', border: '1px solid #ccc', borderRadius: 6 }}>
+                  <div style={{ marginBottom: 8 }}>If No, select one:</div>
+                  <label style={{ display: 'block', marginBottom: 4 }}>
+                    <input
+                      type="radio"
+                      name="labTpmOption"
+                      checked={labTpmOption === 1}
+                      onChange={() => handleLabTpmOptionChange(1)}
+                    />
+                    Consumables
+                  </label>
+                  <label style={{ display: 'block', marginBottom: 4 }}>
+                    <input
+                      type="radio"
+                      name="labTpmOption"
+                      checked={labTpmOption === 2}
+                      onChange={() => handleLabTpmOptionChange(2)}
+                    />
+                    No Impact for Microsoft Labs
+                  </label>
+                  <label style={{ display: 'block', marginBottom: 4 }}>
+                    <input
+                      type="radio"
+                      name="labTpmOption"
+                      checked={labTpmOption === 3}
+                      onChange={() => handleLabTpmOptionChange(3)}
+                    />
+                    Others
+                  </label>
+                  {labTpmOption === 3 && (
+                    <div style={{ marginTop: 8 }}>
+                      <label>
+                        reason why tpm not engaged?
+                        <input
+                          type="text"
+                          value={labTpmOtherText}
+                          onChange={handleLabTpmOtherTextChange}
+                          style={{ marginLeft: 8, width: 300 }}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+            </label>
+            <label style={{ fontWeight: 500 }}>Reviewer <span style={{color:'red'}}>*</span>
               <select name="reviewer" value={preqFields.reviewer || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} required>
                 <option value="">Select Reviewer</option>
                 <option value="Jeremy Webster">Jeremy Webster</option>
@@ -892,9 +981,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 }
               }}
             >
-             
               Select
-
             </button>
           </div>
         </div>
