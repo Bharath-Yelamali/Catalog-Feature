@@ -74,34 +74,30 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     });
   };
 
-  // Helper to highlight all search matches (multi-keyword)
-  const highlightMatch = (text, search) => {
-    if (!search || !text) return text;
-    // Support multi-keyword search (split on '+')
-    const keywords = search.split('+').map(s => s.trim()).filter(Boolean);
-    if (keywords.length === 0) return text;
+  // Helper to highlight all backend-matched keywords in a field
+  const highlightFieldWithMatches = (text, matches) => {
+    if (!matches || !text) return text;
+    // matches is an array of keywords to highlight
     let result = [];
-    let remaining = text;
-    let lastIndex = 0;
-    // Find all matches for all keywords, collect their ranges
-    let matches = [];
-    for (const keyword of keywords) {
-      if (!keyword) continue;
-      let idx = remaining.toLowerCase().indexOf(keyword.toLowerCase());
+    let lowerText = text.toLowerCase();
+    let ranges = [];
+    for (const kw of matches) {
+      if (!kw) continue;
+      let idx = lowerText.indexOf(kw.toLowerCase());
       while (idx !== -1) {
-        matches.push({ start: lastIndex + idx, end: lastIndex + idx + keyword.length });
-        idx = remaining.toLowerCase().indexOf(keyword.toLowerCase(), idx + keyword.length);
+        ranges.push({ start: idx, end: idx + kw.length });
+        idx = lowerText.indexOf(kw.toLowerCase(), idx + kw.length);
       }
     }
-    if (matches.length === 0) return text;
-    // Sort and merge overlapping matches
-    matches.sort((a, b) => a.start - b.start);
+    if (ranges.length === 0) return text;
+    // Sort and merge overlapping ranges
+    ranges.sort((a, b) => a.start - b.start);
     let merged = [];
-    for (const m of matches) {
-      if (!merged.length || merged[merged.length - 1].end < m.start) {
-        merged.push({ ...m });
+    for (const r of ranges) {
+      if (!merged.length || merged[merged.length - 1].end < r.start) {
+        merged.push({ ...r });
       } else {
-        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, m.end);
+        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, r.end);
       }
     }
     // Build highlighted output
@@ -230,10 +226,10 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   }}>
                     {truncate(surplus.toString())}
                   </div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_inventory_item?.item_number), search) || 'N/A'}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_mfg_part_number), search) || 'N/A'}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_mfg_name), search) || 'N/A'}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)} style={{ cursor: (part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'pointer' : 'default' }}>{highlightMatch(truncate(part.m_inventory_description || part.m_description), search) || 'N/A'}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_inventory_item?.item_number), part._matches?.m_inventory_item)}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_part_number), part._matches?.m_mfg_part_number)}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_name), part._matches?.m_mfg_name)}</div>
+                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)} style={{ cursor: (part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_inventory_description || part.m_description), part._matches?.m_inventory_description || part._matches?.m_description)}</div>
                 </div>
                 {expandedRows[group.itemNumber] && (
                   <div style={{ background: '#f9f9f9', padding: '0 16px 12px 16px', borderBottom: '1px solid #eee' }}>
@@ -318,12 +314,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       : group.instances
                     ).map(instance => (
                       <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
-                        <div>{highlightMatch(instance.m_id || 'N/A', search)}</div>
-                        <div>{highlightMatch(instance.item_number || 'N/A', search)}</div>
-                        <div>{highlightMatch((instance.m_quantity ?? 'N/A').toString(), search)}</div>
-                        <div>{highlightMatch(instance.m_maturity || 'N/A', search)}</div>
-                        <div>{highlightMatch(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', search)}</div>
-                        <div>{highlightMatch(instance.m_parent_ref_path || 'N/A', search)}</div>
+                        <div>{highlightFieldWithMatches(instance.m_id || 'N/A', part._matches?.m_id)}</div>
+                        <div>{highlightFieldWithMatches(instance.item_number || 'N/A', part._matches?.item_number)}</div>
+                        <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>
+                        <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>
+                        <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>
+                        <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>
                       </div>
                     ))}
                   </div>

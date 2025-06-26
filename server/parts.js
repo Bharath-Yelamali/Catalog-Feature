@@ -126,20 +126,35 @@ router.get('/parts', async (req, res) => {
     });
     // Backend-side filtering for search
     if (search && search.trim() !== '') {
-      // Multi-keyword support: split on '+' and require all keywords to match
-      const keywords = search.split('+').map(s => s.trim().toLowerCase()).filter(Boolean);
+      // Comma-separated AND/NOT logic: e.g. Rail, Delta, !Mark
+      const terms = search.split(',').map(s => s.trim()).filter(Boolean);
+      const includeKeywords = [];
+      const excludeKeywords = [];
+      for (const term of terms) {
+        if (term.startsWith('!') || term.startsWith('-')) {
+          excludeKeywords.push(term.slice(1).toLowerCase());
+        } else {
+          includeKeywords.push(term.toLowerCase());
+        }
+      }
       // Map filterType to field(s)
-      const fieldMap = {
-        itemNumber: part => part.m_inventory_item?.item_number,
-        manufacturerPartNumber: part => part.m_mfg_part_number,
-        manufacturerName: part => part.m_mfg_name,
-        parentPath: part => part.m_parent_ref_path,
-        inventoryDescription: part => part.m_inventory_description || part.m_description,
-        hardwareCustodian: part => part["m_custodian@aras.keyed_name"] || part.m_custodian,
-        id: part => part.m_id, // search on m_id, not id
-        serialNumber: part => part.item_number, // search on item_number field
-        inventoryMaturity: part => part.m_maturity, // search on m_maturity field
-        all: part => [
+      const allFields = [
+        'm_inventory_item', // will check .item_number
+        'm_mfg_part_number',
+        'm_mfg_name',
+        'm_parent_ref_path',
+        'm_inventory_description',
+        'm_description',
+        'm_custodian@aras.keyed_name',
+        'm_custodian',
+        'm_id',
+        'item_number',
+        'm_maturity'
+      ];
+      // Step 1: Initial fast filter using big string
+      const fastFiltered = results.filter(part => {
+        // Build big string for this part
+        const bigString = [
           part.m_inventory_item?.item_number,
           part.m_mfg_part_number,
           part.m_mfg_name,
@@ -151,19 +166,38 @@ router.get('/parts', async (req, res) => {
           part.m_id,
           part.item_number,
           part.m_maturity
-        ].filter(Boolean).join(' || ')
-      };
-      const getField = fieldMap[filterType] || fieldMap['all'];
-      results = results.filter(part => {
-        const value = getField(part);
-        if (!value) return false;
-        if (Array.isArray(value)) {
-          // For array fields, check if all keywords are present in any value
-          return keywords.every(kw => value.some(v => typeof v === 'string' && v.toLowerCase().includes(kw)));
-        }
-        // For string fields, check if all keywords are present
-        return keywords.every(kw => typeof value === 'string' && value.toLowerCase().includes(kw));
+        ].filter(Boolean).join(' || ').toLowerCase();
+        return includeKeywords.every(kw => bigString.includes(kw)) &&
+               excludeKeywords.every(nk => !bigString.includes(nk));
       });
+      // Step 2: Field-level match analysis for highlighting
+      results = fastFiltered.map(part => {
+        const matches = {};
+        for (const field of allFields) {
+          let value;
+          if (field === 'm_inventory_item') {
+            value = part.m_inventory_item?.item_number;
+          } else {
+            value = part[field];
+          }
+          if (!value) continue;
+          const valStr = String(value).toLowerCase();
+          for (const kw of includeKeywords) {
+            if (valStr.includes(kw)) {
+              if (!matches[field]) matches[field] = [];
+              if (!matches[field].includes(kw)) matches[field].push(kw);
+            }
+          }
+        }
+        // Only include if all includeKeywords matched somewhere in the part
+        const allMatched = includeKeywords.every(kw =>
+          Object.values(matches).some(arr => arr.includes(kw))
+        );
+        if (allMatched) {
+          return { ...part, _matches: matches };
+        }
+        return null;
+      }).filter(Boolean);
     }
     // If search is empty, limit results to 500 (in case OData $top is ignored)
     if (!search || search.trim() === '') {
