@@ -3,9 +3,9 @@ import { fetchOrders } from '../api/orders';
 
 // Whitelist of fields to display in the table in specified order
 const INCLUDED_FIELDS = [
-  'created_on',  // First column
-  'modified_on', // Second column
-  'keyed_name',  // Third column
+  'keyed_name',  // First column (Order Name)
+  'created_on',  // Second column
+  'modified_on', // Third column
   'id',          // Fourth column
   'state',       // Fifth column (rightmost position)
 ];
@@ -36,15 +36,16 @@ const getHeaderLabel = (field) => {
 const OrdersPage = ({ username, accessToken }) => {
   const [imsRaw, setImsRaw] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [totalCount, setTotalCount] = useState(0); // NEW: total count from backend
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [workflowProcess, setWorkflowProcess] = useState(null);
   const [workflowActivities, setWorkflowActivities] = useState([]);
+  const [searchField, setSearchField] = useState('orderName'); // 'orderName' or 'createdBy'
   
   // Use ref to track if we've loaded orders to prevent multiple API calls
   // This persists across re-renders unlike a state variable
@@ -53,41 +54,22 @@ const OrdersPage = ({ username, accessToken }) => {
   // Prevent initial debounce effect on component mount
   const isFirstRenderRef = useRef(true);
   
-  // Debounce search term to prevent too frequent API calls
-  useEffect(() => {
-    // Skip the initial render effect for search debouncing
-    if (isFirstRenderRef.current) {
-      isFirstRenderRef.current = false;
-      return;
-    }
-    
-    // Only setup debounce for actual user input
-    if (searchTerm !== '') {
-      const timerId = setTimeout(() => {
-        setDebouncedSearchTerm(searchTerm);
-      }, 500); // 500ms debounce delay
-      
-      return () => clearTimeout(timerId);
-    }
-  }, [searchTerm]);
   // Fetch orders function
-  const fetchAllOrders = useCallback(async (search = '') => {
+  const fetchAllOrders = useCallback(async (search = '', field = searchField) => {
     // Don't refetch if we already have orders and there's no search term
     if (hasLoadedOrdersRef.current && search === '' && orders.length > 0) {
       return;
     }
-    
     setLoading(true);
     setError(null);
-    
     try {
-      const data = await fetchOrders(username, accessToken, search);
+      // Pass searchField to fetchOrders
+      const data = await fetchOrders(username, accessToken, search, field);
       setImsRaw(data.imsRaw);
-      setOrders(Array.isArray(data.imsRaw?.value) ? data.imsRaw.value : []);
-      
+      setOrders(Array.isArray(data.orders) ? data.orders : []);
+      setTotalCount(typeof data.totalCount === 'number' ? data.totalCount : 0);
       // Log the raw IMS response to the browser console
       console.log('IMS API response (raw):', data.imsRaw);
-      
       // Mark that we've loaded orders using the ref
       hasLoadedOrdersRef.current = true;
       setHasSearched(true);
@@ -95,10 +77,11 @@ const OrdersPage = ({ username, accessToken }) => {
       setError(err.message);
       setImsRaw(null);
       setOrders([]);
+      setTotalCount(0);
     } finally {
       setLoading(false);
     }
-  }, [accessToken, orders.length, username]);
+  }, [accessToken, orders.length, username, searchField]);
   // Single effect for initial data loading
   useEffect(() => {
     // Only fetch data if we're authenticated and haven't loaded orders yet
@@ -115,14 +98,6 @@ const OrdersPage = ({ username, accessToken }) => {
     };
   }, [accessToken, fetchAllOrders]);
   
-  // Separate effect for search terms
-  useEffect(() => {
-    // Skip initial render and only respond to actual search terms
-    if (!isFirstRenderRef.current && debouncedSearchTerm !== '') {
-      fetchAllOrders(debouncedSearchTerm);
-    }
-  }, [debouncedSearchTerm, fetchAllOrders]);
-
   // Handle search input change
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -131,7 +106,7 @@ const OrdersPage = ({ username, accessToken }) => {
   // Handle search form submission
   const handleSearchSubmit = (e) => {
     e.preventDefault();
-    fetchAllOrders(searchTerm);
+    fetchAllOrders(searchTerm, searchField);
   };
   
   // Handle row click to view order details
@@ -215,55 +190,78 @@ const OrdersPage = ({ username, accessToken }) => {
   // Only render the component if user is logged in (accessToken exists)
   if (!accessToken) return null;
   
+  // Filtered orders based on search field
+  const getFilteredOrders = () => {
+    if (!searchTerm) return orders;
+    const term = searchTerm.toLowerCase();
+    if (searchField === 'orderName') {
+      return orders.filter(order => {
+        const name = getFieldValue(order, 'keyed_name');
+        return name && String(name).toLowerCase().includes(term);
+      });
+    } else if (searchField === 'createdBy') {
+      // Only search on created_by_id@aras.keyed_name (case-insensitive, partial match)
+      return orders.filter(order => {
+        const createdBy = order['created_by_id@aras.keyed_name'] || '';
+        return String(createdBy).toLowerCase().includes(term);
+      });
+    }
+    return orders;
+  };
+  
   return (
     <div className="orders-page-container">
-      <div className="orders-dropdown">        <div className="orders-header">
-          <h2 style={{ margin: "0 0 4px 0" }}>Procurement Orders</h2>
-          <div className="orders-subtitle">
-            {searchTerm ? `Filtered results for "${searchTerm}"` : "Showing your 50 most recent orders"}
-          </div>
-          
-          {/* Enhanced Search bar */}
-          <div className="orders-search-container">
-            <form onSubmit={handleSearchSubmit} className="orders-search-form">
-              <input
-                type="text"
-                placeholder="Search by Order Name"
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="orders-search-input"
-                aria-label="Search orders by name"
-              />
-              <button type="submit" className="orders-search-button">
-                Search
-              </button>
-              {searchTerm && (
-                <button 
-                  type="button" 
-                  className="orders-search-clear" 
-                  onClick={() => {
-                    setSearchTerm('');
-                    setDebouncedSearchTerm('');
-                    fetchAllOrders('');
-                  }}
-                >
-                  Clear
-                </button>
+      <div className="orders-dropdown">
+        {/* Removed header and subheader, shift everything up */}
+        {/* Enhanced Search bar */}
+        <div className="orders-search-container" style={{ position: 'relative' }}>
+          <form onSubmit={handleSearchSubmit} className="orders-search-form" style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f1f5f9', borderRadius: 8, padding: '10px 32px', boxShadow: '0 2px 8px #e2e8f0', border: '1px solid #cbd5e1', margin: '0 0 0px 0', width: '100%', maxWidth: '1200px' }}>
+            <label style={{ fontWeight: 500, color: '#334155', marginRight: 8, fontSize: 15 }} htmlFor="orders-search-field-select">
+              Search by:
+            </label>
+            <select
+              id="orders-search-field-select"
+              value={searchField}
+              onChange={e => setSearchField(e.target.value)}
+              className="orders-search-field-select"
+              style={{ padding: '6px 14px', fontSize: 15, borderRadius: 6, border: '1.5px solid #94a3b8', background: '#fff', color: '#222', fontWeight: 500, outline: 'none', boxShadow: '0 1px 2px #e2e8f0' }}
+              aria-label="Choose search field"
+            >
+              <option value="orderName">Order Name</option>
+              <option value="createdBy">Created By</option>
+            </select>
+            <input
+              type="text"
+              placeholder={searchField === 'orderName' ? 'Search by Order Name' : 'Search by Creator'}
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="orders-search-input"
+              aria-label={searchField === 'orderName' ? 'Search orders by name' : 'Search orders by creator'}
+              style={{ padding: '6px 14px', fontSize: 15, borderRadius: 6, border: '1.5px solid #94a3b8', background: '#fff', color: '#222', minWidth: 500, width: '100%', maxWidth: 900, outline: 'none', boxShadow: '0 1px 2px #e2e8f0', flex: 1 }}
+            />
+            {/* Spinner or result count on the right */}
+            <span className="searchbar-spinner-fixedwidth" style={{ marginLeft: 12 }}>
+              {loading ? (
+                <span className="searchbar-spinner" title="Loading...">
+                  <svg width="22" height="22" viewBox="0 0 50 50">
+                    <circle cx="25" cy="25" r="20" fill="none" stroke="#61dafb" strokeWidth="5" strokeDasharray="31.4 31.4" strokeLinecap="round">
+                      <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite" />
+                    </circle>
+                  </svg>
+                </span>
+              ) : (
+                <span className="searchbar-result-count searchbar-spinner-fixedwidth">
+                  {typeof totalCount === 'number' ? `${totalCount} result${totalCount === 1 ? '' : 's'}` : ''}
+                </span>
               )}
-            </form>
-          </div>
+            </span>
+          </form>
         </div>
-          {error && (
+        {/* Remove the old loading message below the search bar */}
+        {error && (
           <div className="orders-error">
             <div className="orders-error-icon">⚠️</div>
             <div className="orders-error-message">{error}</div>
-          </div>
-        )}
-        
-        {loading && (
-          <div className="orders-loading">
-            <div className="orders-loading-spinner"></div>
-            <div>Loading your procurement orders...</div>
           </div>
         )}
         
@@ -273,7 +271,7 @@ const OrdersPage = ({ username, accessToken }) => {
             <h3>No orders found</h3>
             <p>{searchTerm ? "Try adjusting your search criteria or using fewer keywords." : "You don't have any recent procurement orders."}</p>
           </div>
-        )}        {orders.length > 0 && (
+        )}        {getFilteredOrders().length > 0 && (
           <div className="orders-content">
             <table className="orders-table">
               <thead>
@@ -283,7 +281,7 @@ const OrdersPage = ({ username, accessToken }) => {
                   ))}
                 </tr>
               </thead><tbody>
-                {orders.map((order, idx) => (
+                {getFilteredOrders().map((order, idx) => (
                   <tr 
                     key={idx} 
                     onClick={() => handleOrderClick(order)}
@@ -309,12 +307,31 @@ const OrdersPage = ({ username, accessToken }) => {
                               minute: '2-digit',
                             });
                       }
-                      
                       // Render status with special badge styling
                       if (field.toLowerCase() === 'state') {
                         return <td key={field}>{renderStatusBadge(value)}</td>;
                       }
-
+                      // Make order name a blue hyperlink to IMS
+                      if (field.toLowerCase() === 'keyed_name') {
+                        const orderId = getFieldValue(order, 'id');
+                        return (
+                          <td key={field}>
+                            {orderId ? (
+                              <a
+                                href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Procurement_Request:${orderId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#3182ce', textDecoration: 'underline', cursor: 'pointer', fontWeight: 500 }}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {value}
+                              </a>
+                            ) : (
+                              value
+                            )}
+                          </td>
+                        );
+                      }
                       return <td key={field}>{String(value || '')}</td>;
                     })}
                   </tr>
@@ -480,7 +497,23 @@ const OrdersPage = ({ username, accessToken }) => {
                   {selectedOrder['m_email_alias'] && <div className="order-details-item"><div className="order-details-label">Email Alias</div><div className="order-details-value">{selectedOrder['m_email_alias']}</div></div>}
                   {/* 4. Approval & Review */}
                   {selectedOrder['m_reviewer'] && <div className="order-details-item"><div className="order-details-label">Reviewer</div><div className="order-details-value">{selectedOrder['m_reviewer']}</div></div>}
-                  {selectedOrder['m_invoice_approver'] && <div className="order-details-item"><div className="order-details-label">Invoice Approver</div><div className="order-details-value">{selectedOrder['m_invoice_approver']}</div></div>}
+                  {selectedOrder['m_invoice_approver'] !== undefined && selectedOrder['m_invoice_approver'] !== null && (
+                    <div className="order-details-item">
+                      <div className="order-details-label">Invoice Approver</div>
+                      <div className="order-details-value">
+                        {(() => {
+                          const val = selectedOrder['m_invoice_approver'];
+                          if (val === 0 || val === '0') return 'PO Owner';
+                          if (val === 1 || val === '1') return 'Procurement team';
+                          if (val === 2 || val === '2') return selectedOrder['m_invoice_approver_other'] || 'Other';
+                          if (val === 'PO Owner') return 'PO Owner';
+                          if (val === 'Procurement team') return 'Procurement team';
+                          if (val === 'Other') return selectedOrder['m_invoice_approver_other'] || 'Other';
+                          return val;
+                        })()}
+                      </div>
+                    </div>
+                  )}
                   {selectedOrder['m_interim_approver'] && <div className="order-details-item"><div className="order-details-label">Interim Approver</div><div className="order-details-value">{selectedOrder['m_interim_approver']}</div></div>}
                   {selectedOrder['m_safe_appover'] && <div className="order-details-item"><div className="order-details-label">SAFE Approver</div><div className="order-details-value">{selectedOrder['m_safe_appover']}</div></div>}
                   {selectedOrder['m_is_fid'] && <div className="order-details-item"><div className="order-details-label">Is FID</div><div className="order-details-value">{selectedOrder['m_is_fid'] === '1' ? 'Yes' : selectedOrder['m_is_fid'] === '0' ? 'No' : ''}</div></div>}
@@ -502,8 +535,8 @@ const OrdersPage = ({ username, accessToken }) => {
                   {/* 7. Other Metadata */}
                   {selectedOrder['major_rev'] && <div className="order-details-item"><div className="order-details-label">Major Rev</div><div className="order-details-value">{selectedOrder['major_rev']}</div></div>}
                   {selectedOrder['generation'] && <div className="order-details-item"><div className="order-details-label">Generation</div><div className="order-details-value">{selectedOrder['generation']}</div></div>}
-                  {selectedOrder['is_current'] && <div className="order-details-item"><div className="order-details-label">Is Current</div><div className="order-details-value">{selectedOrder['is_current']}</div></div>}
-                  {selectedOrder['is_released'] && <div className="order-details-item"><div className="order-details-label">Is Released</div><div className="order-details-value">{selectedOrder['is_released']}</div></div>}
+                  {selectedOrder['is_current'] && <div className="order-details-item"><div className="order-details-label">Is Current</div><div className="order-details-value">{selectedOrder['is_current'] === '1' || selectedOrder['is_current'] === 1 ? 'Yes' : selectedOrder['is_current'] === '0' || selectedOrder['is_current'] === 0 ? 'No' : selectedOrder['is_current']}</div></div>}
+                  {selectedOrder['is_released'] && <div className="order-details-item"><div className="order-details-label">Is Released</div><div className="order-details-value">{selectedOrder['is_released'] === '1' || selectedOrder['is_released'] === 1 ? 'Yes' : selectedOrder['is_released'] === '0' || selectedOrder['is_released'] === 0 ? 'No' : selectedOrder['is_released']}</div></div>}
                   {selectedOrder['itemtype'] && <div className="order-details-item"><div className="order-details-label">Itemtype</div><div className="order-details-value">{selectedOrder['itemtype']}</div></div>}
                   {selectedOrder['permission_id@aras.keyed_name'] && <div className="order-details-item"><div className="order-details-label">Permission</div><div className="order-details-value">{selectedOrder['permission_id@aras.keyed_name']}</div></div>}
                   {selectedOrder['team_id@odata.navigationLink'] && <div className="order-details-item"><div className="order-details-label">Team</div><div className="order-details-value"><a href={selectedOrder['team_id@odata.navigationLink']} target="_blank" rel="noopener noreferrer">View Team</a></div></div>}

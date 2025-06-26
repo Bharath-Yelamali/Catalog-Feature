@@ -26,11 +26,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
   const [editPartFields, setEditPartFields] = useState({});
 
   // For cell expansion
-  const [expandedCell, setExpandedCell] = useState({ idx: null, field: '', value: '' });
-  const [showProjectPopup, setShowProjectPopup] = useState(false);
+  const [expandedCell, setExpandedCell] = useState({ idx: null, field: '', value: '' });  const [showProjectPopup, setShowProjectPopup] = useState(false);
   const [showSupplierPopup, setShowSupplierPopup] = useState(false);
   const [showPoOwnerPopup, setShowPoOwnerPopup] = useState(false);
-  const [showReviewerPopup, setShowReviewerPopup] = useState(false); // Reviewer popup state
   // Project popup state
   const [projectSearch, setProjectSearch] = useState('');
   const [selectedProject, setSelectedProject] = useState(null);
@@ -103,21 +101,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         .then(data => setInvoiceApproverList(data))
         .catch(() => setInvoiceApproverList([]));
     }
-  }, [showInvoiceApproverPopup, accessToken]);
-  const filteredInvoiceApprovers = invoiceApproverList.filter(u => (u.alias + ' ' + u.name).toLowerCase().includes((invoiceApproverSearch || '').toLowerCase()));
-
-  // Reviewer popup logic
-  const [reviewerSearch, setReviewerSearch] = useState('');
-  const [selectedReviewer, setSelectedReviewer] = useState(null);
-  const [reviewerList, setReviewerList] = useState([]);
-  React.useEffect(() => {
-    if (showReviewerPopup) {
-      fetchAllIdentities(accessToken)
-        .then(data => setReviewerList(data))
-        .catch(() => setReviewerList([]));
-    }
-  }, [showReviewerPopup, accessToken]);
-  const filteredReviewers = reviewerList.filter(u => (u.alias + ' ' + u.name).toLowerCase().includes((reviewerSearch || '').toLowerCase()));
+  }, [showInvoiceApproverPopup, accessToken]);  const filteredInvoiceApprovers = invoiceApproverList.filter(u => (u.alias + ' ' + u.name).toLowerCase().includes((invoiceApproverSearch || '').toLowerCase()));
 
   const handleFieldChange = (e) => {
     const { name, value } = e.target;
@@ -168,17 +152,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     setEditIndex(null);
     setEditPartFields({});
   };
-
   const handleDeletePart = (idx) => {
     setNewParts(prev => prev.filter((_, i) => i !== idx));
   };
-
-  // Ensure Invoice Approver ID is always set when 'PO Owner' is selected
-  React.useEffect(() => {
-    if (preqFields.invoiceApprover === 'PO Owner' && preqFields.poOwnerId) {
-      setPreqFields(prev => ({ ...prev, invoiceApproverId: prev.poOwnerId }));
-    }
-  }, [preqFields.invoiceApprover, preqFields.poOwnerId]);
   // Helper to check if all required fields are filled
   const requiredFields = [
     // 'title' is no longer required
@@ -197,27 +173,15 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
   const truncate = (str, max = 20) => {
     if (!str || str.length <= max) return str;
     return str.slice(0, max) + '...';
-  };
-  // When PO Owner alias is changed, update Invoice Approver ID if needed
+  };  // When PO Owner alias is changed
   const handlePoOwnerSelect = (user) => {
     console.log('PO Owner selected:', user);
-    setPreqFields(prev => {
-      const update = { ...prev, poOwnerAlias: user.alias, poOwnerId: user.id };
-      console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);
-      if (prev.invoiceApprover === 'PO Owner') {
-        update.invoiceApproverId = user.id;
-        console.log('Also setting invoiceApproverId to:', user.id);
-      }
-      return update;
-    });
-    setShowPoOwnerPopup(false);
-  };
-
-  // Reviewer selection handler
-  const handleReviewerSelect = (user) => {
-    setPreqFields(prev => ({ ...prev, reviewer: user.id, reviewerName: user.name }));
-    setShowReviewerPopup(false);
-    setSelectedReviewer(user);
+    setPreqFields(prev => ({
+      ...prev,
+      poOwnerAlias: user.alias,
+      poOwnerId: user.id
+    }));
+    console.log('Setting poOwnerAlias to:', user.alias, 'and poOwnerId to:', user.id);    setShowPoOwnerPopup(false);
   };
 
   return (
@@ -550,11 +514,6 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         {/* Requester Info */}
         <fieldset style={{ border: '1px solid #bbb', borderRadius: 6, padding: 24, marginBottom: 32, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
           <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Requester Info</legend>          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            {!showOnlyRequired && (
-              <label style={{ fontWeight: 500 }}>Title
-                <input type="text" name="title" value={preqFields.title || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Title" />
-              </label>
-            )}
             <label style={{ fontWeight: 500 }}>PO Owner Alias <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
@@ -690,43 +649,30 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <option value="no">No</option>
               </select>
             </label>
-            <label style={{ fontWeight: 500 }}>FID Number <span style={{color:'red'}}>*</span>
-              <input type="text" name="fidNumber" value={preqFields.fidNumber} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="FID Number" />
-            </label>
+            {preqFields.fid === true || preqFields.fid === 'yes' ? (
+              <label style={{ fontWeight: 500 }}>FID Number <span style={{color:'red'}}>*</span>
+                <input type="text" name="fidNumber" value={preqFields.fidNumber || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="FID Number" />
+              </label>
+            ) : preqFields.fid === false || preqFields.fid === 'no' ? (
+              <label style={{ fontWeight: 500 }}>Reason Why There Is No Forecast ID (FID)? <span style={{color:'red'}}>*</span>
+                <input type="text" name="m_why_not_forecasted" value={preqFields.m_why_not_forecasted || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Reason why there is no FID" />
+              </label>
+            ) : null}
             <label style={{ fontWeight: 500 }}>Reviewed by Lab TPM <span style={{color:'red'}}>*</span>
               <select name="reviewedByLabTpm" value={preqFields.reviewedByLabTpm === undefined ? '' : preqFields.reviewedByLabTpm ? 'yes' : preqFields.reviewedByLabTpm === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, reviewedByLabTpm: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
                 <option value="">Select</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
               </select>
-            </label>
-            <label style={{ fontWeight: 500 }}>Reviewer <span style={{color:'red'}}>*</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="text"
-                  name="reviewerName"
-                  value={preqFields.reviewerName || ''}
-                  readOnly
-                  placeholder="Select Reviewer"
-                  style={{ flex: 1, padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15, background: '#f5f5f5', color: '#333' }}
-                />
-                <button
-                  type="button"
-                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 35, lineHeight: '20px' }}
-                  onClick={() => setShowReviewerPopup(true)}
-                >
-                  {preqFields.reviewerName ? 'Change' : 'Select'}
-                </button>
-                <button
-                  type="button"
-                  style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', background: '#fff', color: '#333', fontWeight: 500, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
-                  onClick={() => setPreqFields(prev => ({ ...prev, reviewer: '', reviewerName: '' }))}
-                  disabled={!preqFields.reviewerName}
-                >
-                  Clear
-                </button>
-              </div>
-            </label>            {!showOnlyRequired && (
+            </label>            <label style={{ fontWeight: 500 }}>Reviewer <span style={{color:'red'}}>*</span>
+              <select name="reviewer" value={preqFields.reviewer || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} required>
+                <option value="">Select Reviewer</option>
+                <option value="Jeremy Webster">Jeremy Webster</option>
+                <option value="Luke Duchesneau">Luke Duchesneau</option>
+                <option value="Heather Phan">Heather Phan</option>
+                <option value="Dave Artz">Dave Artz</option>
+              </select>
+            </label>{!showOnlyRequired && (
               <label style={{ fontWeight: 500 }}>Interim Approver Alias
                 <input type="text" name="interimApproverAlias" value={preqFields.interimApproverAlias || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Interim Approver Alias" />
               </label>
@@ -740,9 +686,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               <label style={{ fontWeight: 500 }}>CC List Alias
                 <input type="text" name="ccListAlias" value={preqFields.ccListAlias || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="CC List Alias" />
               </label>
-            )}
-            <label style={{ fontWeight: 500 }}>Invoice Approver <span style={{color:'red'}}>*</span>
-              {preqFields.invoiceApprover === 'Other' ? (
+            )}            <label style={{ fontWeight: 500 }}>Invoice Approver <span style={{color:'red'}}>*</span>
+              {preqFields.invoiceApprover === '2' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input
                     type="text"
@@ -770,8 +715,9 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               ) : (
                 <select name="invoiceApprover" value={preqFields.invoiceApprover} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} required>
                   <option value="">Select Invoice Approver</option>
-                  <option value="PO Owner">PO Owner</option>
-                  <option value="Other">Other</option>
+                  <option value="0">PO Owner</option>
+                  <option value="1">Procurement team</option>
+                  <option value="2">Other</option>
                 </select>
               )}
             </label>
@@ -946,6 +892,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 }
               }}
             >
+             
               Select
 
             </button>
@@ -995,49 +942,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             >
               Select
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Reviewer Alias Selection Popup */}
-      {showReviewerPopup && (
-        <div className="project-popup-overlay" onClick={() => setShowReviewerPopup(false)}>
-          <div className="project-popup-modal" onClick={e => e.stopPropagation()}>
-            <button className="project-popup-close" onClick={() => setShowReviewerPopup(false)}>&times;</button>
-            <div className="project-popup-title">Select Reviewer</div>
-            <input
-              className="project-popup-search"
-              type="text"
-              placeholder="Search Reviewer Names..."
-              value={reviewerSearch || ''}
-              onChange={e => setReviewerSearch(e.target.value)}
-              autoFocus
-            />
-            <div className="project-popup-list">
-              {(filteredReviewers.length > 0 ? filteredReviewers : [{ name: 'No results found', disabled: true }]).map((user, idx) => (
-                <div
-                  key={user.id || user.alias || idx}
-                  className={`project-popup-item${selectedReviewer === user ? ' selected' : ''}${user.disabled ? ' disabled' : ''}`}
-                  style={user.disabled ? { color: '#aaa', cursor: 'not-allowed' } : {}}
-                  onClick={() => !user.disabled && setSelectedReviewer(user)}
-                >
-                  {user.name}
-                </div>
-              ))}
-            </div>
-            <button
-              style={{ marginTop: 8, padding: '8px 18px', borderRadius: 6, background: '#2d72d9', color: '#fff', border: 'none', fontWeight: 600, fontSize: 15, cursor: selectedReviewer ? 'pointer' : 'not-allowed', opacity: selectedReviewer ? 1 : 0.6 }}
-              disabled={!selectedReviewer}
-              onClick={() => {
-                if (selectedReviewer) {
-                  handleReviewerSelect(selectedReviewer);
-                }
-              }}
-            >
-              Select
-            </button>
-          </div>
-        </div>
+          </div>        </div>
       )}
     </div>
   );

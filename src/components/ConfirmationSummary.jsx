@@ -7,6 +7,8 @@ import { postProcurementRequest, postProcurementRequestFile } from '../api/procu
 function ConfirmationSummary({ selected, quantities, preqFields, newParts, attachments, goBack, onSubmit, accessToken }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
+  const [showImsPopup, setShowImsPopup] = useState(false);
+  const [imsPrId, setImsPrId] = useState(null); // <-- Store new PR ID
   // Helper function to create an email with all request details
   // Removed the handleEmailRequest function as per the code change
 
@@ -74,8 +76,6 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const details = [
-      ["Title", preqFields.title],
-      ["PO Number", preqFields.poNumber],
       ["PO Owner Alias", preqFields.poOwnerAlias],
       ["Coordinator", preqFields.coordinator],
       ["Email Alias", preqFields.emailAlias],
@@ -88,17 +88,30 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       ["Delivery Contact Email", preqFields.deliveryContactEmail],
       ["Delivery Contact Phone", preqFields.deliveryContactPhone],
       ["Delivery Location", preqFields.deliveryLocation],
-      ["Deliver to MSFT POC", preqFields.deliverToMsftPoc],
+      ["Deliver to MSFT POC", typeof preqFields.deliverToMsftPoc === 'boolean' ? (preqFields.deliverToMsftPoc ? 'Yes' : 'No') : 'Not specified'],
       ["Deliver to MSFT Alias", preqFields.deliverToMsftAlias],
       ["Shipping Comments", preqFields.shippingComments],
-      ["FID", preqFields.fid],
-      ["FID Number", preqFields.fidNumber],
+      ["FID", preqFields.fid === true || preqFields.fid === 'yes' ? 'Yes' : preqFields.fid === false || preqFields.fid === 'no' ? 'No' : 'Not specified'],
+      ...(preqFields.fid === true || preqFields.fid === 'yes'
+        ? [["FID Number", preqFields.fidNumber]]
+        : preqFields.fid === false || preqFields.fid === 'no'
+        ? [["Reason For No FID", preqFields.m_why_not_forecasted]]
+        : []),
       ["Reviewed by Lab TPM", typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : 'Not specified'],
-      ["Reviewer", preqFields.reviewerName],
+      ["Reviewer", preqFields.reviewer],
       ["Interim Approver Alias", preqFields.interimApproverAlias],
       ["SAFE Approver", preqFields.safeApprover],
       ["CC List Alias", preqFields.ccListAlias],
-      ["Invoice Approver", preqFields.invoiceApprover],
+      ["Invoice Approver", (() => {
+        const val = preqFields.invoiceApprover;
+        if (val === 0 || val === '0') return 'PO Owner';
+        if (val === 1 || val === '1') return 'Procurement team';
+        if (val === 2 || val === '2') return preqFields.invoiceApproverDisplay || 'Other';
+        if (val === 'PO Owner') return 'PO Owner';
+        if (val === 'Procurement team') return 'Procurement team';
+        if (val === 'Other') return preqFields.invoiceApproverDisplay || 'Other';
+        return val || 'Not specified';
+      })()],
       ["Urgent", typeof preqFields.urgent === 'boolean' ? (preqFields.urgent ? 'Yes' : 'No') : 'Not specified'],
     ];
     details.forEach(([label, value]) => {
@@ -263,9 +276,10 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       // 2. Prepare FormData for multipart/form-data
       const formData = new FormData();
       // Add all fields except attachments
-      Object.entries(preqFields).forEach(([key, value]) => {
-        if (key !== 'attachments' && value !== undefined && value !== null) {          if (key === 'invoiceApproverId') {
-            formData.append('m_invoice_approver', value);
+      Object.entries(preqFields).forEach(([key, value]) => {        if (key !== 'attachments' && value !== undefined && value !== null) {          if (key === 'invoiceApprover') {
+            formData.append('invoiceApprover', value);
+          } else if (key === 'invoiceApproverDisplay') {
+            formData.append('invoiceApproverDisplay', value);
           } else if (key === 'poOwnerAlias') {
             console.log('Setting m_po_owner from poOwnerAlias:', value);
             formData.append('m_po_owner', value);
@@ -298,9 +312,8 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
           } else if (key === 'purchaseType') {
             formData.append('m_purchase_type', value);
           } else if (key === 'deliveryLocation') {
-            formData.append('m_delivery_location', value);
-          }          else if (
-            key !== 'invoiceApprover' &&
+            formData.append('m_delivery_location', value);          }          else if (
+            key !== 'invoiceApproverId' &&
             key !== 'poOwnerAlias' &&
             key !== 'supplier' &&
             key !== 'project' &&
@@ -317,7 +330,18 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
         throw new Error('No attachment found');
       }
       console.log('Submitting purchase request to backend:', Object.fromEntries(formData.entries())); // <-- Log for purchase request
-      await postProcurementRequest(formData, accessToken, true);
+      // Await the backend response and extract the PR ID
+      const response = await postProcurementRequest(formData, accessToken, true);
+      // Try to extract the PR ID from the backend response
+      let prId = null;
+      if (response && (response.id || response.Id || response.ID)) {
+        prId = response.id || response.Id || response.ID;
+      } else if (response && response['@odata.id']) {
+        // Try to extract from OData id URI
+        const match = String(response['@odata.id']).match(/m_Procurement_Request\(([^)]+)\)/);
+        if (match) prId = match[1];
+      }
+      setImsPrId(prId);
       setSubmitResult(newPartAdded ? 'both_success' : 'preq_success');
       if (onSubmit) onSubmit();
     } catch (err) {
@@ -326,6 +350,13 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       setSubmitting(false);
     }
   };
+
+  // After successful submit, show the IMS popup
+  React.useEffect(() => {
+    if (submitResult === 'preq_success' || submitResult === 'both_success') {
+      setShowImsPopup(true);
+    }
+  }, [submitResult]);
 
   return (
     <div className="confirmation-summary-container" style={{ width: 900, margin: '0 auto', background: '#fff', borderRadius: 12, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', padding: 32 }}>
@@ -363,10 +394,6 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
         <div className="confirmation-summary-section-card">
           <h4>Requester Info</h4>
           <dl>
-            <dt>Title</dt>
-            <dd>{preqFields.title || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
-            <dt>PO Number</dt>
-            <dd>{preqFields.poNumber || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>PO Owner Alias</dt>
             <dd>{preqFields.poOwnerAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Coordinator</dt>
@@ -404,7 +431,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             <dt>Delivery Location</dt>
             <dd>{preqFields.deliveryLocation || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Deliver to MSFT POC</dt>
-            <dd>{preqFields.deliverToMsftPoc || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{typeof preqFields.deliverToMsftPoc === 'boolean' ? (preqFields.deliverToMsftPoc ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Deliver to MSFT Alias</dt>
             <dd>{preqFields.deliverToMsftAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Shipping Comments</dt>
@@ -416,13 +443,22 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
           <h4>Approval & Review</h4>
           <dl>
             <dt>FID</dt>
-            <dd>{preqFields.fid || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
-            <dt>FID Number</dt>
-            <dd>{preqFields.fidNumber || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{preqFields.fid === true || preqFields.fid === 'yes' ? 'Yes' : preqFields.fid === false || preqFields.fid === 'no' ? 'No' : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            {preqFields.fid === true || preqFields.fid === 'yes' ? (
+              <>
+                <dt>FID Number</dt>
+                <dd>{preqFields.fidNumber || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+              </>
+            ) : preqFields.fid === false || preqFields.fid === 'no' ? (
+              <>
+                <dt>Reason For No FID:</dt>
+                <dd>{preqFields.m_why_not_forecasted || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+              </>
+            ) : null}
             <dt>Reviewed by Lab TPM</dt>
             <dd>{typeof preqFields.reviewedByLabTpm === 'boolean' ? (preqFields.reviewedByLabTpm ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Reviewer</dt>
-            <dd>{preqFields.reviewerName || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{preqFields.reviewer || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Interim Approver Alias</dt>
             <dd>{preqFields.interimApproverAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>SAFE Approver</dt>
@@ -430,7 +466,16 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             <dt>CC List Alias</dt>
             <dd>{preqFields.ccListAlias || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
             <dt>Invoice Approver</dt>
-            <dd>{preqFields.invoiceApprover || <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
+            <dd>{(() => {
+              const val = preqFields.invoiceApprover;
+              if (val === 0 || val === '0') return 'PO Owner';
+              if (val === 1 || val === '1') return 'Procurement team';
+              if (val === 2 || val === '2') return preqFields.invoiceApproverDisplay || 'Other';
+              if (val === 'PO Owner') return 'PO Owner';
+              if (val === 'Procurement team') return 'Procurement team';
+              if (val === 'Other') return preqFields.invoiceApproverDisplay || 'Other';
+              return val || <span className="confirmation-summary-detail-empty">Not specified</span>;
+            })()}</dd>
             <dt>Urgent</dt>
             <dd>{typeof preqFields.urgent === 'boolean' ? (preqFields.urgent ? 'Yes' : 'No') : <span className="confirmation-summary-detail-empty">Not specified</span>}</dd>
           </dl>
@@ -511,6 +556,56 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       {submitResult === 'preq_success' && <div style={{color:'green',marginTop:8}}>New Purchase Request submitted successfully!</div>}
       {submitResult === 'both_success' && <div style={{color:'green',marginTop:8}}>New Purchase Request and Part Submitted successfully!</div>}
       {submitResult === 'part_exists' && <div style={{color:'red',marginTop:8}}>Error: part already exists, request canceled</div>}
+
+      {/* IMS Submission Info Popup */}
+      {showImsPopup && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.35)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: 12,
+            boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
+            padding: 36,
+            maxWidth: 480,
+            textAlign: 'center',
+            fontSize: 18,
+            color: '#222',
+          }}>
+            <h3 style={{marginBottom: 16, color: '#3182ce'}}>Purchase Request Uploaded</h3>
+            <p style={{marginBottom: 18}}>
+              <b>Your Purchase Request (PR) has been successfully uploaded to IMS.</b><br/><br/>
+              It is currently in <b>New</b> status and has <b>not yet been submitted</b> for approval.<br/><br/>
+              <b>To complete your request:</b><br/>
+              1. Go to the IMS site.<br/>
+              2. Locate your new PR.<br/>
+              3. Attach the quote and submit the PR for approval.
+            </p>
+            {imsPrId && (
+              <div style={{marginBottom: 18}}>
+                <a
+                  href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Procurement_Request:${imsPrId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#3182ce', fontWeight: 'bold', wordBreak: 'break-all' }}
+                >
+                  View this PR in IMS
+                </a>
+              </div>
+            )}
+            <button onClick={() => setShowImsPopup(false)} style={{marginTop: 10, padding: '8px 24px', fontSize: 16, borderRadius: 6, background: '#3182ce', color: '#fff', border: 'none', cursor: 'pointer'}}>OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
