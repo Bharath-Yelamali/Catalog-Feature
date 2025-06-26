@@ -309,7 +309,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             formData.append('m_cc_list', value);
           } else if (key === 'businessJustificationNotes') {
             formData.append('m_notes_proc', value);
-          } else if (key === 'purchaseType') {
+          } else if (key === 'purchaseTypeId') {
             formData.append('m_purchase_type', value);
           } else if (key === 'deliveryLocation') {
             formData.append('m_delivery_location', value);          }          else if (
@@ -317,12 +317,19 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             key !== 'poOwnerAlias' &&
             key !== 'supplier' &&
             key !== 'project' &&
-            key !== 'reviewerName'
+            key !== 'reviewerName' &&
+            key !== 'purchaseType' // Prevent duplicate mapping
           ){
             formData.append(key, value);
           }
         }
       });
+      // Always send m_lineitem_options = 1
+      formData.append('m_lineitem_options', 1);
+      // If purchaseTypeId is not present, fallback to purchaseType (text/label)
+      if (!preqFields.purchaseTypeId && preqFields.purchaseType) {
+        formData.append('m_purchase_type', preqFields.purchaseType);
+      }
       // Attach the first file as m_quote (required)
       if (attachments && attachments.length > 0) {
         formData.append('m_quote', attachments[0]);
@@ -581,14 +588,10 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
             fontSize: 18,
             color: '#222',
           }}>
-            <h3 style={{marginBottom: 16, color: '#3182ce'}}>Purchase Request Uploaded</h3>
+            <h3 style={{marginBottom: 16, color: '#3182ce'}}>Congratulations! Your Purchase Request is Uploaded</h3>
             <p style={{marginBottom: 18}}>
               <b>Your Purchase Request (PR) has been successfully uploaded to IMS.</b><br/><br/>
-              It is currently in <b>New</b> status and has <b>not yet been submitted</b> for approval.<br/><br/>
-              <b>To complete your request:</b><br/>
-              1. Go to the IMS site.<br/>
-              2. Locate your new PR.<br/>
-              3. Attach the quote and submit the PR for approval.
+              The final step: <b>Click the link below and upload your quote file to complete your request.</b>
             </p>
             {imsPrId && (
               <div style={{marginBottom: 18}}>
