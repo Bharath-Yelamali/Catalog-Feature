@@ -649,9 +649,15 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
                 <option value="no">No</option>
               </select>
             </label>
-            <label style={{ fontWeight: 500 }}>FID Number <span style={{color:'red'}}>*</span>
-              <input type="text" name="fidNumber" value={preqFields.fidNumber} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="FID Number" />
-            </label>
+            {preqFields.fid === true || preqFields.fid === 'yes' ? (
+              <label style={{ fontWeight: 500 }}>FID Number <span style={{color:'red'}}>*</span>
+                <input type="text" name="fidNumber" value={preqFields.fidNumber || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="FID Number" />
+              </label>
+            ) : preqFields.fid === false || preqFields.fid === 'no' ? (
+              <label style={{ fontWeight: 500 }}>Reason Why There Is No Forecast ID (FID)? <span style={{color:'red'}}>*</span>
+                <input type="text" name="m_why_not_forecasted" value={preqFields.m_why_not_forecasted || ''} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Reason why there is no FID" />
+              </label>
+            ) : null}
             <label style={{ fontWeight: 500 }}>Reviewed by Lab TPM <span style={{color:'red'}}>*</span>
               <select name="reviewedByLabTpm" value={preqFields.reviewedByLabTpm === undefined ? '' : preqFields.reviewedByLabTpm ? 'yes' : preqFields.reviewedByLabTpm === false ? 'no' : ''} onChange={e => setPreqFields(prev => ({ ...prev, reviewedByLabTpm: e.target.value === '' ? undefined : e.target.value === 'yes' }))} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }}>
                 <option value="">Select</option>
