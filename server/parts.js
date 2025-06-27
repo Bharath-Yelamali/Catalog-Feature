@@ -8,6 +8,7 @@ const IMS_ODATA_URL = process.env.IMS_ODATA_URL || 'https://chievmimsiiss01/IMSS
 // /parts endpoint (not /api/parts)
 router.get('/parts', async (req, res) => {
   try {
+    const overallStart = Date.now();
     // Get access token from Authorization header (Bearer <token>)
     const authHeader = req.headers['authorization'];
     let token = null;
@@ -53,6 +54,7 @@ router.get('/parts', async (req, res) => {
     }
     odataUrl += '?' + queryParts.join('&');
     let response;
+    const fetchStart = Date.now();
     try {
       response = await fetch(odataUrl, {
         headers: {
@@ -63,6 +65,7 @@ router.get('/parts', async (req, res) => {
       console.error('Network error while fetching parts:', err);
       return res.status(502).json({ error: 'Network error while fetching parts: ' + err.message });
     }
+    const fetchEnd = Date.now();
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Failed to fetch parts from external API (status ${response.status}): ${errorText}`);
@@ -70,6 +73,7 @@ router.get('/parts', async (req, res) => {
     }
     const data = await response.json();
     let results = data.value || [];
+    const groupStart = Date.now();
     // Group by inventory item number and sum quantities for total and spare
     const grouped = {};
     for (const part of results) {
@@ -92,7 +96,9 @@ router.get('/parts', async (req, res) => {
         }
       }
     }
+    const groupEnd = Date.now();
     // Attach total and spare to each instance for frontend display
+    const attachStart = Date.now();
     results = Object.entries(grouped).flatMap(([itemNumber, group]) => {
       const spareValue = group.spare !== undefined && group.spare !== null ? group.spare : 0;
       const totalValue = group.total !== undefined && group.total !== null ? group.total : 0;
@@ -124,8 +130,11 @@ router.get('/parts', async (req, res) => {
         };
       });
     });
+    const attachEnd = Date.now();
     // Backend-side filtering for search
+    let searchStart, searchEnd;
     if (search && search.trim() !== '') {
+      searchStart = Date.now();
       // Comma-separated AND/NOT logic: e.g. Rail, Delta, !Mark
       const terms = search.split(',').map(s => s.trim()).filter(Boolean);
       const includeKeywords = [];
@@ -149,7 +158,6 @@ router.get('/parts', async (req, res) => {
         'm_custodian',
         'm_id',
         'item_number',
-        'm_maturity'
       ];
       // Step 1: Initial fast filter using big string
       const fastFiltered = results.filter(part => {
@@ -198,11 +206,21 @@ router.get('/parts', async (req, res) => {
         }
         return null;
       }).filter(Boolean);
+      searchEnd = Date.now();
     }
     // If search is empty, limit results to 500 (in case OData $top is ignored)
     if (!search || search.trim() === '') {
       results = results.slice(0, 500);
     }
+    const overallEnd = Date.now();
+    console.log('--- Timing Breakdown for /parts ---');
+    console.log('OData fetch:', (fetchEnd - fetchStart) + 'ms');
+    console.log('Grouping:', (groupEnd - groupStart) + 'ms');
+    console.log('Attach totals:', (attachEnd - attachStart) + 'ms');
+    if (search && search.trim() !== '' && searchStart && searchEnd) {
+      console.log('Backend search/filter:', (searchEnd - searchStart) + 'ms');
+    }
+    console.log('Total API time:', (overallEnd - overallStart) + 'ms');
     res.json({ value: results });
   } catch (err) {
     console.error('Internal server error:', err);
