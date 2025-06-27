@@ -163,8 +163,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             <div className="search-result-field"></div>
             <div className="search-result-field">Total</div>
             <div className="search-result-field">In Use</div>
-            <div className="search-result-field">Spare</div>
-            <div className="search-result-field">Surplus</div>
+            <div className="search-result-field">Essential Reserve</div>
+            <div className="search-result-field">Usable Surplus</div>
             <div className="search-result-field">Inventory Item Number</div>
             <div className="search-result-field">Manufactur Part #</div>
             <div className="search-result-field">Manufacturer Name</div>
@@ -178,10 +178,10 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             const inUse = part.inUse == null ? 0 : part.inUse;
             // General inventory amount
             const generalInventoryAmount = total - inUse;
-            // Spare is required spare
-            const spare = Math.ceil(spareThreshold * inUse);
-            // Surplus is general inventory minus spare
-            const surplus = generalInventoryAmount - spare;
+            // Essential Reserve is required spare
+            const essentialReserve = Math.ceil(spareThreshold * inUse);
+            // Usable Surplus is general inventory minus essential reserve
+            const usableSurplus = generalInventoryAmount - essentialReserve;
             return (
               <div key={group.itemNumber}>
                 <div className="search-result-item" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
@@ -219,12 +219,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   </div>
                   <div className="search-result-field">{truncate(part.total?.toString()) ?? 'N/A'}</div>
                   <div className="search-result-field">{truncate(part.inUse?.toString()) ?? 'N/A'}</div>
-                  <div className="search-result-field">{truncate(spare.toString())}</div>
+                  <div className="search-result-field">{truncate(essentialReserve.toString())}</div>
                   <div className="search-result-field" style={{
-                    color: surplus > 0 ? '#228B22' : undefined,
-                    fontWeight: surplus > 0 ? 700 : undefined,
+                    color: usableSurplus > 0 ? '#228B22' : undefined,
+                    fontWeight: usableSurplus > 0 ? 700 : undefined,
                   }}>
-                    {truncate(surplus.toString())}
+                    {truncate(usableSurplus.toString())}
                   </div>
                   <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>
                   <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>
