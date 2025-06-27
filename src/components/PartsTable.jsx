@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { updateSpareValue } from '../api/parts';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -13,6 +13,18 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [generalInventoryFilter, setGeneralInventoryFilter] = useState({});
   // Spare threshold feedback state
   const [spareFeedback, setSpareFeedback] = useState({}); // { [instanceId]: 'success' | 'error' | null }
+  // Add state to track requested instances
+  const [requestedInstances, setRequestedInstances] = useState({}); // { [instanceId]: true/false }
+  // State for filtering instances by associated project
+  const [projectFilter, setProjectFilter] = useState({}); // { [itemNumber]: projectName }
+  // Add state for open project dropdown
+  const [openProjectDropdown, setOpenProjectDropdown] = useState({}); // { [itemNumber]: boolean }
+  // Add state for open parent path dropdown
+  const [openParentPathDropdown, setOpenParentPathDropdown] = useState({}); // { [itemNumber]: boolean }
+  const [parentPathFilter, setParentPathFilter] = useState({}); // { [itemNumber]: parentPathSection }
+
+  // 1. Add state to track the order in which instances are checked
+  const [instanceSelectionOrder, setInstanceSelectionOrder] = useState([]); // array of instance ids in order of selection
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -144,6 +156,42 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     }
   };
 
+  // Helper to cap requested instances for a group at usable surplus
+  function getCappedRequestedInstances(group, requestedInstances, generalInventoryFilter) {
+    const part = group.instances[0];
+    const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
+    const total = part.total == null ? 0 : part.total;
+    const inUse = part.inUse == null ? 0 : part.inUse;
+    const generalInventoryAmount = total - inUse;
+    const essentialReserve = Math.ceil(spareThreshold * inUse);
+    const usableSurplus = generalInventoryAmount - essentialReserve;
+    const checkedInstances = (generalInventoryFilter[group.itemNumber]
+      ? group.instances.filter(instance => instance.generalInventory)
+      : group.instances
+    ).filter(instance => instance.generalInventory && requestedInstances[instance.id]);
+    let runningTotal = 0;
+    return checkedInstances.reduce((acc, inst) => {
+      const qty = parseInt(inst.m_quantity, 10) || 0;
+      if (runningTotal + qty <= usableSurplus) {
+        acc[inst.id] = true;
+        runningTotal += qty;
+      }
+      return acc;
+    }, {});
+  }
+
+  // Add a class to the body to disable pointer events when modal is open
+  useEffect(() => {
+    if (requestPopup.open) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => {
+      document.body.classList.remove('modal-open');
+    };
+  }, [requestPopup.open]);
+
   return (
     <div className="search-results-dropdown">
       {results.length === 0 ? (
@@ -233,95 +281,390 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                 </div>
                 {expandedRows[group.itemNumber] && (
                   <div style={{ background: '#f9f9f9', padding: '0 16px 12px 16px', borderBottom: '1px solid #eee' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', margin: '8px 0 4px 0', gap: 12 }}>
-                      <span style={{ fontSize: 20 }}>Instances:</span>
-                      <button
-                        style={{
-                          background: generalInventoryFilter[group.itemNumber] ? '#ffe066' : '#eee',
-                          color: '#222',
-                          border: '1px solid #ccc',
-                          borderRadius: 4,
-                          padding: '2px 10px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          marginLeft: 8
-                        }}
-                        onClick={() => setGeneralInventoryFilter(prev => ({
-                          ...prev,
-                          [group.itemNumber]: !prev[group.itemNumber]
-                        }))}
-                        aria-pressed={!!generalInventoryFilter[group.itemNumber]}
-                        aria-label="Toggle General Inventory filter"
-                      >
-                        General Inventory?
-                      </button>
-                      {isAdmin && (
-                        <span style={{marginLeft: 24, fontWeight: 400, fontSize: 16, color: '#2d6a4f', display: 'flex', alignItems: 'center', gap: 8}}>
-                          Spare Threshold for this item:
-                          <input
-                            type="number"
-                            min="0"
-                            max="1"
-                            step="0.01"
-                            value={group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value}
-                            onChange={e => {
-                              const newValue = parseFloat(e.target.value);
-                              // Update spare_value for all instances in this group locally
-                              group.instances.forEach(instance => {
-                                instance.spare_value = isNaN(newValue) ? 0 : newValue;
-                              });
-                              // Force re-render
-                              setSelected(selected => ({ ...selected }));
-                            }}                            onBlur={async e => {
-                              const newValue = parseFloat(e.target.value);
-                              try {
-                                // For each instance, call backend to update spare_value
-                                await Promise.all(
-                                  group.instances.map(async instance => {
-                                    try {
-                                      await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken);
-                                      setSpareFeedback(prev => ({ ...prev, [instance.id]: 'success' }));
-                                      setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 1500);
-                                    } catch (err) {
-                                      setSpareFeedback(prev => ({ ...prev, [instance.id]: 'error' }));
-                                      setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 2500);
-                                      throw err; // Rethrow to handle in the outer catch
-                                    }
-                                  })
-                                );
-                                // Log a single success message for the entire group
-                                console.log(`Spare threshold successfully updated to ${isNaN(newValue) ? 0 : newValue} for ${group.instances.length} instances of ${group.itemNumber}.`);
-                              } catch (err) {
-                                console.error('Failed to update spare threshold:', err);
-                              }
-                            }}
-                            style={{ width: 60, marginLeft: 6, fontWeight: 600, color: '#2d6a4f', border: '1px solid #bcd6f7', borderRadius: 4, padding: '2px 6px', background: '#f8fafc' }}
-                            aria-label="Edit spare threshold for this item"
-                          />
-                        </span>
-                      )}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', margin: '8px 0 4px 0', gap: 0 }}>
+                      <span style={{ fontSize: 20, marginBottom: 2 }}>Instances:</span>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4 }}>
-                      <div>Instance ID</div>
-                      <div>Serial Number/Name</div>
-                      <div>Quantity</div>
-                      <div>Inventory Maturity</div>
-                      <div>Hardware Custodian</div>
-                      <div>Parent Path</div>
-                    </div>
-                    {(generalInventoryFilter[group.itemNumber]
-                      ? group.instances.filter(instance => instance.generalInventory)
-                      : group.instances
-                    ).map(instance => (
-                      <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
-                        <div>{highlightFieldWithMatches(instance.m_id || 'N/A', part._matches?.m_id)}</div>
-                        <div>{highlightFieldWithMatches(instance.item_number || 'N/A', part._matches?.item_number)}</div>
-                        <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>
-                        <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>
-                        <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>
-                        <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>
+                    {isAdmin && (
+                      <div style={{ margin: '0 0 8px 0', fontWeight: 400, fontSize: 16, color: '#2d6a4f', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                        Spare Threshold for this item:
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value}
+                          onChange={e => {
+                            const newValue = parseFloat(e.target.value);
+                            // Update spare_value for all instances in this group locally
+                            group.instances.forEach(instance => {
+                              instance.spare_value = isNaN(newValue) ? 0 : newValue;
+                            });
+                            // Force re-render
+                            setSelected(selected => ({ ...selected }));
+                          }}
+                          onBlur={async e => {
+                            const newValue = parseFloat(e.target.value);
+                            try {
+                              // For each instance, call backend to update spare_value
+                              await Promise.all(
+                                group.instances.map(async instance => {
+                                  try {
+                                    await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken);
+                                    setSpareFeedback(prev => ({ ...prev, [instance.id]: 'success' }));
+                                    setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 1500);
+                                  } catch (err) {
+                                    setSpareFeedback(prev => ({ ...prev, [instance.id]: 'error' }));
+                                    setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 2500);
+                                    throw err; // Rethrow to handle in the outer catch
+                                  }
+                                })
+                              );
+                              // Log a single success message for the entire group
+                              console.log(`Spare threshold successfully updated to ${isNaN(newValue) ? 0 : newValue} for ${group.instances.length} instances of ${group.itemNumber}.`);
+                            } catch (err) {
+                              console.error('Failed to update spare threshold:', err);
+                            }
+                          }}
+                          style={{ width: 60, marginLeft: 6, fontWeight: 600, color: '#2d6a4f', border: '1px solid #bcd6f7', borderRadius: 4, padding: '2px 6px', background: '#f8fafc' }}
+                          aria-label="Edit spare threshold for this item"
+                        />
                       </div>
-                    ))}
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4, alignItems: 'center', minHeight: 40 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                        <button
+                          type="button"
+                          style={{
+                            background: 'none',
+                            color: '#222',
+                            border: '1px solid #ccc',
+                            borderRadius: 4,
+                            padding: '0px 10px',
+                            fontWeight: 600,
+                            fontSize: 15,
+                            cursor: 'pointer',
+                            marginBottom: 0,
+                            width: 'auto',
+                            minWidth: 80,
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseOver={e => (e.currentTarget.style.background = '#ffe066')}
+                          onFocus={e => (e.currentTarget.style.background = '#ffe066')}
+                          onMouseOut={e => (e.currentTarget.style.background = 'none')}
+                          onBlur={e => (e.currentTarget.style.background = 'none')}
+                          onClick={() => {
+                            // Find all checked instances for this group
+                            const checkedInstances = (generalInventoryFilter[group.itemNumber]
+                              ? group.instances.filter(instance => instance.generalInventory)
+                              : group.instances
+                            ).filter(instance => instance.generalInventory && requestedInstances[instance.id]);
+                            // Get unique custodians from checked instances
+                            const custodians = Array.from(new Set(
+                              checkedInstances.map(inst => inst["m_custodian@aras.keyed_name"] || inst.m_custodian).filter(Boolean)
+                            ));
+
+                            // Calculate capped quantities for each checked instance (for email/request)
+                            // Use selection order so the last-checked instance gets the capped/partial quantity
+                            let runningTotal = 0;
+                            const usableSurplusQty = usableSurplus;
+                            // Order checkedInstances by selection order (last-checked last)
+                            const checkedInstanceIds = checkedInstances.map(inst => inst.id);
+                            const orderedIds = instanceSelectionOrder.filter(id => checkedInstanceIds.includes(id));
+                            const orderedCheckedInstances = orderedIds.map(id => checkedInstances.find(inst => inst.id === id)).filter(Boolean);
+                            const cappedInstances = [];
+                            for (const inst of orderedCheckedInstances) {
+                              const qty = parseInt(inst.m_quantity, 10) || 0;
+                              if (runningTotal >= usableSurplusQty) break;
+                              let allowedQty = qty;
+                              if (runningTotal + qty > usableSurplusQty) {
+                                allowedQty = usableSurplusQty - runningTotal;
+                              }
+                              if (allowedQty > 0) {
+                                cappedInstances.push({ ...inst, capped_quantity: allowedQty });
+                                runningTotal += allowedQty;
+                              }
+                            }
+
+                            setRequestPopup({
+                              open: true,
+                              custodians,
+                              group: { ...group, generalInventoryFilter: generalInventoryFilter[group.itemNumber], requestedInstances },
+                              cappedInstances // Pass capped instance list for email/request generation
+                            });
+                          }}
+                          aria-label="Request selected instances from hardware custodian"
+                        >
+                          Request
+                        </button>
+                        <span style={{ display: 'block', fontWeight: 400, fontSize: 13, color: '#2d6a4f', marginTop: 4 }}>
+                          {/* Calculate total quantity of checked instances for this group, capped at usableSurplus */}
+                          {(() => {
+                            const checkedInstances = (generalInventoryFilter[group.itemNumber]
+                              ? group.instances.filter(instance => instance.generalInventory)
+                              : group.instances
+                            ).filter(instance => instance.generalInventory && requestedInstances[instance.id]);
+                            const totalQty = checkedInstances.reduce((sum, inst) => sum + (parseInt(inst.m_quantity, 10) || 0), 0);
+                            const cappedQty = Math.min(totalQty, usableSurplus);
+                            return `Checked Qty: ${cappedQty}`;
+                          })()}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Instance ID</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Serial Number/Name</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Quantity</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Inventory Maturity</div>
+                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 15,
+                            color: '#222',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            padding: 0,
+                            margin: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            height: '100%'
+                          }}
+                          aria-label="Filter by associated project"
+                          tabIndex={0}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
+                          }}
+                          onBlur={e => {
+                            // Optionally close dropdown on blur
+                          }}
+                        >
+                          Associated Project
+                          <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
+                        </span>
+                        {openProjectDropdown[group.itemNumber] && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: '#fff',
+                              border: '1px solid #ccc',
+                              borderRadius: 4,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                              zIndex: 10,
+                              minWidth: 120,
+                              marginTop: 2,
+                            }}
+                            tabIndex={0}
+                            onBlur={() => setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
+                          >
+                            <div
+                              style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !projectFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
+                              onClick={() => {
+                                setProjectFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
+                                setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                              }}
+                            >
+                              All Projects
+                            </div>
+                            {Array.from(new Set((group.instances || []).map(inst => inst.m_project?.keyed_name || inst.associated_project).filter(Boolean)))
+                              .map(project => (
+                                <div
+                                  key={project}
+                                  style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: projectFilter[group.itemNumber] === project ? '#f0f0f0' : 'transparent' }}
+                                  onClick={() => {
+                                    setProjectFilter(prev => ({ ...prev, [group.itemNumber]: project }));
+                                    setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                  }}
+                                >
+                                  {project}
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Hardware Custodian</div>
+                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 15,
+                            color: '#222',
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            padding: 0,
+                            margin: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            height: '100%'
+                          }}
+                          aria-label="Filter by parent path section"
+                          tabIndex={0}
+                          onClick={e => {
+                            e.stopPropagation();
+                            setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
+                          }}
+                          onBlur={e => {
+                            // Optionally close dropdown on blur
+                          }}
+                        >
+                          Parent Path
+                          <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
+                        </span>
+                        {openParentPathDropdown[group.itemNumber] && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              background: '#fff',
+                              border: '1px solid #ccc',
+                              borderRadius: 4,
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                              zIndex: 10,
+                              minWidth: 120,
+                              marginTop: 2,
+                            }}
+                            tabIndex={0}
+                            onBlur={() => setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
+                          >
+                            <div
+                              style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !parentPathFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
+                              onClick={() => {
+                                setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
+                                setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                              }}
+                            >
+                              All Parent Paths
+                            </div>
+                            {Array.from(new Set((
+                              // Only use instances matching the selected project (if any)
+                              projectFilter[group.itemNumber]
+                                ? (group.instances || []).filter(inst => (inst.m_project?.keyed_name || inst.associated_project) === projectFilter[group.itemNumber])
+                                : (group.instances || [])
+                            ).map(inst => {
+                              const match = (inst.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
+                              return match ? match[1] : null;
+                            }).filter(Boolean)))
+                              .map(section => (
+                                <div
+                                  key={section}
+                                  style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: parentPathFilter[group.itemNumber] === section ? '#f0f0f0' : 'transparent' }}
+                                  onClick={() => {
+                                    setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: section }));
+                                    setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                  }}
+                                >
+                                  {section}
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, marginBottom: 8 }}>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                      <div></div>
+                    </div>
+                    {(projectFilter[group.itemNumber]
+                      ? (generalInventoryFilter[group.itemNumber]
+                          ? group.instances.filter(instance => instance.generalInventory && ((instance.m_project?.keyed_name || instance.associated_project) === projectFilter[group.itemNumber]))
+                          : group.instances.filter(instance => (instance.m_project?.keyed_name || instance.associated_project) === projectFilter[group.itemNumber])
+                        )
+                      : (generalInventoryFilter[group.itemNumber]
+                          ? group.instances.filter(instance => instance.generalInventory)
+                          : group.instances
+                        )
+                    ).filter(instance => {
+                      if (!parentPathFilter[group.itemNumber]) return true;
+                      const match = (instance.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
+                      return match && match[1] === parentPathFilter[group.itemNumber];
+                    }).map((instance, idx, filteredInstances) => {
+                      // Calculate running total of checked quantities up to this instance
+                      let runningTotal = 0;
+                      let checkedCount = 0;
+                      filteredInstances.forEach(inst => {
+                        if (requestedInstances[inst.id]) {
+                          runningTotal += parseInt(inst.m_quantity, 10) || 0;
+                          checkedCount++;
+                        }
+                      });
+                      const thisQty = parseInt(instance.m_quantity, 10) || 0;
+                      const checked = !!requestedInstances[instance.id];
+                      // Calculate what the total would be if this instance were checked
+                      const totalIfChecked = runningTotal + (checked ? 0 : thisQty);
+                      // Find if any instance is the 'overflow' (the one that pushes over the cap)
+                      let overflowFound = false;
+                      let tempTotal = 0;
+                      let overflowId = null;
+                      for (let i = 0; i < filteredInstances.length; i++) {
+                        const inst = filteredInstances[i];
+                        if (requestedInstances[inst.id] || inst.id === instance.id) {
+                          tempTotal += parseInt(inst.m_quantity, 10) || 0;
+                          if (!overflowFound && tempTotal > usableSurplus) {
+                            overflowFound = true;
+                            overflowId = inst.id;
+                          }
+                        }
+                      }
+                      // Allow checking if:
+                      // - already checked
+                      // - total checked qty < usableSurplus
+                      // - OR this is the first instance to push over the cap (overflowId === instance.id)
+                      const disableCheckbox = !checked && runningTotal >= usableSurplus && overflowId !== instance.id;
+                      return (
+                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
+                          <div style={{textAlign: 'center'}}>
+                            {instance.generalInventory ? (
+                              <input
+                                type="checkbox"
+                                aria-label="Request this instance"
+                                checked={checked}
+                                disabled={disableCheckbox}
+                                onChange={e => {
+                                  if (e.target.checked) {
+                                    // Only allow checking if not exceeding the overflow rule
+                                    if (!disableCheckbox) {
+                                      setRequestedInstances(prev => ({ ...prev, [instance.id]: true }));
+                                      setInstanceSelectionOrder(order => [...order.filter(x => x !== instance.id), instance.id]); // move to end if re-checked
+                                    }
+                                  } else {
+                                    setRequestedInstances(prev => ({ ...prev, [instance.id]: false }));
+                                    setInstanceSelectionOrder(order => order.filter(x => x !== instance.id));
+                                  }
+                                }}
+                              />
+                            ) : null}
+                          </div>
+                          <div>
+                            {instance.id && instance.m_id ? (
+                              <a
+                                href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#1976d2', textDecoration: 'underline', wordBreak: 'break-all' }}
+                              >
+                                {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
+                              </a>
+                            ) : (
+                              highlightFieldWithMatches('N/A', part._matches?.m_id)
+                            )}
+                          </div>
+                          <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>
+                          <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>
+                          <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>
+                          <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>
+                          <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>
+                          <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -330,10 +673,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           {expandedValue && (
             <div style={{
               position: 'fixed',
-              top: 0, left: 0, width: '100vw', height: '100vh',
+              top: 0, left: 0,
+              width: '100vw',
+              height: '100vh',
               background: 'rgba(0,0,0,0.2)',
               zIndex: 2000,
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }} onClick={handleClose}>
               <div style={{
                 background: '#fff',
@@ -365,7 +712,18 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           className="confirmation-summary-button-submit"
           style={{ fontSize: 22, padding: '6px 48px', minWidth: 90, borderRadius: 10 }}
           disabled={!(selectedIds.length > 0 && selectedIds.every(id => quantities[id] && quantities[id].trim() !== ''))}
-          onClick={() => setPage('requiredFields')}
+          onClick={() => {
+            // Cap the requested instances per group at usable surplus (simplified)
+            let cappedRequestedInstances = {};
+            displayGroups.forEach(group => {
+              cappedRequestedInstances = {
+                ...cappedRequestedInstances,
+                ...getCappedRequestedInstances(group, requestedInstances, generalInventoryFilter)
+              };
+            });
+            // setRequestedInstances(cappedRequestedInstances); // if you want to update state
+            setPage('requiredFields');
+          }}
         >
           Next
         </button>
