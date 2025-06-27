@@ -9,6 +9,7 @@ import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { fetchUserFirstName } from './api/userInfo';
 import OrdersPage from './components/OrdersPage';
+import ReactDOM from 'react-dom';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -77,6 +78,7 @@ function App() {
   const [justSearched, setJustSearched] = useState(false);
   // Track if default search has been triggered to avoid infinite loop
   const [defaultSearchTriggered, setDefaultSearchTriggered] = useState(false);
+  const [requestPopup, setRequestPopup] = useState({ open: false, custodians: [], group: null });
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
@@ -322,6 +324,100 @@ function App() {
           </div>
         </div>
       )}
+      {/* Request popup modal rendered at the top level using a Portal */}
+      {requestPopup.open && ReactDOM.createPortal(
+        <div
+          className="session-popup-overlay"
+          tabIndex={-1}
+          onClick={e => e.stopPropagation()} // Prevent closing on background click
+          onMouseDown={e => e.preventDefault()} // Prevent focus loss
+          onFocus={e => {
+            // Trap focus inside popup
+            const popup = document.getElementById('request-popup-modal');
+            if (popup) popup.focus();
+          }}
+        >
+          <div
+            id="request-popup-modal"
+            className="session-popup"
+            tabIndex={0}
+            style={{ outline: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => {
+              // Trap focus inside modal
+              if (e.key === 'Tab') {
+                e.preventDefault();
+              }
+              if (e.key === 'Escape') {
+                setRequestPopup({ open: false, custodians: [], group: null });
+              }
+            }}
+            autoFocus
+          >
+            <div className="session-popup-title" style={{ marginBottom: 12 }}>Request Parts From:</div>
+            {requestPopup.custodians.length === 0 ? (
+              <div style={{ color: '#888', marginBottom: 12 }}>No custodians found for selected instances.</div>
+            ) : (
+              requestPopup.custodians.map((custodian, idx) => {
+                // Use cappedInstances for email, filtered by custodian
+                const cappedInstances = (requestPopup.cappedInstances || []).filter(inst => (inst["m_custodian@aras.keyed_name"] || inst.m_custodian) === custodian && inst.capped_quantity > 0);
+                if (cappedInstances.length === 0) return null;
+                // Shared part info (from first instance)
+                const shared = cappedInstances[0];
+                const sharedInfo = [
+                  `Inventory Item Number:    ${shared.item_number || 'N/A'}`,
+                  `Manufacturer Part #:      ${shared.m_mfg_part_number || 'N/A'}`,
+                  `Manufacturer Name:        ${shared.m_mfg_name || 'N/A'}`,
+                  `Inventory Description:    ${shared.m_inventory_description || shared.m_description || 'N/A'}`
+                ].join('\n');
+                // Instance-specific lines (each instance on its own line, using capped_quantity)
+                const instanceLines = cappedInstances.map(inst =>
+                  `Quantity: ${inst.capped_quantity}    Parent Path: ${inst.m_parent_ref_path || 'N/A'}`
+                ).join('\n');
+                const subject = encodeURIComponent('Request for Inventory Parts');
+                const body = encodeURIComponent(
+                  `Hello${custodian ? ' ' + custodian : ''},\n\n` +
+                  `I would like to request the following part(s) from inventory. Could you please let me know the status and if they are available for me to pick up?\n\n` +
+                  sharedInfo +
+                  '\n\n' +
+                  instanceLines +
+                  '\n\nThank you!\n' +
+                  (typeof window !== 'undefined' && window.location && window.location.origin ? `Requested via: ${window.location.origin}` : '')
+                );
+                return (
+                  <button
+                    key={custodian || idx}
+                    style={{
+                      background: 'none',
+                      color: '#222',
+                      border: '1px solid #ccc',
+                      borderRadius: 4,
+                      padding: '6px 18px',
+                      fontWeight: 600,
+                      fontSize: 16,
+                      cursor: 'pointer',
+                      margin: '6px 0',
+                      minWidth: 120,
+                      transition: 'background 0.15s',
+                    }}
+                    onMouseOver={e => (e.currentTarget.style.background = '#ffe066')}
+                    onFocus={e => (e.currentTarget.style.background = '#ffe066')}
+                    onMouseOut={e => (e.currentTarget.style.background = 'none')}
+                    onBlur={e => (e.currentTarget.style.background = 'none')}
+                    onClick={() => {
+                      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+                    }}
+                  >
+                    {custodian || '(Unknown Custodian)'}
+                  </button>
+                );
+              })
+            )}
+            <button className="session-popup-close" style={{ marginTop: 18, fontSize: 15 }} onClick={() => setRequestPopup({ open: false, custodians: [], group: null })}>Close</button>
+          </div>
+        </div>,
+        document.body
+      )}
       <nav className="taskbar">
         <div className="taskbar-title clickable" onClick={() => setPage('home')}>
           <img src="/wizard.svg" alt="Wizard Logo" className="taskbar-logo" />
@@ -397,6 +493,8 @@ function App() {
                 setPage={page => setPage(page)}
                 isAdmin={isAdmin}
                 accessToken={accessToken}
+                requestPopup={requestPopup}
+                setRequestPopup={setRequestPopup}
               />
             </>
           )}
