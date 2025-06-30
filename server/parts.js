@@ -34,7 +34,7 @@ router.get('/parts', async (req, res) => {
       'm_mfg_name',
       'id',
       'm_id',
-      'm_custodian',
+      'm_custodian', // Only select m_custodian, do not expand it
       'classification',
       'm_quantity',
       'm_maturity',
@@ -42,10 +42,10 @@ router.get('/parts', async (req, res) => {
       'spare_value' // Added spare_value to select fields
     ];
     queryParts.push(`$select=${selectFields.join(',')}`);
-    // Expand related fields to get only needed values
+    // Expand related fields to get only needed values (do NOT expand m_custodian)
     const expandFields = [
       'm_inventory_item($select=item_number)', // Only fetch item_number from m_inventory_item
-      'm_project'
+      'm_project($select=keyed_name)' // Only fetch keyed_name from m_project, as that's all the UI uses
     ];
     queryParts.push(`$expand=${expandFields.join(',')}`);
     // If search is empty, limit to top 500
