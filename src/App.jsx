@@ -371,9 +371,10 @@ function App() {
                   `Inventory Description:    ${shared.m_inventory_description || shared.m_description || 'N/A'}`
                 ].join('\n');
                 // Instance-specific lines (each instance on its own line, using capped_quantity)
-                const instanceLines = cappedInstances.map(inst =>
-                  `Quantity: ${inst.capped_quantity}    Parent Path: ${inst.m_parent_ref_path || 'N/A'}`
-                ).join('\n');
+                const instanceLines = cappedInstances.map(inst => {
+                  const imsLink = inst.id ? `https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${inst.id}` : '';
+                  return `Quantity: ${inst.capped_quantity}    Instance ID: ${inst.m_id || inst.id || 'N/A'}${imsLink ? ` (Link: ${imsLink})` : ''}    Parent Path: ${inst.m_parent_ref_path || 'N/A'}`;
+                }).join('\n');
                 const subject = encodeURIComponent('Request for Inventory Parts');
                 const body = encodeURIComponent(
                   `Hello${custodian ? ' ' + custodian : ''},\n\n` +

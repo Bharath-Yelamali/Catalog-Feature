@@ -42,9 +42,9 @@ router.get('/parts', async (req, res) => {
       'spare_value' // Added spare_value to select fields
     ];
     queryParts.push(`$select=${selectFields.join(',')}`);
-    // Expand related fields to get actual values
+    // Expand related fields to get only needed values
     const expandFields = [
-      'm_inventory_item',
+      'm_inventory_item($select=item_number)', // Only fetch item_number from m_inventory_item
       'm_project'
     ];
     queryParts.push(`$expand=${expandFields.join(',')}`);
