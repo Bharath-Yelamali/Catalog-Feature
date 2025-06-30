@@ -2,16 +2,15 @@ function SearchBar({ search, setSearch, filterType, setFilterType, handleSearch,
   return (
     <div className="searchbar-container searchbar-row">
       <div className="searchbar-main">
-        <input
-          type="text"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          onKeyDown={handleSearch}
-          placeholder={`Search by ${filterType.replace(/([A-Z])/g, ' $1')}`}
-          className="searchbar-input"
-        />
         <div className="searchbar-controls">
+          <label
+            htmlFor="searchbar-field-select"
+            style={{ fontWeight: 500, color: '#334155', marginRight: 8, fontSize: 15 }}
+          >
+            Search by:
+          </label>
           <select
+            id="searchbar-field-select"
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
             className="searchbar-select"
@@ -27,6 +26,14 @@ function SearchBar({ search, setSearch, filterType, setFilterType, handleSearch,
             <option value="serialNumber">Serial Number/Name</option>
             <option value="inventoryMaturity">Inventory Maturity</option>
           </select>
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={handleSearch}
+            placeholder={`Search by ${filterType.replace(/([A-Z])/g, ' $1')}`}
+            className="searchbar-input"
+          />
           {window.__showSpinner ? (
             <span className="searchbar-spinner searchbar-spinner-fixedwidth">
               <svg width="22" height="22" viewBox="0 0 50 50">
