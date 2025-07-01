@@ -327,6 +327,64 @@ function App() {
     }
   }, [search]);
 
+  // Handler for filter-based searches from PartsTable
+  const handleFilterSearch = async (chips) => {
+    // Track a unique search id for each fetch
+    const searchId = Date.now() + Math.random();
+    window.__currentSearchId = searchId;
+    
+    // Cancel previous fetch if still running
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    window.__showSpinner = true;
+    setLoading(true);
+    setError(null);
+    
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    try {
+      // Execute search using the search controller with field-specific parameters
+      const data = await executeSearch('specifySearch', chips, {
+        filterType,
+        classification: 'Inventoried',
+        accessToken,
+        signal: controller.signal
+      });
+      
+      // Only update state if this is the latest search
+      if (window.__currentSearchId !== searchId) return;
+      
+      // Process results uniformly
+      const groupedResults = processSearchResults(data);
+      
+      setResults(groupedResults);
+      setShowResults(true);
+      
+      // Update lastSearch to show filter summary
+      const searchSummary = chips.map(chip => 
+        `${chip.field}:${chip.value}`
+      ).join(', ');
+      setLastSearch(`Filtered by: ${searchSummary}`);
+      
+    } catch (err) {
+      if (window.__currentSearchId !== searchId) return;
+      if (err.name === 'AbortError') {
+        // Spinner should stay on for new search, so do not hide it here
+        return;
+      }
+      setError('Failed to apply filters: ' + err.message);
+      // Don't re-throw the error - let PartsTable handle fallback gracefully
+    } finally {
+      if (window.__currentSearchId === searchId) {
+        setLoading(false);
+        window.__showSpinner = false;
+      }
+    }
+  };
+
   return (
     <div>
       {showSessionPopup && (
@@ -521,6 +579,7 @@ function App() {
                 accessToken={accessToken}
                 requestPopup={requestPopup}
                 setRequestPopup={setRequestPopup}
+                onFilterSearch={handleFilterSearch}
               />
             </>
           )}

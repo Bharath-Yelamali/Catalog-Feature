@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { updateSpareValue } from '../api/parts';
+import { executeSearch, processSearchResults } from '../controllers/searchController';
+import { buildSearchParams } from '../utils/searchUtils';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -34,6 +36,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // State for filter functionality
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [filterConditions, setFilterConditions] = useState([]); // Array of condition objects
+  const [filteredResults, setFilteredResults] = useState(results); // Filtered results for display
+  const [inputValues, setInputValues] = useState({}); // Local state for input values to enable debouncing
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -61,12 +65,29 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     { key: 'parentPath', label: 'Parent Path', isMainTable: false }
   ];
 
+  // Define only the searchable fields for the filter dropdown
+  const searchableFields = [
+    { key: 'inventoryItemNumber', label: 'Inventory Item Number', isMainTable: true },
+    { key: 'manufacturerPartNumber', label: 'Manufacturer Part #', isMainTable: true },
+    { key: 'manufacturerName', label: 'Manufacturer Name', isMainTable: true },
+    { key: 'inventoryDescription', label: 'Inventory Description', isMainTable: true },
+    { key: 'instanceId', label: 'Instance ID', isMainTable: false },
+    { key: 'associatedProject', label: 'Associated Project', isMainTable: false },
+    { key: 'hardwareCustodian', label: 'Hardware Custodian', isMainTable: false },
+    { key: 'parentPath', label: 'Parent Path', isMainTable: false }
+  ];
+
   const toggleFieldVisibility = (fieldKey) => {
     setHiddenFields(prev => ({
       ...prev,
       [fieldKey]: !prev[fieldKey]
     }));
   };
+
+  // Count active filter conditions
+  const activeFilterCount = filterConditions.filter(condition => 
+    condition.field && condition.operator && condition.value.trim() !== ''
+  ).length;
 
   // Filter fields based on search query
   const filteredFields = allFields.filter(field => 
@@ -100,14 +121,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     setExpandedLabel('');
   };
 
-  // Combine selected items and current results, deduplicating by id
+  // Combine selected items and current filtered results, deduplicating by id
   const selectedIds = Object.keys(selected).filter(id => selected[id]);
-  // Find the group for each selected id (itemNumber)
+  // Find the group for each selected id (itemNumber) from original results
   const selectedGroups = selectedIds
     .map(id => results.find(group => group.itemNumber === id))
-    .filter(Boolean);
-  // Non-selected groups
-  const nonSelectedGroups = results.filter(group => !selectedIds.includes(group.itemNumber));
+    .filter(Boolean)
+    // Only include selected groups that are also in filtered results
+    .filter(group => filteredResults.some(filteredGroup => filteredGroup.itemNumber === group.itemNumber));
+  // Non-selected groups from filtered results
+  const nonSelectedGroups = filteredResults.filter(group => !selectedIds.includes(group.itemNumber));
   // Display selected groups at the top
   const displayGroups = [...selectedGroups, ...nonSelectedGroups];
 
@@ -262,6 +285,246 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [hideFieldsDropdownOpen, filterDropdownOpen]);
+
+  // Debounced input handler for value changes
+  const debounceRef = useRef(null);
+  
+  const debouncedValueChange = useCallback((index, value) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    debounceRef.current = setTimeout(() => {
+      const newConditions = [...filterConditions];
+      newConditions[index].value = value;
+      setFilterConditions(newConditions);
+    }, 300); // 300ms debounce for typing
+  }, [filterConditions]);
+
+  // Update input values when filter conditions change (for initial loading)
+  useEffect(() => {
+    const newInputValues = {};
+    filterConditions.forEach((condition, index) => {
+      newInputValues[index] = condition.value;
+    });
+    setInputValues(newInputValues);
+  }, [filterConditions.length]); // Only react to array length changes, not value changes
+
+  // Filter function that applies all conditions to results (client-side fallback only)
+  const applyFilters = useCallback((conditions, data) => {
+    if (!conditions || conditions.length === 0) {
+      return data;
+    }
+
+    const filtered = data.filter(group => {
+      const part = group.instances[0];
+      
+      const matchesAllConditions = conditions.every(condition => {
+        if (!condition.field || !condition.operator || condition.value === '') {
+          return true; // Skip incomplete conditions
+        }
+
+        let fieldValue = '';
+        let matches = false;
+        
+        // Map field keys to actual data values
+        switch (condition.field) {
+          case 'inventoryItemNumber':
+            fieldValue = part.m_inventory_item?.item_number || '';
+            matches = matchesCondition(fieldValue, condition.operator, condition.value);
+            break;
+          case 'manufacturerPartNumber':
+            fieldValue = part.m_mfg_part_number || '';
+            matches = matchesCondition(fieldValue, condition.operator, condition.value);
+            break;
+          case 'manufacturerName':
+            fieldValue = part.m_mfg_name || '';
+            matches = matchesCondition(fieldValue, condition.operator, condition.value);
+            break;
+          case 'inventoryDescription':
+            fieldValue = part.m_inventory_description || part.m_description || '';
+            
+            // Debug: Log every part's inventory description when searching for "rail"
+            if (condition.value.toLowerCase() === 'rail') {
+              console.log('DEBUG - Part:', {
+                id: part.m_id,
+                inv_desc: part.m_inventory_description,
+                desc: part.m_description,
+                fieldValue: fieldValue,
+                searchValue: condition.value,
+                hasRail: fieldValue.toLowerCase().includes('rail')
+              });
+            }
+            
+            matches = matchesCondition(fieldValue, condition.operator, condition.value);
+            break;
+          case 'instanceId':
+            // For instance fields, check all instances in the group
+            matches = group.instances.some(instance => {
+              const instValue = instance.m_id || '';
+              return matchesCondition(instValue, condition.operator, condition.value);
+            });
+            break;
+          case 'associatedProject':
+            matches = group.instances.some(instance => {
+              const instValue = instance.m_project?.keyed_name || instance.associated_project || '';
+              return matchesCondition(instValue, condition.operator, condition.value);
+            });
+            break;
+          case 'hardwareCustodian':
+            matches = group.instances.some(instance => {
+              const instValue = instance["m_custodian@aras.keyed_name"] || instance.m_custodian || '';
+              return matchesCondition(instValue, condition.operator, condition.value);
+            });
+            break;
+          case 'parentPath':
+            matches = group.instances.some(instance => {
+              const instValue = instance.m_parent_ref_path || '';
+              return matchesCondition(instValue, condition.operator, condition.value);
+            });
+            break;
+          default:
+            matches = true;
+        }
+
+        return matches;
+      });
+
+      return matchesAllConditions;
+    });
+    
+    // Debug for "rail" search
+    const hasRailCondition = conditions.some(c => c.value.toLowerCase() === 'rail' && c.field === 'inventoryDescription');
+    if (hasRailCondition) {
+      console.log('DEBUG - After filtering for "rail":', {
+        originalCount: data.length,
+        filteredCount: filtered.length,
+        conditions: conditions
+      });
+    }
+
+    return filtered;
+  }, []);
+
+  // Helper function to check if a value matches a condition
+  const matchesCondition = (fieldValue, operator, searchValue) => {
+    const field = String(fieldValue).toLowerCase();
+    const search = String(searchValue).toLowerCase();
+
+    let result = false;
+    switch (operator) {
+      case 'contains':
+        result = field.includes(search);
+        break;
+      case 'does not contain':
+        result = !field.includes(search);
+        break;
+      case 'is':
+        result = field === search;
+        break;
+      case 'is not':
+        result = field !== search;
+        break;
+      default:
+        result = true;
+    }
+
+    // Log for debugging
+    if (operator === 'contains') {
+      console.log(`matchesCondition: "${field}" ${operator} "${search}" = ${result}`);
+    }
+
+    return result;
+  };
+
+  // Convert filter conditions to search chips format for API
+  const convertFilterConditionsToChips = useCallback((conditions) => {
+    return conditions
+      .filter(condition => condition.field && condition.operator && condition.value.trim() !== '')
+      .map(condition => {
+        // Map field keys to API field names
+        const fieldMapping = {
+          'inventoryItemNumber': 'm_inventory_item',
+          'manufacturerPartNumber': 'm_mfg_part_number',
+          'manufacturerName': 'm_mfg_name',
+          'inventoryDescription': 'm_inventory_description',
+          'instanceId': 'm_id',
+          'associatedProject': 'item_number',
+          'hardwareCustodian': 'm_custodian@aras.keyed_name',
+          'parentPath': 'm_parent_ref_path'
+        };
+
+        let value = condition.value.trim();
+        
+        // Handle different operators by modifying the value
+        if (condition.operator === 'does not contain' || condition.operator === 'is not') {
+          value = '!' + value;
+        }
+        // For 'is' operator, we'll still use contains but could be enhanced later
+        // For 'contains' operator, use value as-is
+
+        return {
+          field: fieldMapping[condition.field] || condition.field,
+          value: value
+        };
+      });
+  }, []);
+
+  // Trigger API search when filter conditions are complete and have changed
+  const triggerFilterSearch = useCallback(async (conditions) => {
+    if (!onFilterSearch) {
+      // Fallback to client-side filtering if no API handler provided
+      const filtered = applyFilters(conditions, results);
+      setFilteredResults(filtered);
+      return;
+    }
+
+    // Convert conditions to search chips format
+    const chips = convertFilterConditionsToChips(conditions);
+    
+    if (chips.length === 0) {
+      // No valid filter conditions - reset to original results
+      setFilteredResults(results);
+      return;
+    }
+
+    try {
+      // Trigger API search with filter conditions
+      console.log('Triggering filter search with conditions:', chips);
+      await onFilterSearch(chips);
+    } catch (error) {
+      // Ignore AbortError as it's expected when searches are cancelled
+      if (error.name === 'AbortError') {
+        console.log('Filter search was cancelled (this is normal)');
+        return;
+      }
+      
+      console.error('Filter search failed:', error);
+      // On error, fallback to client-side filtering
+      const filtered = applyFilters(conditions, results);
+      setFilteredResults(filtered);
+    }
+  }, [onFilterSearch, convertFilterConditionsToChips, applyFilters, results]);
+
+  // Apply filters when conditions change (only for complete conditions)
+  useEffect(() => {
+    // Only trigger search if we have at least one complete condition
+    const hasCompleteCondition = filterConditions.some(condition => 
+      condition.field && condition.operator && condition.value.trim() !== ''
+    );
+    
+    if (hasCompleteCondition) {
+      triggerFilterSearch(filterConditions);
+    } else if (filterConditions.length === 0) {
+      // Reset to original results when no conditions
+      setFilteredResults(results);
+    }
+  }, [filterConditions, triggerFilterSearch, results]);
+
+  // Update filtered results when base results change
+  useEffect(() => {
+    setFilteredResults(results);
+  }, [results]);
 
   return (
     <>
@@ -456,8 +719,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               <button
                 style={{
                   padding: '8px 16px',
-                  background: 'transparent',
-                  color: '#333',
+                  background: activeFilterCount > 0 ? '#007bff' : 'transparent',
+                  color: activeFilterCount > 0 ? '#fff' : '#333',
                   border: 'none',
                   borderRadius: 4,
                   fontWeight: 500,
@@ -468,8 +731,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   alignItems: 'center',
                   gap: '8px'
                 }}
-                onMouseOver={e => (e.currentTarget.style.background = '#e9ecef')}
-                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                onMouseOver={e => {
+                  if (activeFilterCount === 0) {
+                    e.currentTarget.style.background = '#e9ecef';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (activeFilterCount === 0) {
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
                 onClick={() => {
                   setFilterDropdownOpen(!filterDropdownOpen);
                 }}
@@ -481,10 +752,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   style={{ 
                     width: 16, 
                     height: 16,
-                    flexShrink: 0
+                    flexShrink: 0,
+                    filter: activeFilterCount > 0 ? 'brightness(0) invert(1)' : 'none'
                   }} 
                 />
-                Filter
+                {activeFilterCount > 0 ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'Filter'}
               </button>
 
               {filterDropdownOpen && (
@@ -552,7 +824,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                             }}
                           >
                             <option value="">Select field...</option>
-                            {allFields.map(field => (
+                            {searchableFields.map(field => (
                               <option key={field.key} value={field.key}>
                                 {field.label}
                               </option>
@@ -584,11 +856,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           {/* Value input */}
                           <input
                             type="text"
-                            value={condition.value}
+                            value={inputValues[index] || ''}
                             onChange={(e) => {
-                              const newConditions = [...filterConditions];
-                              newConditions[index].value = e.target.value;
-                              setFilterConditions(newConditions);
+                              const value = e.target.value;
+                              // Update local input state immediately
+                              setInputValues(prev => ({ ...prev, [index]: value }));
+                              // Debounce the actual filter condition update
+                              debouncedValueChange(index, value);
                             }}
                             placeholder="Enter a value"
                             style={{
@@ -606,6 +880,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                             onClick={() => {
                               const newConditions = filterConditions.filter((_, i) => i !== index);
                               setFilterConditions(newConditions);
+                              // Clean up input values - reindex remaining values
+                              const newInputValues = {};
+                              newConditions.forEach((condition, newIndex) => {
+                                const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
+                                newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
+                              });
+                              setInputValues(newInputValues);
                             }}
                             style={{
                               background: 'none',
@@ -634,12 +915,15 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   }}>
                     <button
                       onClick={() => {
+                        const newIndex = filterConditions.length;
                         setFilterConditions([...filterConditions, {
                           id: Date.now(),
-                          field: 'Position Title',
+                          field: 'inventoryItemNumber',
                           operator: 'contains',
                           value: ''
                         }]);
+                        // Initialize input value for the new condition
+                        setInputValues(prev => ({ ...prev, [newIndex]: '' }));
                       }}
                       style={{
                         display: 'flex',
@@ -758,8 +1042,10 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       
       {/* Main table content */}
       <div className="search-results-dropdown">
-        {results.length === 0 ? (
-          <div className="search-results-empty">No parts found.</div>
+        {filteredResults.length === 0 ? (
+          <div className="search-results-empty">
+            {results.length === 0 ? 'No parts found.' : 'No parts match the current filters.'}
+          </div>
         ) : (
           <>
           {displayGroups.map(group => {
