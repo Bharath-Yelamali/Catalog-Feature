@@ -463,7 +463,7 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
       }
     }
       let odataPayload = { ...fields };
-    // Always use deep insert for file if present
+    // Always use deep insert for file - if no file provided, create a default one
     if (req.file) {
       odataPayload.m_Procurement_Request_Files = [
         {
@@ -477,6 +477,30 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
         file_type: req.file.mimetype,
         file_size: req.file.size
       });
+    } else {
+      // Create a default text file when no attachment is provided
+      // This satisfies the IMS requirement for an attachment
+      const defaultContent = `Procurement Request - ${new Date().toISOString()}
+
+This is an automatically generated file for procurement requests submitted without attachments.
+
+Request Details:
+- Project: ${fields.m_project || 'N/A'}
+- Supplier: ${fields.m_supplier || 'N/A'}
+- PO Owner: ${fields.m_po_owner || 'N/A'}
+- Submitted: ${new Date().toLocaleString()}
+
+No additional attachments were provided with this request.
+`;
+      
+      odataPayload.m_Procurement_Request_Files = [
+        {
+          file_name: `procurement_request_${Date.now()}.txt`,
+          file_content: Buffer.from(defaultContent, 'utf8').toString('base64'),
+          file_type: 'text/plain'
+        }
+      ];
+      console.log('No attachment provided - added default text file to satisfy IMS requirement');
     }
 
     // Send to OData API

@@ -53,6 +53,29 @@
   margin-bottom: 2.2rem;
 }
 
+.homepage-title-box {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 32px 40px;
+  margin: 24px auto 32px auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  max-width: 900px;
+  width: 90%;
+}
+
+.homepage-title-box .homepage-banner-title {
+  color: #1e40af;
+  margin: 0 0 16px 0;
+  text-shadow: none;
+}
+
+.homepage-title-box .homepage-banner-subtitle {
+  color: #64748b;
+  margin: 0;
+}
+
 .homepage-banner-searchbar {
   margin-top: 32px;
   width: 90vw;
