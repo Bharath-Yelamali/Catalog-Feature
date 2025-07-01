@@ -1,53 +1,194 @@
 
-# IMS Feature Development
+# IMS Catalog Feature - Inventory Management System
 
-## Problem Statement
+A modern, lightweight web application that simplifies inventory management by providing an intuitive interface for searching parts, checking availability, and managing procurement requests. Built with React frontend and Node.js backend, connecting securely to the IMS database.
 
-The current IMS (Inventory Management System) is overloaded with features that are rarely used, making it difficult for new users to navigate. It presents a steep learning curve, includes excessive and often irrelevant information, and lacks clear visibility into part availability. Additionally, the process of creating purchase requests is manual and disconnected from the database, leading to inefficiencies and potential errors. Users also have no centralized way to track the status of their requests or manage them post-submission.
+## 🚀 Features
 
-## Overall Goal
+### Advanced Search & Filtering
+- **Multi-mode search**: General keyword search and field-specific "Specify Search" mode
+- **Multi-value queries**: Search for multiple values in the same field (OR logic)
+- **NOT logic**: Exclude specific terms using `!` prefix (AND logic for exclusions)
+- **Real-time highlighting**: Visual indication of search matches
+- **Field-specific filtering**: Search by part number, description, manufacturer, custodian, etc.
 
-To design and build a lightweight, intuitive web-based platform that:
-- Connects securely to the IMS database.
-- Allows engineers to easily search for and select hardware parts.
-- Clearly displays part availability.
-- Automatically generates and stores purchase requests (preqs) in the IMS database.
-- Preq is in the form of a generated csv file (or any file type) that can automatically be sent to procurement.
-- Updates inventory quantities and add new parts to the IMS catalog as needed.
-- Provides a dashboard for users to view, track, and manage their submitted requests.
+### Inventory Management
+- **Real-time availability**: Clear visibility into part quantities (total, in-use, spare)
+- **Smart categorization**: Automatic classification of general inventory vs. project-specific parts
+- **Quantity tracking**: Track spare values and update inventory counts
+- **Multi-part operations**: Bulk actions and batch processing
 
-## Functional Summary
+### Procurement Integration
+- **Automated request generation**: CSV export for procurement teams
+- **New part handling**: Streamlined process for adding new parts to catalog
+- **Request tracking**: Dashboard for managing submitted requests
+- **Secure authentication**: Azure Managed Identity integration
 
-- **Part Search**: Search by part code, name, or category from IMS.
-- **Availability Check**: Clearly indicate whether a part is in stock or needs to be ordered.
-- **Selection Cart**: Add parts and specify quantities.
-- **CSV Export**: Generate a structured request file summarizing each item.
-- **Database Write**: Update part quantities, add new parts, and store purchase requests in IMS.
-- **Secure Access**: Use Azure Managed Identity for authentication and secure database access.
-- **Request Dashboard**: View all submitted requests, check their status, and cancel if needed.
+## 🛠️ Technology Stack
 
-## Design Flow
+### Frontend
+- **React 19.1.0** - Modern UI library with hooks
+- **Vite 6.3.5** - Fast build tool and dev server
+- **JavaScript (ES6+)** - Modern JavaScript features
+- **CSS Modules** - Scoped styling
 
-1. User logs in via Azure Managed Identity.
-2. Searches for parts by code, name, or category.
-3. Views availability status for each part.
-4. Selects parts and quantities to add to a cart.
-5. A part can be:
-   - **In use**: You cannot request hardware items that are in use.
-   - **In spare**: You cannot request hardware items that are in spare.
-   - **In surplus**: You can only reserve hardware items that are in surplus.
-6. If the part is available:
-   - Reserve the requested quantity.
-   - Update the available inventory count in IMS.
-   - Log the reservation as a transaction.
-7. If the part is unavailable:
-   - Notify the Procurement team to initiate the purchase.
-   - Update the IMS catalog to reflect the pending order.
-8. If the part is new (not in the catalog):
-   - Take the user to a new page after selecting all the parts that they want asking to list out specific data about this new part.
-   - Add the new part to the IMS catalog.
-   - Notify the Procurement team to initiate the purchase.
-9. CSV Generation:
+### Backend
+- **Node.js** - Server runtime
+- **Express 5.1.0** - Web application framework
+- **OData integration** - Direct connection to IMS database
+- **CORS** - Cross-origin resource sharing
+
+### Additional Libraries
+- **PDF generation**: jsPDF, pdf-lib for document creation
+- **Excel handling**: xlsx for spreadsheet operations
+- **CSV processing**: papaparse for data parsing
+- **Email integration**: nodemailer for notifications
+
+## 📋 Prerequisites
+
+- Node.js 18+ installed
+- Access to IMS OData API
+- Valid Azure authentication credentials
+
+## 🚀 Quick Start
+
+### 1. Clone and Install
+```bash
+git clone <repository-url>
+cd Catalog-feature
+
+# Install frontend dependencies
+npm install
+
+# Install backend dependencies
+cd server
+npm install
+```
+
+### 2. Environment Setup
+Create `.env` file in server directory:
+```env
+IMS_ODATA_URL=https://your-ims-odata-endpoint
+NODE_TLS_REJECT_UNAUTHORIZED=0  # For development only
+```
+
+### 3. Start Development Servers
+```bash
+# Terminal 1: Start backend server
+cd server
+npm start
+
+# Terminal 2: Start frontend dev server
+cd ..
+npm run dev
+```
+
+### 4. Access Application
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3001
+
+## 📁 Project Structure
+
+```
+Catalog-feature/
+├── src/                    # Frontend source code
+│   ├── components/         # React components
+│   ├── api/               # API client functions
+│   ├── utils/             # Utility functions
+│   └── styles/            # CSS styling
+├── server/                # Backend source code
+│   ├── index.js           # Server entry point
+│   ├── parts.js           # Parts API routes
+│   └── *.js               # Additional API modules
+├── public/                # Static assets
+└── README.md              # This file
+```
+
+## 🔍 Advanced Search Guide
+
+### General Search
+```
+search term, !excluded term, another term
+```
+
+### Specify Search Mode
+- **Multi-value OR**: Add multiple chips for same field (e.g., "rail", "right" for description)
+- **NOT logic**: Use `!` prefix to exclude (e.g., "!power" excludes power-related items)
+- **Field targeting**: Search specific fields like part number, manufacturer, etc.
+
+## 🔧 Development
+
+### Available Scripts
+
+**Frontend:**
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+
+**Backend:**
+- `npm start` - Start server
+- `node index.js` - Direct server start
+
+### Adding New Features
+
+1. **Frontend components**: Add to `src/components/`
+2. **API endpoints**: Add to `server/` with appropriate route files
+3. **Utilities**: Add to `src/utils/` for frontend helpers
+4. **Styling**: Add to `src/styles/` following existing patterns
+
+## 🔒 Security
+
+- Azure Managed Identity for authentication
+- Bearer token authorization for API calls
+- CORS configuration for frontend-backend communication
+- Input validation and sanitization
+
+## 📊 Performance
+
+- OData query optimization with field filtering
+- Client-side result caching
+- Efficient search algorithms with highlighting
+- Performance metrics logging
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **CORS errors**: Ensure backend server is running on port 3001
+2. **Authentication failures**: Check Azure credentials and token validity
+3. **Search not working**: Verify OData endpoint configuration
+4. **Build failures**: Ensure Node.js version 18+
+
+### Debug Mode
+Set `NODE_ENV=development` for additional logging and error details.
+
+## 📝 API Documentation
+
+See [Server README](server/README.md) for detailed API documentation.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 📞 Support
+
+For questions or issues:
+- Check the documentation in respective README files
+- Review the troubleshooting section
+- Contact the development team
+
+---
+
+Built with ❤️ for efficient inventory management
    - Create a structured request file detailing each item.
    - Share it with the Procurement team, who will handle generating a purchase order and fulfilling the request.
 10. Database Write:
