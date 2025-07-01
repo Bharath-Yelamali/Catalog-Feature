@@ -1,39 +1,278 @@
-function SearchBar({ search, setSearch, filterType, setFilterType, handleSearch, resultCount }) {
+import React, { useState, useRef } from 'react';
+
+function SearchBar({ search, setSearch, handleSearch, resultCount }) {
+  const [searchMethod, setSearchMethod] = useState('searchAll');
+  const [hoveredFieldIdx, setHoveredFieldIdx] = useState(-1);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const summaryBoxRef = useRef();
+  const tooltipRef = useRef();
+  const [tooltipPos, setTooltipPos] = useState({ left: 0, top: 0 });
+
+  const fieldOptions = [
+    { label: 'Inventory Item Number', value: 'm_inventory_item' },
+    { label: 'Manufacturer Part Number', value: 'm_mfg_part_number' },
+    { label: 'Manufacturer Name', value: 'm_mfg_name' },
+    { label: 'Parent Path', value: 'm_parent_ref_path' },
+    { label: 'Inventory Description', value: 'm_inventory_description' },
+    { label: 'Custodian (Keyed Name)', value: 'm_custodian@aras.keyed_name' },
+    { label: 'Custodian', value: 'm_custodian' },
+    { label: 'Instance ID', value: 'm_id' },
+    { label: 'Item Number', value: 'item_number' },
+  ];
+  // For specify search
+  const [inputValue, setInputValue] = useState('');
+  const [chips, setChips] = useState([]); // [{ field, value }]
+  const [showFieldDropdown, setShowFieldDropdown] = useState(false);
+  const inputRef = useRef();
+
+  // Always show all fields (no filtering/highlighting)
+  const filteredFields = fieldOptions;
+
+  const handleInputChange = e => {
+    setInputValue(e.target.value);
+    setShowFieldDropdown(true);
+  };
+
+  const handleInputFocus = () => {
+    if (inputValue.trim() !== '') setShowFieldDropdown(true);
+  };
+
+  const handleFieldSelect = field => {
+    if (inputValue.trim() === '') return;
+    setChips(prev => [...prev, { field, value: inputValue }]);
+    setInputValue('');
+    setShowFieldDropdown(false);
+    if (inputRef.current) inputRef.current.focus();
+  };
+
+  const handleChipRemove = idx => {
+    setChips(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleInputKeyDown = e => {
+    if (e.key === 'Backspace' && inputValue === '' && chips.length > 0) {
+      setChips(prev => prev.slice(0, -1));
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      setShowFieldDropdown(true);
+    }
+  };
+
+  // Attach chip delete handler for tooltip (for Specify Search mode)
+  React.useEffect(() => {
+    window.__reactDeleteChip = idx => {
+      setChips(prev => prev.filter((_, i) => i !== idx));
+    };
+    return () => {
+      if (window.__reactDeleteChip) delete window.__reactDeleteChip;
+    };
+  }, [chips]);
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showFieldDropdown && inputRef.current && !inputRef.current.closest('.searchbar-controls').contains(event.target)) {
+        setShowFieldDropdown(false);
+      }
+    };
+
+    if (showFieldDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showFieldDropdown]);
+
+  // Position tooltip below summary box
+  const handleSummaryBoxMouseEnter = e => {
+    if (chips.length > 0) {
+      const rect = summaryBoxRef.current.getBoundingClientRect();
+      setTooltipPos({ left: rect.left, top: rect.bottom + 4 });
+      setShowTooltip(true);
+    }
+  };
+  const handleSummaryBoxMouseLeave = e => {
+    // Delay hiding to allow moving to tooltip
+    setTimeout(() => {
+      if (!tooltipRef.current?.matches(':hover')) setShowTooltip(false);
+    }, 80);
+  };
+  const handleTooltipMouseLeave = () => setShowTooltip(false);
+
   return (
-    <div className="searchbar-container searchbar-row">
+    <div className="searchbar-container searchbar-row" style={{ zIndex: searchMethod === 'specifySearch' ? 1 : 'auto' }}>
       <div className="searchbar-main">
-        <div className="searchbar-controls">
-          <label
-            htmlFor="searchbar-field-select"
-            style={{ fontWeight: 500, color: '#334155', marginRight: 8, fontSize: 15 }}
-          >
-            Search by:
-          </label>
+        <div className="searchbar-controls" style={{ gap: 0, display: 'flex', alignItems: 'center', columnGap: 0, rowGap: 0 }}>
           <select
-            id="searchbar-field-select"
-            value={filterType}
-            onChange={e => setFilterType(e.target.value)}
-            className="searchbar-select"
+            style={{
+              marginRight: 0,
+              padding: '6px 14px',
+              borderRadius: 6,
+              border: '1px solid #bcd6f7',
+              background: '#f8fafc',
+              color: '#334155',
+              fontWeight: 500,
+              fontSize: 15,
+              cursor: 'pointer',
+              minWidth: 44,
+            }}
+            aria-label="Select search method"
+            tabIndex={0}
+            value={searchMethod}
+            onChange={e => setSearchMethod(e.target.value)}
           >
-            <option value="all">All Fields</option>
-            <option value="itemNumber">Inventory Item Number</option>
-            <option value="manufacturerPartNumber">Manufacturer Part Number</option>
-            <option value="parentPath">Parent Path</option>
-            <option value="inventoryDescription">Inventory Description</option>
-            <option value="manufacturerName">Manufacturer Name</option>
-            <option value="hardwareCustodian">Hardware Custodian</option>
-            <option value="id">ID</option>
-            <option value="serialNumber">Serial Number/Name</option>
-            <option value="inventoryMaturity">Inventory Maturity</option>
+            <option value="searchAll">Search All</option>
+            <option value="specifySearch">Specify Search</option>
           </select>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={handleSearch}
-            placeholder={`Search by ${filterType.replace(/([A-Z])/g, ' $1')}`}
-            className="searchbar-input"
-          />
+          {searchMethod === 'searchAll' ? (
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={handleSearch}
+              placeholder="Search parts..."
+              className="searchbar-input"
+              style={{ margin: 0, padding: '6px 14px', borderRadius: 6, border: '1px solid #bcd6f7', fontSize: 16, width: 1100, background: '#fff', boxSizing: 'border-box' }}
+            />
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', minWidth: 0, flexWrap: 'nowrap', position: 'relative', gap: 8, width: '100%' }}>
+                {/* Input text box */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onFocus={handleInputFocus}
+                    onKeyDown={handleInputKeyDown}
+                    placeholder={chips.length === 0 ? "Type value, then select field..." : "Add another..."}
+                    style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #bcd6f7', fontSize: 16, width: 500, marginRight: 0, zIndex: 1, background: '#fff', boxSizing: 'border-box' }}
+                    autoComplete="off"
+                  />
+                  {showFieldDropdown && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, background: '#fff', border: '1px solid #bcd6f7', borderRadius: 6, boxShadow: '0 4px 16px rgba(0,0,0,0.16)', zIndex: 9999, width: 500, boxSizing: 'border-box', maxHeight: 'none', overflowY: 'visible', marginTop: 2, padding: '0 14px' }}>
+                      {filteredFields.map((opt, idx) => (
+                        <div
+                          key={opt.value}
+                          style={{
+                            padding: '8px 0',
+                            cursor: 'pointer',
+                            fontSize: 15,
+                            color: '#222',
+                            fontWeight: 400,
+                            background: hoveredFieldIdx === idx ? '#e0e7ef' : 'transparent',
+                            lineHeight: 1.2,
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseDown={() => handleFieldSelect(opt.value)}
+                          onMouseEnter={() => setHoveredFieldIdx(idx)}
+                          onMouseLeave={() => setHoveredFieldIdx(-1)}
+                        >
+                          {opt.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Chips summary section (field dropdown) */}
+                <div
+                  ref={summaryBoxRef}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#e0e7ef',
+                    borderRadius: 12,
+                    padding: chips.length > 0 ? '6px 18px' : '6px 18px',
+                    fontSize: 16,
+                    marginLeft: 0,
+                    marginRight: 0,
+                    cursor: chips.length > 0 ? 'pointer' : 'default',
+                    minWidth: 300,
+                    maxWidth: 300,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    border: chips.length > 0 ? '1px solid #bcd6f7' : '1px solid #e0e7ef',
+                    position: 'relative',
+                    flex: '0 0 auto',
+                  }}
+                  title={undefined}
+                  onMouseEnter={handleSummaryBoxMouseEnter}
+                  onMouseLeave={handleSummaryBoxMouseLeave}
+                >
+                  {chips.length === 0 ? (
+                    <span style={{ color: '#888' }}>No fields</span>
+                  ) : (
+                    <span style={{ color: '#2563eb', fontWeight: 600 }}>{chips.length} field{chips.length > 1 ? 's' : ''}</span>
+                  )}
+                </div>
+                {/* Search button */}
+                <button
+                  type="button"
+                  onClick={() => handleSearch({ key: 'Enter', target: { value: inputValue } })}
+                  style={{
+                    marginLeft: 0,
+                    padding: '6px 18px',
+                    borderRadius: 6,
+                    border: '1px solid #2563eb',
+                    background: '#2563eb',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: 16,
+                    cursor: 'pointer',
+                    height: 30,
+                    display: 'flex',
+                    alignItems: 'center',
+                    flex: '0 0 auto',
+                  }}
+                  aria-label="Search"
+                >
+                  Search
+                </button>
+                {/* Tooltip rendered as React element, absolutely positioned */}
+                {showTooltip && (
+                  <div
+                    ref={tooltipRef}
+                    style={{
+                      position: 'fixed',
+                      left: tooltipPos.left,
+                      top: tooltipPos.top,
+                      zIndex: 3000,
+                      background: '#fff',
+                      border: '1px solid #bcd6f7',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.16)',
+                      padding: '12px 20px',
+                      fontSize: '16px',
+                      color: '#222',
+                      whiteSpace: 'pre-line',
+                      minWidth: 300,
+                      maxWidth: 580,
+                      width: 340,
+                      boxSizing: 'border-box',
+                    }}
+                    onMouseLeave={handleTooltipMouseLeave}
+                  >
+                    {chips.map((chip, idx) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontWeight: 500, marginRight: 8 }}>{fieldOptions.find(f => f.value === chip.field)?.label || chip.field}:</span>
+                        <span style={{ marginRight: 12 }}>{chip.value}</span>
+                        <button
+                          style={{ marginLeft: 8, color: '#b91c1c', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}
+                          onClick={() => setChips(prev => prev.filter((_, i) => i !== idx))}
+                          aria-label={`Remove ${fieldOptions.find(f => f.value === chip.field)?.label || chip.field}`}
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
           {window.__showSpinner ? (
             <span className="searchbar-spinner searchbar-spinner-fixedwidth">
               <svg width="22" height="22" viewBox="0 0 50 50">
@@ -43,7 +282,7 @@ function SearchBar({ search, setSearch, filterType, setFilterType, handleSearch,
               </svg>
             </span>
           ) : (
-            <span className="searchbar-result-count searchbar-spinner-fixedwidth">
+            <span className="searchbar-result-count searchbar-spinner-fixedwidth" style={{ marginLeft: 2 }}>
               {typeof resultCount === 'number' ? `${resultCount} result${resultCount === 1 ? '' : 's'}` : ''}
             </span>
           )}

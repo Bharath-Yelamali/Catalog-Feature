@@ -20,7 +20,7 @@ router.get('/parts', async (req, res) => {
     }
     // Always fetch a limited set of inventoried parts
     let odataUrl = `${BASE_URL}m_Instance`;
-    const { search, filterType } = req.query;
+    const { search } = req.query; // Removed filterType
     // Always filter for classification 'Inventoried'
     let filterClauses = ["classification eq 'Inventoried'"];
     let queryParts = [
@@ -146,7 +146,7 @@ router.get('/parts', async (req, res) => {
           includeKeywords.push(term.toLowerCase());
         }
       }
-      // Map filterType to field(s)
+      // Search all fields (no filterType logic)
       const allFields = [
         'm_inventory_item', // will check .item_number
         'm_mfg_part_number',
