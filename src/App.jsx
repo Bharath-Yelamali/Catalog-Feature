@@ -5,6 +5,7 @@ import PartsTable from './components/PartsTable';
 import RequiredFields from './components/RequiredFields';
 import ConfirmationSummary from './components/ConfirmationSummary';
 import { fetchParts } from './api/parts';
+import { executeSearch, processSearchResults } from './controllers/searchController';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { fetchUserFirstName } from './api/userInfo';
@@ -95,30 +96,37 @@ function App() {
       const controller = new AbortController();
       abortControllerRef.current = controller;
       try {
-        let data;
-        if (search.trim() === '') {
-          data = await fetchParts({ classification: 'Inventoried', signal: controller.signal, accessToken });
-        } else {
-          data = await fetchParts({ classification: 'Inventoried', search, filterType, signal: controller.signal, accessToken });
-        }
+        // Extract search parameters
+        const searchMode = e.searchMode || 'searchAll';
+        const searchData = e.searchData || search;
+        
+        // Execute search using the search controller
+        const data = await executeSearch(searchMode, searchData, {
+          filterType,
+          classification: 'Inventoried',
+          accessToken,
+          signal: controller.signal
+        });
+        
         // Only update state if this is the latest search
         if (window.__currentSearchId !== searchId) return;
-        const fetchedParts = data.value || [];
-        // Group parts by inventory item number
-        const grouped = {};
-        for (const part of fetchedParts) {
-          const itemNumber = part.m_inventory_item?.item_number || 'Unknown';
-          if (!grouped[itemNumber]) grouped[itemNumber] = [];
-          grouped[itemNumber].push(part);
-        }
-        // Convert grouped object to array for easier rendering
-        const groupedResults = Object.entries(grouped).map(([itemNumber, instances]) => ({
-          itemNumber,
-          instances
-        }));
+        
+        // Process results uniformly
+        const groupedResults = processSearchResults(data);
+        
         setResults(groupedResults);
         setShowResults(true);
-        setLastSearch(search); // Save the search string used for this fetch
+        
+        // Update lastSearch based on search mode
+        if (searchMode === 'searchAll') {
+          setLastSearch(searchData || '');
+        } else {
+          // For specify search, create a readable summary
+          const searchSummary = searchData.map(chip => 
+            `${chip.field}:${chip.value}`
+          ).join(', ');
+          setLastSearch(searchSummary);
+        } // Save the search string used for this fetch
       } catch (err) {
         if (window.__currentSearchId !== searchId) return;
         if (err.name === 'AbortError') {
@@ -148,7 +156,11 @@ function App() {
         setPage('search');
         setTimeout(() => {
           // Simulate Enter key for search page's search bar
-          const event = { key: 'Enter' };
+          const event = { 
+            key: 'Enter',
+            searchMode: 'searchAll',
+            searchData: searchValue
+          };
           handleSearch(event);
         }, 0);
       }
@@ -281,7 +293,11 @@ function App() {
       setLoginFromSearch(false);
       setPage('search');
       setTimeout(() => {
-        const event = { key: 'Enter' };
+        const event = { 
+          key: 'Enter',
+          searchMode: 'searchAll',
+          searchData: pendingSearch ?? ''
+        };
         handleSearch(event);
       }, 0);
     } else {
@@ -294,7 +310,11 @@ function App() {
     if (page === 'search' && !loading && accessToken) {
       if ((!search || search.trim() === '') && !defaultSearchTriggered) {
         setDefaultSearchTriggered(true);
-        handleSearch({ key: 'Enter' });
+        handleSearch({ 
+          key: 'Enter',
+          searchMode: 'searchAll',
+          searchData: ''
+        });
       }
     } else if (page !== 'search' && defaultSearchTriggered) {
       setDefaultSearchTriggered(false); // Reset when leaving search page

@@ -15,9 +15,8 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
     { label: 'Parent Path', value: 'm_parent_ref_path' },
     { label: 'Inventory Description', value: 'm_inventory_description' },
     { label: 'Custodian (Keyed Name)', value: 'm_custodian@aras.keyed_name' },
-    { label: 'Custodian', value: 'm_custodian' },
     { label: 'Instance ID', value: 'm_id' },
-    { label: 'Item Number', value: 'item_number' },
+    { label: 'Associated Project', value: 'item_number' },
   ];
   // For specify search
   const [inputValue, setInputValue] = useState('');
@@ -55,6 +54,35 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
     }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       setShowFieldDropdown(true);
+    }
+    if (e.key === 'Enter') {
+      handleSpecifySearch();
+    }
+  };
+
+  // Handle search for specify search mode
+  const handleSpecifySearch = () => {
+    if (searchMethod === 'specifySearch') {
+      if (chips.length === 0 && inputValue.trim() === '') {
+        return; // Don't search if no chips and no current input
+      }
+      
+      // If there's current input value, add it as a chip first
+      let finalChips = chips;
+      if (inputValue.trim() !== '' && showFieldDropdown && filteredFields.length > 0) {
+        // Auto-select first field if user presses enter with text but no field selected
+        finalChips = [...chips, { field: filteredFields[0].value, value: inputValue }];
+        setChips(finalChips);
+        setInputValue('');
+        setShowFieldDropdown(false);
+      }
+      
+      // Pass search mode and data to parent
+      handleSearch({ 
+        searchMode: 'specifySearch', 
+        searchData: finalChips,
+        key: 'Enter' 
+      });
     }
   };
 
@@ -133,7 +161,7 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              onKeyDown={handleSearch}
+              onKeyDown={e => handleSearch({ searchMode: 'searchAll', searchData: search, key: e.key })}
               placeholder="Search parts..."
               className="searchbar-input"
               style={{ margin: 0, padding: '6px 14px', borderRadius: 6, border: '1px solid #bcd6f7', fontSize: 16, width: 1100, background: '#fff', boxSizing: 'border-box' }}
@@ -214,7 +242,7 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
                 {/* Search button */}
                 <button
                   type="button"
-                  onClick={() => handleSearch({ key: 'Enter', target: { value: inputValue } })}
+                  onClick={handleSpecifySearch}
                   style={{
                     marginLeft: 0,
                     padding: '6px 18px',
