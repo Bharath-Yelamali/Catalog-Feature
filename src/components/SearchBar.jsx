@@ -237,7 +237,16 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
                   {chips.length === 0 ? (
                     <span style={{ color: '#888' }}>No fields</span>
                   ) : (
-                    <span style={{ color: '#2563eb', fontWeight: 600 }}>{chips.length} field{chips.length > 1 ? 's' : ''}</span>
+                    <>
+                      <span style={{ color: '#2563eb', fontWeight: 600 }}>
+                        {chips.length} field{chips.length > 1 ? 's' : ''}
+                      </span>
+                      {chips.some(chip => chip.value.startsWith('NOT:') || chip.value.startsWith('!')) && (
+                        <span style={{ color: '#dc2626', fontWeight: 500, marginLeft: 8, fontSize: 14 }}>
+                          (with exclusions)
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
                 {/* Search button */}
@@ -320,19 +329,46 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
                     }}
                     onMouseLeave={handleTooltipMouseLeave}
                   >
-                    {chips.map((chip, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-                        <span style={{ fontWeight: 500, marginRight: 8 }}>{fieldOptions.find(f => f.value === chip.field)?.label || chip.field}:</span>
-                        <span style={{ marginRight: 12 }}>{chip.value}</span>
-                        <button
-                          style={{ marginLeft: 8, color: '#b91c1c', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}
-                          onClick={() => setChips(prev => prev.filter((_, i) => i !== idx))}
-                          aria-label={`Remove ${fieldOptions.find(f => f.value === chip.field)?.label || chip.field}`}
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    ))}
+                    {chips.map((chip, idx) => {
+                      const isNotValue = chip.value.startsWith('NOT:') || chip.value.startsWith('!');
+                      let displayValue;
+                      if (chip.value.startsWith('NOT:')) {
+                        displayValue = chip.value.substring(4);
+                      } else if (chip.value.startsWith('!')) {
+                        displayValue = chip.value.substring(1);
+                      } else {
+                        displayValue = chip.value;
+                      }
+                      const fieldLabel = fieldOptions.find(f => f.value === chip.field)?.label || chip.field;
+                      
+                      return (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+                          <span style={{ fontWeight: 500, marginRight: 8 }}>
+                            {isNotValue ? (
+                              <>
+                                {fieldLabel} <span style={{ color: '#dc2626', fontWeight: 600 }}>(NOT)</span>:
+                              </>
+                            ) : (
+                              `${fieldLabel}:`
+                            )}
+                          </span>
+                          <span style={{ 
+                            marginRight: 12,
+                            color: isNotValue ? '#dc2626' : 'inherit',
+                            textDecoration: isNotValue ? 'line-through' : 'none'
+                          }}>
+                            {displayValue}
+                          </span>
+                          <button
+                            style={{ marginLeft: 8, color: '#b91c1c', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}
+                            onClick={() => setChips(prev => prev.filter((_, i) => i !== idx))}
+                            aria-label={`Remove ${fieldLabel}`}
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -359,30 +395,36 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
       
       {/* Help Modal */}
       {showHelpModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(0,0,0,0.35)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <div style={{
-            background: '#fff',
-            borderRadius: 12,
-            boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
-            padding: 36,
-            maxWidth: 680,
-            textAlign: 'left',
-            fontSize: 16,
-            color: '#222',
-            maxHeight: '80vh',
-            overflowY: 'auto',
-          }}>
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.35)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          onClick={() => setShowHelpModal(false)}
+        >
+          <div 
+            style={{
+              background: '#fff',
+              borderRadius: 12,
+              boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
+              padding: 36,
+              maxWidth: 680,
+              textAlign: 'left',
+              fontSize: 16,
+              color: '#222',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 style={{marginBottom: 20, color: '#3182ce', textAlign: 'center', fontSize: 20}}>How to Use Specify Search</h3>
             
             <div style={{marginBottom: 18}}>
@@ -405,8 +447,8 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
               <h4 style={{color: '#2563eb', marginBottom: 8, fontSize: 18}}>Advanced Features:</h4>
               <ul style={{marginLeft: 20, lineHeight: 1.6}}>
                 <li><strong>Multiple Values (OR Logic):</strong> Add multiple values for the same field to find parts matching any of those values</li>
-                <li><strong>NOT Logic:</strong> Start any value with "!:" to exclude parts with that value</li>
-                <li><strong>Combined Logic:</strong> Mix regular values, multiple values, and  logic for complex searches</li>
+                <li><strong>NOT Logic:</strong> Start any value with "!" or "NOT:" to exclude parts with that value</li>
+                <li><strong>Combined Logic:</strong> Mix regular values, multiple values, and NOT logic for complex searches</li>
               </ul>
             </div>
 
@@ -420,7 +462,7 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
               <div style={{background: '#f8fafc', padding: 12, borderRadius: 6, marginBottom: 8}}>
                 <strong>Find resistors but exclude 10K ohm:</strong><br/>
                 Inventory Description: "resistor"<br/>
-                Inventory Description: "NOT:10K"
+                Inventory Description: "!10K"
               </div>
               <div style={{background: '#f8fafc', padding: 12, borderRadius: 6}}>
                 <strong>Find specific part numbers from certain projects:</strong><br/>
@@ -428,24 +470,6 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
                 Associated Project: "ProjectA"<br/>
                 Associated Project: "ProjectB"
               </div>
-            </div>
-
-            <div style={{textAlign: 'center'}}>
-              <button 
-                onClick={() => setShowHelpModal(false)} 
-                style={{
-                  marginTop: 10, 
-                  padding: '8px 24px', 
-                  fontSize: 16, 
-                  borderRadius: 6, 
-                  background: '#3182ce', 
-                  color: '#fff', 
-                  border: 'none', 
-                  cursor: 'pointer'
-                }}
-              >
-                Got it!
-              </button>
             </div>
           </div>
         </div>
