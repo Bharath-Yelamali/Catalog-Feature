@@ -115,7 +115,10 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
               fontWeight: 500,
               fontSize: 15,
               cursor: 'pointer',
-              minWidth: 44,
+              width: 160,
+              minWidth: 160,
+              maxWidth: 160,
+              boxSizing: 'border-box',
             }}
             aria-label="Select search method"
             tabIndex={0}
