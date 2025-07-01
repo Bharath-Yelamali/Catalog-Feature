@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
 import * as XLSX from 'xlsx';
-import SearchBar from './components/SearchBar';
 import PartsTable from './components/PartsTable';
 import RequiredFields from './components/RequiredFields';
 import ConfirmationSummary from './components/ConfirmationSummary';
@@ -477,22 +476,28 @@ function App() {
           {/* Redirect to home page if not logged in and somehow navigated to search page */}
           {!accessToken ? (
             <>{setPage('home')}</>
-          ) : (
-            <SearchBar
-              search={search}
-              setSearch={setSearch}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              handleSearch={handleSearch}
-              resultCount={showResults ? results.length : undefined}
-            />
-          )}
+          ) : null}
           {(() => {
             window.renderExportButton = () => (
               <button
-                className={
-                  'export-btn' + (Object.keys(selected).length === 0 ? ' export-btn-disabled' : '')
-                }
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: '1px solid #bcd6f7',
+                  background: Object.keys(selected).length === 0 ? '#f8fafc' : '#2563eb',
+                  color: Object.keys(selected).length === 0 ? '#334155' : '#fff',
+                  cursor: Object.keys(selected).length === 0 ? 'not-allowed' : 'pointer',
+                  fontWeight: 500,
+                  fontSize: 15,
+                  width: 80,
+                  minWidth: 80,
+                  maxWidth: 80,
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
                 onClick={Object.keys(selected).length === 0 ? undefined : handleExport}
                 disabled={Object.keys(selected).length === 0}
               >

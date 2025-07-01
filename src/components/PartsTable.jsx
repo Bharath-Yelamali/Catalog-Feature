@@ -25,11 +25,65 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // 1. Add state to track the order in which instances are checked
   const [instanceSelectionOrder, setInstanceSelectionOrder] = useState([]); // array of instance ids in order of selection
+  
+  // State for hide fields functionality
+  const [hideFieldsDropdownOpen, setHideFieldsDropdownOpen] = useState(false);
+  const [hiddenFields, setHiddenFields] = useState({}); // { [fieldName]: boolean }
+  const [fieldSearchQuery, setFieldSearchQuery] = useState(''); // Search query for fields
+
+  // State for filter functionality
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [filterConditions, setFilterConditions] = useState([]); // Array of condition objects
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
     if (!str || str.length <= max) return str;
     return str.slice(0, max) + '...';
+  };
+
+  // Define all available fields for the hide/show functionality
+  const allFields = [
+    { key: 'qty', label: 'Qty', isMainTable: true },
+    { key: 'total', label: 'Total', isMainTable: true },
+    { key: 'inUse', label: 'In Use', isMainTable: true },
+    { key: 'essentialReserve', label: 'Essential Reserve', isMainTable: true },
+    { key: 'usableSurplus', label: 'Usable Surplus', isMainTable: true },
+    { key: 'inventoryItemNumber', label: 'Inventory Item Number', isMainTable: true },
+    { key: 'manufacturerPartNumber', label: 'Manufacturer Part #', isMainTable: true },
+    { key: 'manufacturerName', label: 'Manufacturer Name', isMainTable: true },
+    { key: 'inventoryDescription', label: 'Inventory Description', isMainTable: true },
+    { key: 'instanceId', label: 'Instance ID', isMainTable: false },
+    { key: 'serialNumber', label: 'Serial Number/Name', isMainTable: false },
+    { key: 'quantity', label: 'Quantity', isMainTable: false },
+    { key: 'inventoryMaturity', label: 'Inventory Maturity', isMainTable: false },
+    { key: 'associatedProject', label: 'Associated Project', isMainTable: false },
+    { key: 'hardwareCustodian', label: 'Hardware Custodian', isMainTable: false },
+    { key: 'parentPath', label: 'Parent Path', isMainTable: false }
+  ];
+
+  const toggleFieldVisibility = (fieldKey) => {
+    setHiddenFields(prev => ({
+      ...prev,
+      [fieldKey]: !prev[fieldKey]
+    }));
+  };
+
+  // Filter fields based on search query
+  const filteredFields = allFields.filter(field => 
+    field.label.toLowerCase().includes(fieldSearchQuery.toLowerCase())
+  );
+
+  // Count hidden fields
+  const hiddenFieldCount = Object.values(hiddenFields).filter(Boolean).length;
+
+  // Helper function to generate grid template columns for main table
+  const getMainTableGridColumns = () => {
+    return `40px ${!hiddenFields.qty ? '80px' : ''} 40px ${!hiddenFields.total ? '1fr' : ''} ${!hiddenFields.inUse ? '1fr' : ''} ${!hiddenFields.essentialReserve ? '1fr' : ''} ${!hiddenFields.usableSurplus ? '1fr' : ''} ${!hiddenFields.inventoryItemNumber ? '1.2fr' : ''} ${!hiddenFields.manufacturerPartNumber ? '1.2fr' : ''} ${!hiddenFields.manufacturerName ? '1.2fr' : ''} ${!hiddenFields.inventoryDescription ? '2fr' : ''}`.replace(/\s+/g, ' ').trim();
+  };
+
+  // Helper function to generate grid template columns for instance table
+  const getInstanceTableGridColumns = () => {
+    return `1fr ${!hiddenFields.instanceId ? '2fr' : ''} ${!hiddenFields.serialNumber ? '2fr' : ''} ${!hiddenFields.quantity ? '2fr' : ''} ${!hiddenFields.inventoryMaturity ? '1fr' : ''} ${!hiddenFields.associatedProject ? '2fr' : ''} ${!hiddenFields.hardwareCustodian ? '2fr' : ''} ${!hiddenFields.parentPath ? '2fr' : ''}`.replace(/\s+/g, ' ').trim();
   };
 
   // Handler for clicking a cell
@@ -192,32 +246,522 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     };
   }, [requestPopup.open]);
 
+  // Close hide fields dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (hideFieldsDropdownOpen && !event.target.closest('.hide-fields-container')) {
+        setHideFieldsDropdownOpen(false);
+      }
+      if (filterDropdownOpen && !event.target.closest('.filter-container')) {
+        setFilterDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [hideFieldsDropdownOpen, filterDropdownOpen]);
+
   return (
-    <div className="search-results-dropdown">
-      {results.length === 0 ? (
-        <div className="search-results-empty">No parts found.</div>
-      ) : (
-        <>
-          <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
-            <div className="search-result-field">
-              <input
-                type="checkbox"
-                aria-label="Select all"
-                checked={displayGroups.length > 0 && displayGroups.every(group => selected[group.itemNumber])}
-                onChange={handleSelectAll}
-              />
+    <>
+      {/* Button/Action header positioned against taskbar */}
+      {results.length > 0 && (
+        <div className="search-result-button-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>            <div style={{ position: 'relative' }} className="hide-fields-container">
+              <button
+                style={{
+                  padding: '8px 16px',
+                  background: hiddenFieldCount > 0 ? '#007bff' : 'transparent',
+                  color: hiddenFieldCount > 0 ? '#fff' : '#333',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontWeight: 500,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseOver={e => {
+                  if (hiddenFieldCount === 0) {
+                    e.currentTarget.style.background = '#e9ecef';
+                  }
+                }}
+                onMouseOut={e => {
+                  if (hiddenFieldCount === 0) {
+                    e.currentTarget.style.background = 'transparent';
+                  }
+                }}
+                onClick={() => {
+                  setHideFieldsDropdownOpen(!hideFieldsDropdownOpen);
+                }}
+                aria-label="Hide or show table fields"
+              >
+                <img 
+                  src="/images/hide.svg" 
+                  alt="" 
+                  style={{ 
+                    width: 16, 
+                    height: 16,
+                    flexShrink: 0,
+                    filter: hiddenFieldCount > 0 ? 'brightness(0) invert(1)' : 'none'
+                  }} 
+                />
+                {hiddenFieldCount > 0 ? `${hiddenFieldCount} hidden field${hiddenFieldCount === 1 ? '' : 's'}` : 'Hide Fields'}
+              </button>
+
+              {hideFieldsDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  background: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  zIndex: 1000,
+                  minWidth: '320px',
+                  maxHeight: '400px',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  {/* Search bar */}
+                  <div style={{ padding: '12px 16px 8px 16px', borderBottom: '1px solid #eee' }}>
+                    <input
+                      type="text"
+                      placeholder="Search fields..."
+                      value={fieldSearchQuery}
+                      onChange={e => setFieldSearchQuery(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Scrollable field list */}
+                  <div style={{ 
+                    padding: '8px 0', 
+                    maxHeight: '280px', 
+                    overflowY: 'auto',
+                    flexGrow: 1
+                  }}>
+                    {/* Main table fields */}
+                    <div style={{ padding: '0 16px 8px 16px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Main Table Fields
+                      </div>
+                      {filteredFields.filter(field => field.isMainTable).map(field => (
+                        <label key={field.key} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          padding: '6px 0',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={!hiddenFields[field.key]}
+                            onChange={() => toggleFieldVisibility(field.key)}
+                            style={{ marginRight: '8px' }}
+                          />
+                          {field.label}
+                        </label>
+                      ))}
+                    </div>
+                    
+                    {/* Instance detail fields */}
+                    <div style={{ padding: '0 16px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Instance Detail Fields
+                      </div>
+                      {filteredFields.filter(field => !field.isMainTable).map(field => (
+                        <label key={field.key} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          padding: '6px 0',
+                          cursor: 'pointer',
+                          fontSize: '14px'
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={!hiddenFields[field.key]}
+                            onChange={() => toggleFieldVisibility(field.key)}
+                            style={{ marginRight: '8px' }}
+                          />
+                          {field.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Bottom buttons - always visible */}
+                  <div style={{ 
+                    padding: '12px 16px', 
+                    borderTop: '1px solid #eee',
+                    display: 'flex',
+                    gap: '8px',
+                    justifyContent: 'space-between'
+                  }}>
+                    <button
+                      onClick={() => {
+                        const newHiddenFields = {};
+                        allFields.forEach(field => {
+                          newHiddenFields[field.key] = true;
+                        });
+                        setHiddenFields(newHiddenFields);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#dc3545',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        flex: 1
+                      }}
+                    >
+                      Hide All
+                    </button>
+                    <button
+                      onClick={() => {
+                        setHiddenFields({});
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: '#28a745',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        flex: 1
+                      }}
+                    >
+                      Show All
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="search-result-field">Qty</div>
-            <div className="search-result-field"></div>
-            <div className="search-result-field">Total</div>
-            <div className="search-result-field">In Use</div>
-            <div className="search-result-field">Essential Reserve</div>
-            <div className="search-result-field">Usable Surplus</div>
-            <div className="search-result-field">Inventory Item Number</div>
-            <div className="search-result-field">Manufactur Part #</div>
-            <div className="search-result-field">Manufacturer Name</div>
-            <div className="search-result-field">Inventory Description</div>
+            
+            <div style={{ position: 'relative' }} className="filter-container">
+              <button
+                style={{
+                  padding: '8px 16px',
+                  background: 'transparent',
+                  color: '#333',
+                  border: 'none',
+                  borderRadius: 4,
+                  fontWeight: 500,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+                onMouseOver={e => (e.currentTarget.style.background = '#e9ecef')}
+                onMouseOut={e => (e.currentTarget.style.background = 'transparent')}
+                onClick={() => {
+                  setFilterDropdownOpen(!filterDropdownOpen);
+                }}
+                aria-label="Filter table data"
+              >
+                <img 
+                  src="/images/filter.svg" 
+                  alt="" 
+                  style={{ 
+                    width: 16, 
+                    height: 16,
+                    flexShrink: 0
+                  }} 
+                />
+                Filter
+              </button>
+
+              {filterDropdownOpen && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  background: '#fff',
+                  border: '1px solid #ddd',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  zIndex: 1000,
+                  minWidth: '500px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  ...(filterConditions.length === 0 && { minHeight: 'auto', padding: '12px' })
+                }}>
+                  {filterConditions.length === 0 ? (
+                    // Show "No filter conditions" message when no conditions exist
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#666',
+                      fontSize: '14px',
+                      fontStyle: 'italic',
+                      marginBottom: '12px'
+                    }}>
+                      No filter conditions are applied
+                    </div>
+                  ) : (
+                    // Show filter builder interface when conditions exist
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, marginBottom: '16px' }}>
+                      {/* Header text */}
+                      <div style={{ fontSize: '14px', fontWeight: '500', color: '#333', textAlign: 'left' }}>
+                        In this view, show records
+                      </div>
+                      
+                      {/* Condition rows */}
+                      {filterConditions.map((condition, index) => (
+                        <div key={condition.id} style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          fontSize: '14px',
+                          marginLeft: '16px'
+                        }}>
+                          <span style={{ color: '#666', minWidth: '40px' }}>Where</span>
+                          
+                          {/* Field dropdown */}
+                          <select
+                            value={condition.field}
+                            onChange={(e) => {
+                              const newConditions = [...filterConditions];
+                              newConditions[index].field = e.target.value;
+                              setFilterConditions(newConditions);
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: '14px',
+                              minWidth: '120px'
+                            }}
+                          >
+                            <option value="">Select field...</option>
+                            {allFields.map(field => (
+                              <option key={field.key} value={field.key}>
+                                {field.label}
+                              </option>
+                            ))}
+                          </select>
+                          
+                          {/* Operator dropdown */}
+                          <select
+                            value={condition.operator}
+                            onChange={(e) => {
+                              const newConditions = [...filterConditions];
+                              newConditions[index].operator = e.target.value;
+                              setFilterConditions(newConditions);
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: '14px',
+                              minWidth: '100px'
+                            }}
+                          >
+                            <option value="contains">contains...</option>
+                            <option value="does not contain">does not contain...</option>
+                            <option value="is">is...</option>
+                            <option value="is not">is not...</option>
+                          </select>
+                          
+                          {/* Value input */}
+                          <input
+                            type="text"
+                            value={condition.value}
+                            onChange={(e) => {
+                              const newConditions = [...filterConditions];
+                              newConditions[index].value = e.target.value;
+                              setFilterConditions(newConditions);
+                            }}
+                            placeholder="Enter a value"
+                            style={{
+                              padding: '4px 8px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              fontSize: '14px',
+                              minWidth: '120px',
+                              flex: 1
+                            }}
+                          />
+                          
+                          {/* Remove button */}
+                          <button
+                            onClick={() => {
+                              const newConditions = filterConditions.filter((_, i) => i !== index);
+                              setFilterConditions(newConditions);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#dc3545',
+                              cursor: 'pointer',
+                              fontSize: '16px',
+                              padding: '2px 4px'
+                            }}
+                            title="Remove condition"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Bottom buttons - always visible on the left side */}
+                  <div style={{ 
+                    borderTop: '1px solid #eee',
+                    paddingTop: '12px',
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    gap: '8px'
+                  }}>
+                    <button
+                      onClick={() => {
+                        setFilterConditions([...filterConditions, {
+                          id: Date.now(),
+                          field: 'Position Title',
+                          operator: 'contains',
+                          value: ''
+                        }]);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 8px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: '#495057',
+                        transition: 'background 0.2s',
+                        height: '28px',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onMouseOver={e => {
+                        e.currentTarget.style.background = '#e9ecef';
+                      }}
+                      onMouseOut={e => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <img 
+                        src="/images/plus.svg" 
+                        alt="" 
+                        style={{ 
+                          width: 12, 
+                          height: 12,
+                          flexShrink: 0
+                        }} 
+                      />
+                      Add Condition
+                    </button>
+                    <button
+                      onClick={() => {
+                        // TODO: Implement add condition group logic
+                        console.log('Add Condition Group clicked');
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 8px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        color: '#495057',
+                        transition: 'background 0.2s',
+                        height: '28px',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onMouseOver={e => {
+                        e.currentTarget.style.background = '#e9ecef';
+                      }}
+                      onMouseOut={e => {
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      <img 
+                        src="/images/plus.svg" 
+                        alt="" 
+                        style={{ 
+                          width: 12, 
+                          height: 12,
+                          flexShrink: 0
+                        }} 
+                      />
+                      Add Condition Group
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <span style={{ fontSize: 16, fontWeight: 600, color: '#333' }}>
+              Actions & Filters
+            </span>
+            {/* Add buttons/filters here as needed */}
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Right side - could add export button, etc. */}
+            <span style={{ fontSize: 14, color: '#666' }}>
+              {displayGroups.length} items
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* Column header positioned below button header */}
+      {results.length > 0 && (
+        <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: getMainTableGridColumns(), minWidth: 0 }}>
+          <div className="search-result-field">
+            <input
+              type="checkbox"
+              aria-label="Select all"
+              checked={displayGroups.length > 0 && displayGroups.every(group => selected[group.itemNumber])}
+              onChange={handleSelectAll}
+            />
+          </div>
+          {!hiddenFields.qty && <div className="search-result-field">Qty</div>}
+          <div className="search-result-field"></div>
+          {!hiddenFields.total && <div className="search-result-field">Total</div>}
+          {!hiddenFields.inUse && <div className="search-result-field">In Use</div>}
+          {!hiddenFields.essentialReserve && <div className="search-result-field">Essential Reserve</div>}
+          {!hiddenFields.usableSurplus && <div className="search-result-field">Usable Surplus</div>}
+          {!hiddenFields.inventoryItemNumber && <div className="search-result-field">Inventory Item Number</div>}
+          {!hiddenFields.manufacturerPartNumber && <div className="search-result-field">Manufactur Part #</div>}
+          {!hiddenFields.manufacturerName && <div className="search-result-field">Manufacturer Name</div>}
+          {!hiddenFields.inventoryDescription && <div className="search-result-field">Inventory Description</div>}
+        </div>
+      )}
+      
+      {/* Main table content */}
+      <div className="search-results-dropdown">
+        {results.length === 0 ? (
+          <div className="search-results-empty">No parts found.</div>
+        ) : (
+          <>
           {displayGroups.map(group => {
             const part = group.instances[0];
             // If spare_value is null, treat it as 0
@@ -232,7 +776,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             const usableSurplus = generalInventoryAmount - essentialReserve;
             return (
               <div key={group.itemNumber}>
-                <div className="search-result-item" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
+                <div className="search-result-item" style={{ display: 'grid', gridTemplateColumns: getMainTableGridColumns(), minWidth: 0 }}>
                   <div className="search-result-field">
                     <input
                       type="checkbox"
@@ -241,43 +785,47 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       aria-label="Select part"
                     />
                   </div>
-                  <div className="search-result-field">
-                    <input
-                      type="text"
-                      className="quantity-input"
-                      value={quantities[group.itemNumber] || ''}
-                      onChange={e => handleQuantityChange(group.itemNumber, e.target.value)}
-                      onBlur={e => {
-                        // If quantity is not empty, check the box on blur
-                        if ((e.target.value || '').trim() !== '') {
-                          setSelected(prev => ({ ...prev, [group.itemNumber]: part }));
-                        }
-                      }}
-                      onKeyDown={e => handleQuantityChange(group.itemNumber, quantities[group.itemNumber] || e.target.value, e)}
-                      placeholder="0"
-                      min="0"
-                      style={{ width: 60, textAlign: 'center' }}
-                      aria-label="Quantity"
-                    />
-                  </div>
+                  {!hiddenFields.qty && (
+                    <div className="search-result-field">
+                      <input
+                        type="text"
+                        className="quantity-input"
+                        value={quantities[group.itemNumber] || ''}
+                        onChange={e => handleQuantityChange(group.itemNumber, e.target.value)}
+                        onBlur={e => {
+                          // If quantity is not empty, check the box on blur
+                          if ((e.target.value || '').trim() !== '') {
+                            setSelected(prev => ({ ...prev, [group.itemNumber]: part }));
+                          }
+                        }}
+                        onKeyDown={e => handleQuantityChange(group.itemNumber, quantities[group.itemNumber] || e.target.value, e)}
+                        placeholder="0"
+                        min="0"
+                        style={{ width: 60, textAlign: 'center' }}
+                        aria-label="Quantity"
+                      />
+                    </div>
+                  )}
                   <div className="search-result-field">
                     <button onClick={() => handleExpandToggle(group.itemNumber)} aria-label="Expand details" style={{ padding: 0, background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>
                       {expandedRows[group.itemNumber] ? '▲' : '▼'}
                     </button>
                   </div>
-                  <div className="search-result-field">{truncate(part.total?.toString()) ?? 'N/A'}</div>
-                  <div className="search-result-field">{truncate(part.inUse?.toString()) ?? 'N/A'}</div>
-                  <div className="search-result-field">{truncate(essentialReserve.toString())}</div>
-                  <div className="search-result-field" style={{
-                    color: usableSurplus > 0 ? '#228B22' : undefined,
-                    fontWeight: usableSurplus > 0 ? 700 : undefined,
-                  }}>
-                    {truncate(usableSurplus.toString())}
-                  </div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)} style={{ cursor: (part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>
+                  {!hiddenFields.total && <div className="search-result-field">{truncate(part.total?.toString()) ?? 'N/A'}</div>}
+                  {!hiddenFields.inUse && <div className="search-result-field">{truncate(part.inUse?.toString()) ?? 'N/A'}</div>}
+                  {!hiddenFields.essentialReserve && <div className="search-result-field">{truncate(essentialReserve.toString())}</div>}
+                  {!hiddenFields.usableSurplus && (
+                    <div className="search-result-field" style={{
+                      color: usableSurplus > 0 ? '#228B22' : undefined,
+                      fontWeight: usableSurplus > 0 ? 700 : undefined,
+                    }}>
+                      {truncate(usableSurplus.toString())}
+                    </div>
+                  )}
+                  {!hiddenFields.inventoryItemNumber && <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>}
+                  {!hiddenFields.manufacturerPartNumber && <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>}
+                  {!hiddenFields.manufacturerName && <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>}
+                  {!hiddenFields.inventoryDescription && <div className="search-result-field" onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)} style={{ cursor: (part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>}
                 </div>
                 {expandedRows[group.itemNumber] && (
                   <div style={{ background: '#f9f9f9', padding: '0 16px 12px 16px', borderBottom: '1px solid #eee' }}>
@@ -330,7 +878,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         />
                       </div>
                     )}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4, alignItems: 'center', minHeight: 40 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: getInstanceTableGridColumns(), gap: 8, fontWeight: 'bold', marginBottom: 4, alignItems: 'center', minHeight: 40 }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                         <button
                           type="button"
@@ -409,168 +957,173 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           })()}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Instance ID</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Serial Number/Name</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Quantity</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Inventory Maturity</div>
-                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            fontSize: 15,
-                            color: '#222',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            padding: 0,
-                            margin: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            height: '100%'
-                          }}
-                          aria-label="Filter by associated project"
-                          tabIndex={0}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
-                          }}
-                          onBlur={e => {
-                            // Optionally close dropdown on blur
-                          }}
-                        >
-                          Associated Project
-                          <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
-                        </span>
-                        {openProjectDropdown[group.itemNumber] && (
-                          <div
+                      {!hiddenFields.instanceId && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Instance ID</div>}
+                      {!hiddenFields.serialNumber && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Serial Number/Name</div>}
+                      {!hiddenFields.quantity && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Quantity</div>}
+                      {!hiddenFields.inventoryMaturity && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Inventory Maturity</div>}
+                      {!hiddenFields.associatedProject && (
+                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
+                          <span
                             style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              background: '#fff',
-                              border: '1px solid #ccc',
-                              borderRadius: 4,
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                              zIndex: 10,
-                              minWidth: 120,
-                              marginTop: 2,
+                              fontWeight: 600,
+                              fontSize: 15,
+                              color: '#222',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              padding: 0,
+                              margin: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              height: '100%'
                             }}
+                            aria-label="Filter by associated project"
                             tabIndex={0}
-                            onBlur={() => setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
+                            }}
+                            onBlur={e => {
+                              // Optionally close dropdown on blur
+                            }}
                           >
+                            Associated Project
+                            <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
+                          </span>
+                          {openProjectDropdown[group.itemNumber] && (
                             <div
-                              style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !projectFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
-                              onClick={() => {
-                                setProjectFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
-                                setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                background: '#fff',
+                                border: '1px solid #ccc',
+                                borderRadius: 4,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                                zIndex: 10,
+                                minWidth: 120,
+                                marginTop: 2,
                               }}
+                              tabIndex={0}
+                              onBlur={() => setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
                             >
-                              All Projects
+                              <div
+                                style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !projectFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
+                                onClick={() => {
+                                  setProjectFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
+                                  setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                }}
+                              >
+                                All Projects
+                              </div>
+                              {Array.from(new Set((group.instances || []).map(inst => inst.m_project?.keyed_name || inst.associated_project).filter(Boolean)))
+                                .map(project => (
+                                  <div
+                                    key={project}
+                                    style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: projectFilter[group.itemNumber] === project ? '#f0f0f0' : 'transparent' }}
+                                    onClick={() => {
+                                      setProjectFilter(prev => ({ ...prev, [group.itemNumber]: project }));
+                                      setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                    }}
+                                  >
+                                    {project}
+                                  </div>
+                                ))}
                             </div>
-                            {Array.from(new Set((group.instances || []).map(inst => inst.m_project?.keyed_name || inst.associated_project).filter(Boolean)))
-                              .map(project => (
-                                <div
-                                  key={project}
-                                  style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: projectFilter[group.itemNumber] === project ? '#f0f0f0' : 'transparent' }}
-                                  onClick={() => {
-                                    setProjectFilter(prev => ({ ...prev, [group.itemNumber]: project }));
-                                    setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                  }}
-                                >
-                                  {project}
-                                </div>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Hardware Custodian</div>
-                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            fontSize: 15,
-                            color: '#222',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            padding: 0,
-                            margin: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            height: '100%'
-                          }}
-                          aria-label="Filter by parent path section"
-                          tabIndex={0}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
-                          }}
-                          onBlur={e => {
-                            // Optionally close dropdown on blur
-                          }}
-                        >
-                          Parent Path
-                          <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
-                        </span>
-                        {openParentPathDropdown[group.itemNumber] && (
-                          <div
+                          )}
+                        </div>
+                      )}
+                      {!hiddenFields.hardwareCustodian && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Hardware Custodian</div>}
+                      {!hiddenFields.parentPath && (
+                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
+                          <span
                             style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              background: '#fff',
-                              border: '1px solid #ccc',
-                              borderRadius: 4,
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                              zIndex: 10,
-                              minWidth: 120,
-                              marginTop: 2,
+                              fontWeight: 600,
+                              fontSize: 15,
+                              color: '#222',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              padding: 0,
+                              margin: 0,
+                              display: 'flex',
+                              alignItems: 'center',
+                              height: '100%'
                             }}
+                            aria-label="Filter by parent path section"
                             tabIndex={0}
-                            onBlur={() => setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
+                            }}
+                            onBlur={e => {
+                              // Optionally close dropdown on blur
+                            }}
                           >
+                            Parent Path
+                            <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
+                          </span>
+                          {openParentPathDropdown[group.itemNumber] && (
                             <div
-                              style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !parentPathFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
-                              onClick={() => {
-                                setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
-                                setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                background: '#fff',
+                                border: '1px solid #ccc',
+                                borderRadius: 4,
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                                zIndex: 10,
+                                minWidth: 120,
+                                marginTop: 2,
                               }}
+                              tabIndex={0}
+                              onBlur={() => setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
                             >
-                              All Parent Paths
+                              <div
+                                style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !parentPathFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
+                                onClick={() => {
+                                  setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
+                                  setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                }}
+                              >
+                                All Parent Paths
+                              </div>
+                              {Array.from(new Set((
+                                // Only use instances matching the selected project (if any)
+                                projectFilter[group.itemNumber]
+                                  ? (group.instances || []).filter(inst => (inst.m_project?.keyed_name || inst.associated_project) === projectFilter[group.itemNumber])
+                                  : (group.instances || [])
+                              ).map(inst => {
+                                const match = (inst.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
+                                return match ? match[1] : null;
+                              }).filter(Boolean)))
+                                .map(section => (
+                                  <div
+                                    key={section}
+                                    style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: parentPathFilter[group.itemNumber] === section ? '#f0f0f0' : 'transparent' }}
+                                    onClick={() => {
+                                      setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: section }));
+                                      setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                    }}
+                                  >
+                                    {section}
+                                  </div>
+                                ))}
                             </div>
-                            {Array.from(new Set((
-                              // Only use instances matching the selected project (if any)
-                              projectFilter[group.itemNumber]
-                                ? (group.instances || []).filter(inst => (inst.m_project?.keyed_name || inst.associated_project) === projectFilter[group.itemNumber])
-                                : (group.instances || [])
-                            ).map(inst => {
-                              const match = (inst.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
-                              return match ? match[1] : null;
-                            }).filter(Boolean)))
-                              .map(section => (
-                                <div
-                                  key={section}
-                                  style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: parentPathFilter[group.itemNumber] === section ? '#f0f0f0' : 'transparent' }}
-                                  onClick={() => {
-                                    setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: section }));
-                                    setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                  }}
-                                >
-                                  {section}
-                                </div>
-                              ))}
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, marginBottom: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: getInstanceTableGridColumns(), gap: 8, marginBottom: 8 }}>
                       <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
+                      {!hiddenFields.instanceId && <div></div>}
+                      {!hiddenFields.serialNumber && <div></div>}
+                      {!hiddenFields.quantity && <div></div>}
+                      {!hiddenFields.inventoryMaturity && <div></div>}
+                      {!hiddenFields.associatedProject && <div></div>}
+                      {!hiddenFields.hardwareCustodian && <div></div>}
+                      {!hiddenFields.parentPath && <div></div>}
                     </div>
                     {(projectFilter[group.itemNumber]
                       ? (generalInventoryFilter[group.itemNumber]
@@ -619,7 +1172,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       // - OR this is the first instance to push over the cap (overflowId === instance.id)
                       const disableCheckbox = !checked && runningTotal >= usableSurplus && overflowId !== instance.id;
                       return (
-                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
+                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: getInstanceTableGridColumns(), gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
                           <div style={{textAlign: 'center'}}>
                             {instance.generalInventory ? (
                               <input
@@ -642,26 +1195,28 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               />
                             ) : null}
                           </div>
-                          <div>
-                            {instance.id && instance.m_id ? (
-                              <a
-                                href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: '#1976d2', textDecoration: 'underline', wordBreak: 'break-all' }}
-                              >
-                                {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
-                              </a>
-                            ) : (
-                              highlightFieldWithMatches('N/A', part._matches?.m_id)
-                            )}
-                          </div>
-                          <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>
-                          <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>
-                          <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>
-                          <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>
-                          <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>
-                          <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>
+                          {!hiddenFields.instanceId && (
+                            <div>
+                              {instance.id && instance.m_id ? (
+                                <a
+                                  href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#1976d2', textDecoration: 'underline', wordBreak: 'break-all' }}
+                                >
+                                  {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
+                                </a>
+                              ) : (
+                                highlightFieldWithMatches('N/A', part._matches?.m_id)
+                              )}
+                            </div>
+                          )}
+                          {!hiddenFields.serialNumber && <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>}
+                          {!hiddenFields.quantity && <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>}
+                          {!hiddenFields.inventoryMaturity && <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>}
+                          {!hiddenFields.associatedProject && <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>}
+                          {!hiddenFields.hardwareCustodian && <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>}
+                          {!hiddenFields.parentPath && <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>}
                         </div>
                       );
                     })}
@@ -706,29 +1261,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           )}
         </>
       )}
-      {/* Next button fixed to the very bottom right, always visible */}
-      <div className="confirmation-summary-buttons" style={{ position: 'fixed', bottom: 0, right: 15, zIndex: 100, display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-        <button
-          className="confirmation-summary-button-submit"
-          style={{ fontSize: 22, padding: '6px 48px', minWidth: 90, borderRadius: 10 }}
-          disabled={!(selectedIds.length > 0 && selectedIds.every(id => quantities[id] && quantities[id].trim() !== ''))}
-          onClick={() => {
-            // Cap the requested instances per group at usable surplus (simplified)
-            let cappedRequestedInstances = {};
-            displayGroups.forEach(group => {
-              cappedRequestedInstances = {
-                ...cappedRequestedInstances,
-                ...getCappedRequestedInstances(group, requestedInstances, generalInventoryFilter)
-              };
-            });
-            // setRequestedInstances(cappedRequestedInstances); // if you want to update state
-            setPage('requiredFields');
-          }}
-        >
-          Next
-        </button>
-      </div>
     </div>
+    </>
   );
 }
 

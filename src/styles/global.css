@@ -4,7 +4,7 @@
 #root {
   max-width: 100%; /* Changed from 1280px to 100% to use full screen width */
   margin: 0 auto;
-  padding: 1rem; /* Reduced padding to use more screen space */
+  padding: 0; /* Remove padding to allow PartsTable to use full space */
   text-align: center;
   background: #f7fafd;
 }
@@ -48,5 +48,5 @@
 }
 
 .main-content {
-  margin-top: 80px;
+  margin-top: 0; /* Remove top margin since PartsTable now uses fixed positioning */
 }

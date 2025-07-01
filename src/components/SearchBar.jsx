@@ -130,33 +130,53 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
   const handleTooltipMouseLeave = () => setShowTooltip(false);
 
   return (
-    <div className="searchbar-container searchbar-row" style={{ zIndex: searchMethod === 'specifySearch' ? 1 : 'auto' }}>
-      <div className="searchbar-main">
-        <div className="searchbar-controls" style={{ gap: 0, display: 'flex', alignItems: 'center', columnGap: 0, rowGap: 0 }}>
-          <select
-            style={{
-              marginRight: 0,
-              padding: '6px 14px',
-              borderRadius: 6,
-              border: '1px solid #bcd6f7',
-              background: '#f8fafc',
-              color: '#334155',
-              fontWeight: 500,
-              fontSize: 15,
-              cursor: 'pointer',
-              width: 160,
-              minWidth: 160,
-              maxWidth: 160,
-              boxSizing: 'border-box',
-            }}
-            aria-label="Select search method"
-            tabIndex={0}
-            value={searchMethod}
-            onChange={e => setSearchMethod(e.target.value)}
-          >
-            <option value="searchAll">Search All</option>
-            <option value="specifySearch">Specify Search</option>
-          </select>
+    <div className="searchbar-container searchbar-row" style={{ 
+      zIndex: searchMethod === 'specifySearch' ? 1 : 'auto',
+      minHeight: 'auto',
+      height: 'auto',
+      paddingBottom: '8px'
+    }}>
+      <div className="searchbar-main" style={{ 
+        minHeight: 'auto',
+        height: 'auto' 
+      }}>
+        <div className="searchbar-controls" style={{ 
+          gap: 8, 
+          display: 'flex', 
+          alignItems: 'center', 
+          columnGap: 8, 
+          rowGap: 0, 
+          width: '100%',
+          minHeight: '50px',
+          height: '40px',
+          padding: '8px 24px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            <select
+              style={{
+                marginRight: 0,
+                padding: '6px 14px',
+                borderRadius: 6,
+                border: '1px solid #bcd6f7',
+                background: '#f8fafc',
+                color: '#334155',
+                fontWeight: 500,
+                fontSize: 15,
+                cursor: 'pointer',
+                width: 160,
+                minWidth: 160,
+                maxWidth: 160,
+                boxSizing: 'border-box',
+                height: '42px',
+              }}
+              aria-label="Select search method"
+              tabIndex={0}
+              value={searchMethod}
+              onChange={e => setSearchMethod(e.target.value)}
+            >
+              <option value="searchAll">Search All</option>
+              <option value="specifySearch">Specify Search</option>
+            </select>
           {searchMethod === 'searchAll' ? (
             <input
               type="text"
@@ -387,10 +407,8 @@ function SearchBar({ search, setSearch, handleSearch, resultCount }) {
               {typeof resultCount === 'number' ? `${resultCount} result${resultCount === 1 ? '' : 's'}` : ''}
             </span>
           )}
+          </div>
         </div>
-      </div>
-      <div className="searchbar-export-btn-container">
-        {typeof window.renderExportButton === 'function' && window.renderExportButton()}
       </div>
       
       {/* Help Modal */}

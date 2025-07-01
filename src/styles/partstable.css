@@ -3,20 +3,22 @@
    ========================================================================== */
 .search-results-dropdown {
   position: fixed;
-  top: 120px; /* 72px (searchbar top) + ~48px (searchbar height) = 120px; adjust if needed */
+  top: 180px; /* Start below both headers (60px taskbar + 60px button header + 60px column header) */
   left: 0;
   right: 0;
+  bottom: 0; /* Extend to bottom of viewport */
   width: 100vw;
   background: #fff;
-  border: 1px solid #ccc;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-  margin: 0 auto 16px auto;
-  padding: 0 16px 16px 16px;
-  max-height: calc(100vh - 180px);
+  border: none; /* Remove borders for cleaner full-screen look */
+  border-radius: 0; /* Remove border radius for full-screen look */
+  box-shadow: none; /* Remove shadow for cleaner look */
+  margin: 0; /* Remove margins to use full space */
+  padding: 16px; /* Keep some padding for content readability */
+  height: calc(100vh - 180px); /* Full height minus taskbar and both headers */
+  max-height: none; /* Remove max-height restriction */
   overflow-y: auto;
   z-index: 800;
+  box-sizing: border-box; /* Include padding in height calculation */
 }
 
 .search-results-empty {
@@ -40,17 +42,46 @@
   align-items: stretch;
 }
 
+/* Button/Action header row - positioned right below taskbar */
+.search-result-button-header {
+  background: #fff;
+  font-weight: bold;
+  border-bottom: 1px solid #bbb;
+  border-top: none; /* Ensure no gap with taskbar */
+  border-radius: 0; /* Remove border radius for seamless look */
+  position: fixed; /* Fixed positioning to stay at top */
+  top: 60px; /* Adjusted to touch taskbar more closely */
+  left: 0;
+  right: 0;
+  width: 100vw;
+  z-index: 950; /* Higher than column header */
+  min-height: 60px; /* Extended height for buttons */
+  height: 60px; /* Fixed height for consistency */
+  margin-top: 0;
+  padding: 0 16px; /* Match container padding */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Column header row - positioned below button header */
 .search-result-header {
   background: #e9ecef;
   font-weight: bold;
   border-bottom: 2px solid #bbb;
-  border-radius: 4px 4px 0 0;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  min-height: 48px;
-  height: 48px;
+  border-radius: 0; /* Remove border radius for seamless look */
+  position: fixed; /* Fixed positioning to stay at top */
+  top: 120px; /* Below taskbar and button header (60px + 60px) */
+  left: 0;
+  right: 0;
+  width: 100vw;
+  z-index: 900; /* Higher than table content but lower than button header */
+  min-height: 60px; /* Extended height for better prominence */
+  height: 60px; /* Fixed height for consistency */
   margin-top: 0;
+  padding: 0 16px; /* Match container padding */
+  box-sizing: border-box;
 }
 
 .search-result-grid {
