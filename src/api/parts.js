@@ -47,7 +47,7 @@ export async function fetchParts({ classification, top, search, filterType, sign
 }
 
 // Fetch parts by specific fields for "Specify Search" mode
-export async function fetchPartsByFields({ classification, top, searchParams, filterType, signal, accessToken } = {}) {
+export async function fetchPartsByFields({ classification, top, searchParams, filterType, logicalOperator, signal, accessToken } = {}) {
   const params = [];
   
   if (classification) {
@@ -58,6 +58,9 @@ export async function fetchPartsByFields({ classification, top, searchParams, fi
   }
   if (filterType) {
     params.push(`filterType=${encodeURIComponent(filterType)}`);
+  }
+  if (logicalOperator) {
+    params.push(`logicalOperator=${encodeURIComponent(logicalOperator)}`);
   }
   
   // Add field-specific search parameters

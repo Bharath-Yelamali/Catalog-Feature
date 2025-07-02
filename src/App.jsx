@@ -352,14 +352,27 @@ function App() {
     }
     
     try {
-      // Execute search using the search controller with field-specific parameters
-      const data = await executeSearch('specifySearch', chips, {
-        filterType,
-        classification: 'Inventoried',
-        accessToken,
-        signal: controller.signal
-      });
+      let data;
       
+      // If chips is empty or has no conditions, we want to go back to the original search
+      if (!chips || chips.length === 0 || (chips.conditions && chips.conditions.length === 0)) {
+        // Execute the original search (searchAll with the current search term)
+        data = await executeSearch('searchAll', search, {
+          filterType,
+          classification: 'Inventoried',
+          accessToken,
+          signal: controller.signal
+        });
+      } else {
+        // Execute search using the search controller with field-specific parameters
+        data = await executeSearch('specifySearch', chips, {
+          filterType,
+          classification: 'Inventoried',
+          accessToken,
+          signal: controller.signal
+        });
+      }
+
       // Only update state if this is the latest search and not aborted
       if (window.__currentSearchId !== searchId || controller.signal?.aborted) return;
       
@@ -369,11 +382,17 @@ function App() {
       setResults(groupedResults);
       setShowResults(true);
       
-      // Update lastSearch to show filter summary
-      const searchSummary = chips.map(chip => 
-        `${chip.field}:${chip.value}`
-      ).join(', ');
-      setLastSearch(`Filtered by: ${searchSummary}`);
+      // Update lastSearch based on whether we're filtering or clearing
+      if (!chips || chips.length === 0 || (chips.conditions && chips.conditions.length === 0)) {
+        // Cleared filters - show original search
+        setLastSearch(search || '');
+      } else {
+        // Applied filters - show filter summary
+        const searchSummary = chips.map(chip => 
+          `${chip.field}:${chip.value}`
+        ).join(', ');
+        setLastSearch(`Filtered by: ${searchSummary}`);
+      }
       
     } catch (err) {
       if (window.__currentSearchId !== searchId) return;

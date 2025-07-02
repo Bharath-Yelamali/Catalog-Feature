@@ -42,21 +42,26 @@ export const executeSearch = async (searchMode, searchData, options = {}) => {
       }
     } else if (searchMode === 'specifySearch') {
       // Field-specific search mode
-      const chips = searchData || [];
+      const chips = searchData || {};
+      
+      // Extract logical operator and conditions from new format
+      const conditions = chips.conditions || chips; // Support both old and new format
+      const logicalOperator = chips.logicalOperator || 'and'; // Default to 'and'
       
       // Validate search fields
-      const validation = validateSearchFields(chips);
+      const validation = validateSearchFields(conditions);
       if (!validation.isValid) {
         throw new Error(`Invalid search parameters: ${validation.errors.join(', ')}`);
       }
       
       // Build search parameters
-      const searchParams = buildSearchParams(chips);
+      const searchParams = buildSearchParams(conditions);
       
       return await fetchPartsByFields({
         classification,
         searchParams,
         filterType,
+        logicalOperator,
         signal,
         accessToken
       });

@@ -50,9 +50,10 @@ function hasFieldValues(fieldValue) {
 /**
  * Build OData filter clauses from field-specific query parameters
  * @param {Object} fieldParams - Object containing field/value pairs from query string
+ * @param {string} logicalOperator - 'and' or 'or' for combining different field filters
  * @returns {Array} Array of OData filter strings
  */
-function buildFieldFilters(fieldParams) {
+function buildFieldFilters(fieldParams, logicalOperator = 'and') {
   const filters = [];
   
   Object.entries(fieldParams).forEach(([field, value]) => {
@@ -131,16 +132,29 @@ function buildFieldFilters(fieldParams) {
  * @returns {string} Complete OData URL
  */
 function buildODataUrl(params) {
-  const { fieldParams, search, hasClientSideFilters } = params;
+  const { fieldParams, search, hasClientSideFilters, logicalOperator } = params;
   
   let filterClauses = ["classification eq 'Inventoried'"];
-  const fieldFilters = buildFieldFilters(fieldParams);
+  const fieldFilters = buildFieldFilters(fieldParams, logicalOperator);
   
   if (fieldFilters.length > 0) {
-    filterClauses.push(...fieldFilters);
+    // Use the logical operator between different field conditions
+    const operator = logicalOperator === 'or' ? ' or ' : ' and ';
+    
+    if (fieldFilters.length === 1) {
+      // Single field filter - just add it
+      filterClauses.push(fieldFilters[0]);
+    } else {
+      // Multiple field filters - combine them with the specified logical operator
+      const combinedFieldFilters = `(${fieldFilters.join(operator)})`;
+      filterClauses.push(combinedFieldFilters);
+    }
+    
     console.log('Added field-specific filters:', fieldFilters);
+    console.log('Using logical operator between fields:', logicalOperator);
   }
   
+  // Always use AND between the classification filter and field filters
   const queryParts = [
     `$filter=${filterClauses.join(' and ')}`,
     `$select=${FIELD_CONFIG.SELECT_FIELDS.join(',')}`,
@@ -443,13 +457,13 @@ router.get('/parts', async (req, res) => {
     }
 
     // Parse query parameters
-    const { search, classification, $top, filterType, ...fieldParams } = req.query;
+    const { search, classification, $top, filterType, logicalOperator, ...fieldParams } = req.query;
     const hasClientSideFilters = Object.keys(fieldParams).some(field => 
       field.includes('@') && hasFieldValues(fieldParams[field])
     );
     
     // Build and execute OData query
-    const odataUrl = buildODataUrl({ fieldParams, search, hasClientSideFilters });
+    const odataUrl = buildODataUrl({ fieldParams, search, hasClientSideFilters, logicalOperator });
     console.log('Final OData URL:', odataUrl);
     
     const fetchStart = Date.now();

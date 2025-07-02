@@ -39,6 +39,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [filteredResults, setFilteredResults] = useState(results); // Filtered results for display
   const [inputValues, setInputValues] = useState({}); // Local state for input values to enable debouncing
   const [hasUnprocessedChanges, setHasUnprocessedChanges] = useState(false); // Track if user has made changes that haven't been processed
+  const [logicalOperator, setLogicalOperator] = useState('and'); // Logical operator for multiple conditions
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -429,7 +430,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // Convert filter conditions to search chips format for API
   const convertFilterConditionsToChips = useCallback((conditions) => {
-    return conditions
+    const filteredConditions = conditions
       .filter(condition => condition.field && condition.operator && condition.value.trim() !== '')
       .map(condition => {
         // Map field keys to API field names
@@ -458,7 +459,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           value: value
         };
       });
-  }, []);
+
+    // Return structured format with logical operator
+    return {
+      logicalOperator: logicalOperator,
+      conditions: filteredConditions
+    };
+  }, [logicalOperator]);
 
   // Trigger API search when filter conditions are complete and have changed
   const triggerFilterSearch = useCallback(async (conditions) => {
@@ -510,7 +517,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
     // Set a new debounce timeout
     debounceTimeoutRef.current = setTimeout(async () => {
-      // Only trigger search if we have at least one complete condition
+      // Check if we have at least one complete condition
       const hasCompleteCondition = filterConditions.some(condition => 
         condition.field && condition.operator && condition.value.trim() !== ''
       );
@@ -518,12 +525,29 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       if (hasCompleteCondition) {
         console.log('Triggering debounced filter search');
         await triggerFilterSearch(filterConditions);
-        setHasUnprocessedChanges(false);
-      } else if (filterConditions.length === 0) {
-        // Reset to original results when no conditions
-        setFilteredResults(results);
-        setHasUnprocessedChanges(false);
+      } else {
+        // When no conditions OR all conditions are incomplete OR conditions array is empty
+        // We need to trigger the original search to get back unfiltered results
+        console.log('Clearing filters - triggering original search to get unfiltered results');
+        if (onFilterSearch) {
+          try {
+            // Pass empty array to trigger original search behavior in App.jsx
+            await onFilterSearch([]);
+          } catch (error) {
+            if (error.name !== 'AbortError') {
+              console.error('Failed to clear filters:', error);
+              // Fallback to local reset if API call fails
+              setFilteredResults(results);
+            }
+          }
+        } else {
+          // No API handler, just reset locally
+          setFilteredResults(results);
+        }
       }
+      
+      // Mark changes as processed regardless of success/failure
+      setHasUnprocessedChanges(false);
     }, 500); // 500ms debounce delay
   }, [filterConditions, hasUnprocessedChanges]); // Remove triggerFilterSearch dependency
 
@@ -544,9 +568,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   return (
     <>
       {/* Button/Action header positioned against taskbar */}
-      {results.length > 0 && (
-        <div className="search-result-button-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>            <div style={{ position: 'relative' }} className="hide-fields-container">
+      <div className="search-result-button-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>            <div style={{ position: 'relative' }} className="hide-fields-container">
               <button
                 style={{
                   padding: '8px 16px',
@@ -820,7 +843,46 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           fontSize: '14px',
                           marginLeft: '16px'
                         }}>
-                          <span style={{ color: '#666', minWidth: '40px' }}>Where</span>
+                          {index > 0 && (
+                            <>
+                              {index === 1 ? (
+                                // Second condition gets the logical operator dropdown
+                                <select
+                                  value={logicalOperator}
+                                  onChange={(e) => {
+                                    setLogicalOperator(e.target.value);
+                                    // Mark that we have unprocessed changes for logical operator changes
+                                    setHasUnprocessedChanges(true);
+                                  }}
+                                  style={{
+                                    padding: '4px 0px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: '4px',
+                                    fontSize: '12px',
+                                    width: '48px',
+                                    height: '28px',
+                                    textTransform: 'uppercase',
+                                    marginLeft: '-8px'
+                                  }}
+                                >
+                                  <option value="and">AND</option>
+                                  <option value="or">OR</option>
+                                </select>
+                              ) : (
+                                // Third+ conditions show the logical operator as non-clickable text
+                                <span style={{ 
+                                  color: '#666', 
+                                  minWidth: '40px',
+                                  textTransform: 'uppercase',
+                                  fontSize: '12px',
+                                  display: 'inline-block'
+                                }}>
+                                  {logicalOperator}
+                                </span>
+                              )}
+                            </>
+                          )}
+                          {index === 0 && <span style={{ color: '#666', minWidth: '40px' }}>Where</span>}
                           
                           {/* Field dropdown */}
                           <select
@@ -1052,11 +1114,9 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             </span>
           </div>
         </div>
-      )}
       
       {/* Column header positioned below button header */}
-      {results.length > 0 && (
-        <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: getMainTableGridColumns(), minWidth: 0 }}>
+      <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: getMainTableGridColumns(), minWidth: 0 }}>
           <div className="search-result-field">
             <input
               type="checkbox"
@@ -1076,7 +1136,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           {!hiddenFields.manufacturerName && <div className="search-result-field">Manufacturer Name</div>}
           {!hiddenFields.inventoryDescription && <div className="search-result-field">Inventory Description</div>}
         </div>
-      )}
       
       {/* Main table content */}
       <div className="search-results-dropdown">
@@ -1211,13 +1270,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                             color: '#222',
                             border: '1px solid #ccc',
                             borderRadius: 4,
-                            padding: '0px 10px',
+                            padding: '4px 8px',
                             fontWeight: 600,
-                            fontSize: 15,
+                            fontSize: 14,
                             cursor: 'pointer',
                             marginBottom: 0,
                             width: 'auto',
-                            minWidth: 80,
+                            minWidth: 60,
                             transition: 'background 0.15s',
                           }}
                           onMouseOver={e => (e.currentTarget.style.background = '#ffe066')}
