@@ -15,9 +15,26 @@ export const buildSearchParams = (chips) => {
   const searchParams = {};
   
   chips.forEach(chip => {
-    if (chip.field && chip.value && chip.value.trim() !== '') {
+    if (chip.field && chip.value) {
       const field = chip.field;
-      const value = chip.value.trim();
+      let value = chip.value;
+      
+      // Handle operator-value object format
+      if (typeof value === 'object' && value.operator && value.value) {
+        // Keep the operator-value object intact
+        if (value.value.trim() === '') {
+          return; // Skip empty values
+        }
+      } else if (typeof value === 'string') {
+        // Handle legacy string format
+        if (value.trim() === '') {
+          return; // Skip empty values
+        }
+        // Convert to operator-value object with default "contains" operator
+        value = { operator: 'contains', value: value.trim() };
+      } else {
+        return; // Skip invalid values
+      }
       
       if (searchParams[field]) {
         // If field already exists, convert to array or add to existing array
@@ -38,7 +55,7 @@ export const buildSearchParams = (chips) => {
 
 /**
  * Validate search fields to ensure they have valid values
- * @param {Array} chips - Array of {field, value} objects
+ * @param {Array} chips - Array of {field, value} objects where value can be string or {operator, value}
  * @returns {Object} - {isValid: boolean, errors: Array}
  */
 export const validateSearchFields = (chips) => {
@@ -55,7 +72,18 @@ export const validateSearchFields = (chips) => {
     if (!chip.field) {
       errors.push(`Search parameter ${index + 1} is missing a field`);
     }
-    if (!chip.value || chip.value.trim() === '') {
+    
+    // Handle both operator-value object and legacy string format
+    let hasValue = false;
+    if (chip.value) {
+      if (typeof chip.value === 'object' && chip.value.operator && chip.value.value) {
+        hasValue = chip.value.value.trim() !== '';
+      } else if (typeof chip.value === 'string') {
+        hasValue = chip.value.trim() !== '';
+      }
+    }
+    
+    if (!hasValue) {
       errors.push(`Search parameter ${index + 1} is missing a value`);
     }
   });

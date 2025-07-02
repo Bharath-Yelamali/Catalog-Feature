@@ -67,15 +67,20 @@ export async function fetchPartsByFields({ classification, top, searchParams, fi
   if (searchParams && typeof searchParams === 'object') {
     Object.entries(searchParams).forEach(([field, value]) => {
       if (Array.isArray(value)) {
-        // Handle array of values for the same field
-        value.forEach(val => {
-          if (val && val.trim() !== '') {
-            params.push(`${encodeURIComponent(field)}=${encodeURIComponent(val.trim())}`);
+        // Handle array of operator-value objects for the same field
+        value.forEach(operatorValueObj => {
+          if (operatorValueObj && typeof operatorValueObj === 'object' && operatorValueObj.value && operatorValueObj.value.trim() !== '') {
+            // JSON-encode the operator-value object
+            params.push(`${encodeURIComponent(field)}=${encodeURIComponent(JSON.stringify(operatorValueObj))}`);
           }
         });
-      } else if (value && value.trim() !== '') {
-        // Handle single value
-        params.push(`${encodeURIComponent(field)}=${encodeURIComponent(value.trim())}`);
+      } else if (value && typeof value === 'object' && value.value && value.value.trim() !== '') {
+        // Handle single operator-value object - JSON-encode it
+        params.push(`${encodeURIComponent(field)}=${encodeURIComponent(JSON.stringify(value))}`);
+      } else if (typeof value === 'string' && value.trim() !== '') {
+        // Fallback: Handle legacy simple string values by converting to "contains" operator
+        const operatorValueObj = { operator: 'contains', value: value.trim() };
+        params.push(`${encodeURIComponent(field)}=${encodeURIComponent(JSON.stringify(operatorValueObj))}`);
       }
     });
   }

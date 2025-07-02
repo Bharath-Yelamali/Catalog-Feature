@@ -445,18 +445,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           'parentPath': 'm_parent_ref_path'
         };
 
-        let value = condition.value.trim();
-        
-        // Handle different operators by modifying the value
-        if (condition.operator === 'does not contain' || condition.operator === 'is not') {
-          value = '!' + value;
-        }
-        // For 'is' operator, we'll still use contains but could be enhanced later
-        // For 'contains' operator, use value as-is
-
+        // Send operator-value object to backend
         return {
           field: fieldMapping[condition.field] || condition.field,
-          value: value
+          value: {
+            operator: condition.operator,
+            value: condition.value.trim()
+          }
         };
       });
 

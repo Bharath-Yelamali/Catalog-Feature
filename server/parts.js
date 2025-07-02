@@ -41,10 +41,78 @@ function hasFieldValues(fieldValue) {
   if (!fieldValue) return false;
   
   if (Array.isArray(fieldValue)) {
-    return fieldValue.some(v => v && v.trim() !== '');
+    return fieldValue.some(v => {
+      if (typeof v === 'object' && v.operator && v.value) {
+        return v.value.trim() !== '';
+      }
+      return v && v.trim() !== '';
+    });
+  }
+  
+  if (typeof fieldValue === 'object' && fieldValue.operator && fieldValue.value) {
+    return fieldValue.value.trim() !== '';
   }
   
   return typeof fieldValue === 'string' && fieldValue.trim() !== '';
+}
+
+/**
+ * Build OData filter clause for a single condition
+ * This function generates efficient OData queries that filter at the database level:
+ * - "contains": uses OData contains() function for partial text matching
+ * - "is": uses OData eq operator for exact matching  
+ * - "does not contain": uses OData not contains() for partial exclusion
+ * - "is not": uses OData ne operator for exact exclusion
+ * 
+ * @param {string} odataField - The OData field name
+ * @param {string} operator - The filter operator ('contains', 'does not contain', 'is', 'is not')
+ * @param {string} value - The value to filter by
+ * @param {string} field - The original field name for special handling
+ * @returns {string} OData filter clause
+ */
+function buildSingleFilterClause(odataField, operator, value, field) {
+  const escapedValue = value.replace(/'/g, "''");
+  
+  if (field === 'm_quantity') {
+    const numValue = parseFloat(value);
+    if (isNaN(numValue)) return null;
+    
+    switch (operator) {
+      case 'is':
+        console.log(`Building numeric IS filter: ${odataField} eq ${numValue}`);
+        return `${odataField} eq ${numValue}`;
+      case 'is not':
+        console.log(`Building numeric IS NOT filter: ${odataField} ne ${numValue}`);
+        return `${odataField} ne ${numValue}`;
+      case 'contains':
+      case 'does not contain':
+        // For numeric fields, treat contains/does not contain as equals/not equals
+        console.log(`Building numeric ${operator} filter (treating as ${operator === 'contains' ? 'equals' : 'not equals'}): ${odataField} ${operator === 'contains' ? 'eq' : 'ne'} ${numValue}`);
+        return operator === 'contains' 
+          ? `${odataField} eq ${numValue}`
+          : `${odataField} ne ${numValue}`;
+      default:
+        return `${odataField} eq ${numValue}`;
+    }
+  } else {
+    // Text fields
+    switch (operator) {
+      case 'contains':
+        console.log(`Building CONTAINS filter: contains(${odataField}, '${escapedValue}')`);
+        return `contains(${odataField}, '${escapedValue}')`;
+      case 'does not contain':
+        console.log(`Building DOES NOT CONTAIN filter: not contains(${odataField}, '${escapedValue}')`);
+        return `not contains(${odataField}, '${escapedValue}')`;
+      case 'is':
+        console.log(`Building IS (exact match) filter: ${odataField} eq '${escapedValue}'`);
+        return `${odataField} eq '${escapedValue}'`;
+      case 'is not':
+        console.log(`Building IS NOT (exact not match) filter: ${odataField} ne '${escapedValue}'`);
+        return `${odataField} ne '${escapedValue}'`;
+      default:
+        return `contains(${odataField}, '${escapedValue}')`;
+    }
+  }
 }
 
 /**
@@ -56,8 +124,8 @@ function hasFieldValues(fieldValue) {
 function buildFieldFilters(fieldParams, logicalOperator = 'and') {
   const filters = [];
   
-  Object.entries(fieldParams).forEach(([field, value]) => {
-    if (!value) return;
+  Object.entries(fieldParams).forEach(([field, fieldValue]) => {
+    if (!fieldValue) return;
     
     const odataField = FIELD_CONFIG.MAPPING[field] || field;
     
@@ -67,59 +135,61 @@ function buildFieldFilters(fieldParams, logicalOperator = 'and') {
       return;
     }
     
-    // Handle both single values and arrays
-    const values = Array.isArray(value) ? value : [value];
-    const validValues = values.filter(v => v && v.trim() !== '');
+    // Handle both new format {operator, value} and legacy format (string/array of strings)
+    let conditions = [];
     
-    if (validValues.length === 0) return;
-    
-    // Separate positive and negative filters
-    const positiveFilters = [];
-    const negativeFilters = [];
-    
-    validValues.forEach(val => {
-      const trimmedValue = val.trim();
-      const isNot = trimmedValue.startsWith('!');
-      const actualValue = isNot ? trimmedValue.substring(1).trim() : trimmedValue;
-      
-      if (!actualValue) return;
-      
-      // Build appropriate filter clause
-      if (field === 'm_quantity') {
-        const numValue = parseFloat(actualValue);
-        if (!isNaN(numValue)) {
-          const filterClause = `${odataField} eq ${numValue}`;
-          if (isNot) {
-            negativeFilters.push(filterClause);
-          } else {
-            positiveFilters.push(filterClause);
-          }
-        }
-      } else {
-        const escapedValue = actualValue.replace(/'/g, "''");
-        const filterClause = `contains(${odataField}, '${escapedValue}')`;
-        if (isNot) {
-          negativeFilters.push(filterClause);
+    if (Array.isArray(fieldValue)) {
+      // Array of conditions
+      conditions = fieldValue.map(item => {
+        if (typeof item === 'object' && item.operator && item.value) {
+          return { operator: item.operator, value: item.value };
         } else {
-          positiveFilters.push(filterClause);
+          // Legacy format - assume contains operator
+          const value = typeof item === 'string' ? item : item.value || '';
+          const isNot = value.startsWith('!');
+          const actualValue = isNot ? value.substring(1) : value;
+          return { 
+            operator: isNot ? 'does not contain' : 'contains', 
+            value: actualValue 
+          };
         }
-      }
-    });
-    
-    // Combine positive filters with OR (any match is good)
-    if (positiveFilters.length > 0) {
-      if (positiveFilters.length === 1) {
-        filters.push(positiveFilters[0]);
-      } else {
-        filters.push(`(${positiveFilters.join(' or ')})`);
-      }
+      });
+    } else if (typeof fieldValue === 'object' && fieldValue.operator && fieldValue.value) {
+      // Single condition object
+      conditions = [{ operator: fieldValue.operator, value: fieldValue.value }];
+    } else {
+      // Legacy format - string value
+      const value = typeof fieldValue === 'string' ? fieldValue : fieldValue.value || '';
+      const isNot = value.startsWith('!');
+      const actualValue = isNot ? value.substring(1) : value;
+      conditions = [{ 
+        operator: isNot ? 'does not contain' : 'contains', 
+        value: actualValue 
+      }];
     }
     
-    // Combine negative filters with AND (exclude all)
-    if (negativeFilters.length > 0) {
-      negativeFilters.forEach(negFilter => {
-        filters.push(`not (${negFilter})`);
-      });
+    // Filter out empty conditions
+    conditions = conditions.filter(condition => 
+      condition.value && condition.value.trim() !== ''
+    );
+    
+    if (conditions.length === 0) return;
+    
+    // Build filter clauses for each condition on this field
+    const fieldClauses = conditions
+      .map(condition => buildSingleFilterClause(odataField, condition.operator, condition.value.trim(), field))
+      .filter(clause => clause !== null);
+    
+    if (fieldClauses.length === 0) return;
+    
+    // Combine multiple conditions for the same field with the specified logical operator
+    // (e.g., "field contains A AND field contains B" or "field contains A OR field contains B")
+    if (fieldClauses.length === 1) {
+      filters.push(fieldClauses[0]);
+    } else {
+      const operator = logicalOperator === 'or' ? ' or ' : ' and ';
+      console.log(`Combining ${fieldClauses.length} conditions for field '${field}' with ${logicalOperator.toUpperCase()} operator`);
+      filters.push(`(${fieldClauses.join(operator)})`);
     }
   });
   
@@ -325,11 +395,36 @@ function applyFieldHighlighting(results, fieldParams) {
     Object.entries(fieldParams).forEach(([field, searchValue]) => {
       if (!searchValue) return;
       
-      // Handle both single values and arrays
-      const values = Array.isArray(searchValue) ? searchValue : [searchValue];
-      const validValues = values.filter(v => v && v.trim() !== '');
+      // Handle both new format {operator, value} and legacy format
+      let conditions = [];
       
-      if (validValues.length === 0) return;
+      if (Array.isArray(searchValue)) {
+        conditions = searchValue.map(item => {
+          if (typeof item === 'object' && item.operator && item.value) {
+            return { operator: item.operator, value: item.value };
+          } else {
+            const value = typeof item === 'string' ? item : item.value || '';
+            const isNot = value.startsWith('!');
+            const actualValue = isNot ? value.substring(1) : value;
+            return { operator: isNot ? 'does not contain' : 'contains', value: actualValue };
+          }
+        });
+      } else if (typeof searchValue === 'object' && searchValue.operator && searchValue.value) {
+        conditions = [{ operator: searchValue.operator, value: searchValue.value }];
+      } else {
+        // Legacy format
+        const value = typeof searchValue === 'string' ? searchValue : searchValue.value || '';
+        const isNot = value.startsWith('!');
+        const actualValue = isNot ? value.substring(1) : value;
+        conditions = [{ operator: isNot ? 'does not contain' : 'contains', value: actualValue }];
+      }
+      
+      // Filter out empty conditions
+      conditions = conditions.filter(condition => 
+        condition.value && condition.value.trim() !== ''
+      );
+      
+      if (conditions.length === 0) return;
       
       // Get the actual field value from the part and map field names correctly
       let value;
@@ -353,16 +448,14 @@ function applyFieldHighlighting(results, fieldParams) {
       
       const valueStr = String(value).toLowerCase();
       
-      // Process each search value
-      validValues.forEach(searchVal => {
-        const trimmedValue = searchVal.trim();
-        const isNot = trimmedValue.startsWith('!');
-        const keyword = (isNot ? trimmedValue.substring(1).trim() : trimmedValue).toLowerCase();
+      // Process each condition
+      conditions.forEach(condition => {
+        const keyword = condition.value.trim().toLowerCase();
         
         if (!keyword) return;
         
-        // For NOT searches, we still highlight the term (even though it's excluded)
-        // This helps users see what was being filtered out
+        // For highlighting, we want to show the matched terms regardless of operator
+        // This helps users see what was being filtered
         if (valueStr.includes(keyword)) {
           if (!matches[matchFieldName]) matches[matchFieldName] = [];
           if (!matches[matchFieldName].includes(keyword)) {
@@ -390,56 +483,69 @@ function applyClientSideFilters(results, fieldParams) {
   console.log('Applying client-side filters for @ fields:', clientSideFilters);
   
   return results.filter(part => {
-    return clientSideFilters.every(([field, value]) => {
-      if (!value) return true;
+    return clientSideFilters.every(([field, fieldValue]) => {
+      if (!fieldValue) return true;
       
-      // Handle both single values and arrays
-      const values = Array.isArray(value) ? value : [value];
-      const validValues = values.filter(v => v && v.trim() !== '');
+      // Handle both new format {operator, value} and legacy format
+      let conditions = [];
       
-      if (validValues.length === 0) return true;
+      if (Array.isArray(fieldValue)) {
+        conditions = fieldValue.map(item => {
+          if (typeof item === 'object' && item.operator && item.value) {
+            return { operator: item.operator, value: item.value };
+          } else {
+            const value = typeof item === 'string' ? item : item.value || '';
+            const isNot = value.startsWith('!');
+            const actualValue = isNot ? value.substring(1) : value;
+            return { operator: isNot ? 'does not contain' : 'contains', value: actualValue };
+          }
+        });
+      } else if (typeof fieldValue === 'object' && fieldValue.operator && fieldValue.value) {
+        conditions = [{ operator: fieldValue.operator, value: fieldValue.value }];
+      } else {
+        // Legacy format
+        const value = typeof fieldValue === 'string' ? fieldValue : fieldValue.value || '';
+        const isNot = value.startsWith('!');
+        const actualValue = isNot ? value.substring(1) : value;
+        conditions = [{ operator: isNot ? 'does not contain' : 'contains', value: actualValue }];
+      }
       
-      const fieldValue = field === 'm_custodian@aras.keyed_name' 
+      // Filter out empty conditions
+      conditions = conditions.filter(condition => 
+        condition.value && condition.value.trim() !== ''
+      );
+      
+      if (conditions.length === 0) return true;
+      
+      const partFieldValue = field === 'm_custodian@aras.keyed_name' 
         ? part["m_custodian@aras.keyed_name"] 
         : part[field];
       
-      // Separate positive and negative filters
-      const positiveMatches = [];
-      const negativeMatches = [];
-      
-      validValues.forEach(val => {
-        const trimmedValue = val.trim();
-        const isNot = trimmedValue.startsWith('!');
-        const actualValue = isNot ? trimmedValue.substring(1).trim() : trimmedValue;
+      // Apply each condition and combine results
+      return conditions.every(condition => {
+        const actualValue = condition.value.trim();
         
-        if (!actualValue) return;
-        
-        if (!fieldValue) {
-          // If no field value, NOT filters should pass, regular filters should fail
-          if (isNot) {
-            negativeMatches.push(true);
-          } else {
-            positiveMatches.push(false);
-          }
-          return;
+        if (!partFieldValue) {
+          // If no field value, "does not contain" and "is not" should pass, others should fail
+          return condition.operator === 'does not contain' || condition.operator === 'is not';
         }
         
-        const matches = String(fieldValue).toLowerCase().includes(actualValue.toLowerCase());
+        const fieldStr = String(partFieldValue).toLowerCase();
+        const searchStr = actualValue.toLowerCase();
         
-        if (isNot) {
-          negativeMatches.push(!matches); // NOT filter: invert the result
-        } else {
-          positiveMatches.push(matches); // Regular filter: direct result
+        switch (condition.operator) {
+          case 'contains':
+            return fieldStr.includes(searchStr);
+          case 'does not contain':
+            return !fieldStr.includes(searchStr);
+          case 'is':
+            return fieldStr === searchStr;
+          case 'is not':
+            return fieldStr !== searchStr;
+          default:
+            return fieldStr.includes(searchStr); // Default to contains
         }
       });
-      
-      // For positive filters: at least one must match (OR logic)
-      const positiveResult = positiveMatches.length === 0 || positiveMatches.some(match => match);
-      
-      // For negative filters: all must be true (AND logic - exclude all specified values)
-      const negativeResult = negativeMatches.length === 0 || negativeMatches.every(match => match);
-      
-      return positiveResult && negativeResult;
     });
   });
 }
@@ -458,6 +564,39 @@ router.get('/parts', async (req, res) => {
 
     // Parse query parameters
     const { search, classification, $top, filterType, logicalOperator, ...fieldParams } = req.query;
+    
+    // Parse JSON-encoded operator-value objects in field parameters
+    Object.keys(fieldParams).forEach(field => {
+      const value = fieldParams[field];
+      
+      if (Array.isArray(value)) {
+        // Handle array of values
+        fieldParams[field] = value.map(val => {
+          try {
+            // Try to parse as JSON (new format)
+            const parsed = JSON.parse(val);
+            if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
+              return parsed;
+            }
+            return val; // Fallback to original if not valid JSON
+          } catch (e) {
+            return val; // Fallback to original string if not JSON
+          }
+        });
+      } else if (typeof value === 'string') {
+        try {
+          // Try to parse as JSON (new format)
+          const parsed = JSON.parse(value);
+          if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
+            fieldParams[field] = parsed;
+          }
+          // If not valid operator-value object, keep original string
+        } catch (e) {
+          // If not JSON, keep original string (legacy format)
+        }
+      }
+    });
+    
     const hasClientSideFilters = Object.keys(fieldParams).some(field => 
       field.includes('@') && hasFieldValues(fieldParams[field])
     );
