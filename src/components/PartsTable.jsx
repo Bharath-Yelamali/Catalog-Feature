@@ -36,6 +36,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // State for filter functionality
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [filterConditions, setFilterConditions] = useState([]); // Array of condition objects
+  const [conditionGroups, setConditionGroups] = useState([]); // Array of condition group objects
   const [filteredResults, setFilteredResults] = useState(results); // Filtered results for display
   const [inputValues, setInputValues] = useState({}); // Local state for input values to enable debouncing
   const [hasUnprocessedChanges, setHasUnprocessedChanges] = useState(false); // Track if user has made changes that haven't been processed
@@ -906,43 +907,20 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         In this view, show records
                       </div>
                       
-                      {/* Condition rows */}
+                      {/* Condition rows and groups */}
                       {filterConditions.map((condition, index) => (
                         <div 
-                          key={condition.id} 
+                          key={condition.id}
                           style={{ 
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: '8px',
                             fontSize: '14px',
                             marginLeft: '16px',
-                            padding: '3px 12px',
-                            borderRadius: '4px',
-                            backgroundColor: draggedCondition === index 
-                              ? '#e3f2fd' 
-                              : dragHoverTarget === index 
-                                ? '#e8f4fd' 
-                                : '#ffffff',
-                            opacity: draggedCondition === index ? 0.8 : 1,
-                            border: draggedCondition === index 
-                              ? '2px dashed #2196f3' 
-                              : dragHoverTarget === index 
-                                ? '2px dashed #4caf50' 
-                                : '1px solid #dee2e6',
-                            transition: 'all 0.2s ease',
-                            cursor: 'move',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                             marginBottom: '0px'
                           }}
-                          // Drag and drop attributes
-                          draggable={true}
-                          onDragStart={(e) => handleDragStart(e, index)}
-                          onDragOver={handleDragOver}
-                          onDragEnter={(e) => handleDragEnter(e, index)}
-                          onDragLeave={(e) => handleDragLeave(e, index)}
-                          onDrop={(e) => handleDrop(e, index)}
-                          onDragEnd={handleDragEnd}
                         >
+                          {/* AND/OR dropdown or "Where" label - outside the box */}
                           {index > 0 && (
                             <>
                               {index === 1 ? (
@@ -954,16 +932,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                     // Mark that we have unprocessed changes for logical operator changes
                                     setHasUnprocessedChanges(true);
                                   }}
-                                  onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
                                   style={{
-                                    padding: '4px 0px',
+                                    padding: '2px 0px',
                                     border: '1px solid #ddd',
                                     borderRadius: '4px',
-                                    fontSize: '12px',
-                                    width: '48px',
-                                    height: '28px',
-                                    textTransform: 'uppercase',
-                                    marginLeft: '-8px'
+                                    fontSize: '10px',
+                                    width: '46px',
+                                    height: '30px',
+                                    textTransform: 'uppercase'
                                   }}
                                 >
                                   <option value="and">AND</option>
@@ -983,153 +959,567 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               )}
                             </>
                           )}
-                          {index === 0 && <span style={{ color: '#666', minWidth: '40px' }}>Where</span>}
+                          {index === 0 && <span style={{ color: '#666', minWidth: '46px' }}>Where</span>}
                           
-                          {/* Field dropdown */}
-                          <select
-                            value={condition.field}
-                            onChange={(e) => {
-                              const newConditions = [...filterConditions];
-                              newConditions[index].field = e.target.value;
-                              setFilterConditions(newConditions);
-                              // Mark that we have unprocessed changes for field changes too
-                              setHasUnprocessedChanges(true);
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                            style={{
-                              padding: '4px 8px',
-                              border: '1px solid #ddd',
+                          {/* Condition box with controls */}
+                          <div
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '12px', // widened from 8px
+                              padding: '3px 20px', // widened from 3px 12px
                               borderRadius: '4px',
-                              fontSize: '14px',
-                              minWidth: '120px'
+                              backgroundColor: draggedCondition === index 
+                                ? '#e3f2fd' 
+                                : dragHoverTarget === index 
+                                  ? '#e8f4fd' 
+                                  : '#ffffff',
+                              opacity: draggedCondition === index ? 0.8 : 1,
+                              border: draggedCondition === index 
+                                ? '2px dashed #2196f3' 
+                                : dragHoverTarget === index 
+                                  ? '2px dashed #4caf50' 
+                                  : '1px solid #dee2e6',
+                              transition: 'all 0.2s ease',
+                              cursor: 'move',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                              flex: 1,
+                              minWidth: 0,
+                              maxWidth: '700px' // add a max width to allow more space
                             }}
+                            // Drag and drop attributes
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, index)}
+                            onDragOver={handleDragOver}
+                            onDragEnter={(e) => handleDragEnter(e, index)}
+                            onDragLeave={(e) => handleDragLeave(e, index)}
+                            onDrop={(e) => handleDrop(e, index)}
+                            onDragEnd={handleDragEnd}
                           >
-                            <option value="">Select field...</option>
-                            {searchableFields.map(field => (
-                              <option key={field.key} value={field.key}>
-                                {field.label}
-                              </option>
-                            ))}
-                          </select>
-                          
-                          {/* Operator dropdown */}
-                          <select
-                            value={condition.operator}
-                            onChange={(e) => {
-                              const newConditions = [...filterConditions];
-                              newConditions[index].operator = e.target.value;
+                            {/* Field dropdown */}
+                            <select
+                              value={condition.field}
+                              onChange={(e) => {
+                                const newConditions = [...filterConditions];
+                                newConditions[index].field = e.target.value;
+                                setFilterConditions(newConditions);
+                                // Mark that we have unprocessed changes for field changes too
+                                setHasUnprocessedChanges(true);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                              style={{
+                                padding: '4px 8px',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                minWidth: '120px'
+                              }}
+                            >
+                              <option value="">Select field...</option>
+                              {searchableFields.map(field => (
+                                <option key={field.key} value={field.key}>
+                                  {field.label}
+                                </option>
+                              ))}
+                            </select>
+                            
+                            {/* Operator dropdown */}
+                            <select
+                              value={condition.operator}
+                              onChange={(e) => {
+                                const newConditions = [...filterConditions];
+                                newConditions[index].operator = e.target.value;
+                                setFilterConditions(newConditions);
+                                // Mark that we have unprocessed changes for operator changes too
+                                setHasUnprocessedChanges(true);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                              style={{
+                                padding: '4px 8px',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                minWidth: '100px'
+                              }}
+                            >
+                              <option value="contains">contains...</option>
+                              <option value="does not contain">does not contain...</option>
+                              <option value="is">is...</option>
+                              <option value="is not">is not...</option>
+                            </select>
+                            
+                            {/* Value input */}
+                            <input
+                              type="text"
+                              value={inputValues[index] || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                
+                                // Update local input state immediately for UI responsiveness
+                                setInputValues(prev => ({ ...prev, [index]: value }));
+                                
+                                // Update filter conditions immediately (no debouncing here)
+                                setFilterConditions(prevConditions => {
+                                  const newConditions = [...prevConditions];
+                                  newConditions[index].value = value;
+                                  return newConditions;
+                                });
+                                
+                                // Mark that we have unprocessed changes - this will trigger the useEffect debounced search
+                                setHasUnprocessedChanges(true);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                              placeholder="Enter a value"
+                              style={{
+                                padding: '4px 8px',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                fontSize: '14px',
+                                minWidth: '120px',
+                                flex: 1
+                              }}
+                            />
+                            
+                            {/* Remove button */}
+                            <button
+                              onClick={() => {
+                                const newConditions = filterConditions.filter((_, i) => i !== index);
+                                setFilterConditions(newConditions);
+                                // Clean up input values - reindex remaining values
+                                const newInputValues = {};
+                                newConditions.forEach((condition, newIndex) => {
+                                  const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
+                                  newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
+                                });
+                                setInputValues(newInputValues);
+                                // Mark that we have unprocessed changes for condition removal
+                                setHasUnprocessedChanges(true);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '4px'
+                              }}
+                              title="Remove condition"
+                            >
+                              <img 
+                                src="/images/garbage.svg" 
+                                alt="Remove" 
+                                style={{ 
+                                  width: 16, 
+                                  height: 16,
+                                  flexShrink: 0
+                                }} 
+                              />
+                            </button>
+                            
+                            {/* Drag handle */}
+                            <div
+                              style={{
+                                cursor: 'grab',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '3px',
+                                transition: 'background-color 0.2s',
+                                pointerEvents: 'none' // Let drag events pass through to parent
+                              }}
+                              title="Drag to reorder"
+                            >
+                              <img 
+                                src="/images/dots.svg" 
+                                alt="Drag to reorder" 
+                                style={{ 
+                                  width: 16, 
+                                  height: 16,
+                                  flexShrink: 0,
+                                  opacity: 0.7,
+                                  pointerEvents: 'none'
+                                }} 
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* Condition groups */}
+                      {conditionGroups.map((group, groupIndex) => (
+                        <div 
+                          key={group.id} 
+                          style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            gap: '4px',
+                            fontSize: '14px',
+                            marginLeft: '16px',
+                            padding: '8px 12px',
+                            borderRadius: '4px',
+                            backgroundColor: '#e9ecef',
+                            border: '2px dashed #adb5bd',
+                            transition: 'all 0.2s ease',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            marginBottom: '0px',
+                            minHeight: '28px'
+                          }}
+                          // Drag and drop attributes for accepting conditions
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDragEnter={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.style.backgroundColor = '#d1ecf1';
+                            e.currentTarget.style.borderColor = '#bee5eb';
+                          }}
+                          onDragLeave={(e) => {
+                            if (!e.currentTarget.contains(e.relatedTarget)) {
+                              e.currentTarget.style.backgroundColor = '#e9ecef';
+                              e.currentTarget.style.borderColor = '#adb5bd';
+                            }
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.style.backgroundColor = '#e9ecef';
+                            e.currentTarget.style.borderColor = '#adb5bd';
+                            
+                            const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                            if (!isNaN(draggedIndex) && draggedIndex >= 0 && draggedIndex < filterConditions.length) {
+                              // Move condition to this group
+                              const conditionToMove = filterConditions[draggedIndex];
+                              
+                              // Remove condition from main list
+                              const newConditions = filterConditions.filter((_, i) => i !== draggedIndex);
                               setFilterConditions(newConditions);
-                              // Mark that we have unprocessed changes for operator changes too
-                              setHasUnprocessedChanges(true);
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                            style={{
-                              padding: '4px 8px',
-                              border: '1px solid #ddd',
-                              borderRadius: '4px',
-                              fontSize: '14px',
-                              minWidth: '100px'
-                            }}
-                          >
-                            <option value="contains">contains...</option>
-                            <option value="does not contain">does not contain...</option>
-                            <option value="is">is...</option>
-                            <option value="is not">is not...</option>
-                          </select>
-                          
-                          {/* Value input */}
-                          <input
-                            type="text"
-                            value={inputValues[index] || ''}
-                            onChange={(e) => {
-                              const value = e.target.value;
                               
-                              // Update local input state immediately for UI responsiveness
-                              setInputValues(prev => ({ ...prev, [index]: value }));
+                              // Add condition to this group
+                              const newGroups = [...conditionGroups];
+                              newGroups[groupIndex].conditions.push(conditionToMove);
+                              setConditionGroups(newGroups);
                               
-                              // Update filter conditions immediately (no debouncing here)
-                              setFilterConditions(prevConditions => {
-                                const newConditions = [...prevConditions];
-                                newConditions[index].value = value;
-                                return newConditions;
-                              });
-                              
-                              // Mark that we have unprocessed changes - this will trigger the useEffect debounced search
-                              setHasUnprocessedChanges(true);
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                            placeholder="Enter a value"
-                            style={{
-                              padding: '4px 8px',
-                              border: '1px solid #ddd',
-                              borderRadius: '4px',
-                              fontSize: '14px',
-                              minWidth: '120px',
-                              flex: 1
-                            }}
-                          />
-                          
-                          {/* Remove button */}
-                          <button
-                            onClick={() => {
-                              const newConditions = filterConditions.filter((_, i) => i !== index);
-                              setFilterConditions(newConditions);
-                              // Clean up input values - reindex remaining values
+                              // Update input values
                               const newInputValues = {};
                               newConditions.forEach((condition, newIndex) => {
                                 const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
                                 newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
                               });
                               setInputValues(newInputValues);
-                              // Mark that we have unprocessed changes for condition removal
+                              
                               setHasUnprocessedChanges(true);
-                            }}
-                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              padding: '4px'
-                            }}
-                            title="Remove condition"
-                          >
-                            <img 
-                              src="/images/garbage.svg" 
-                              alt="Remove" 
-                              style={{ 
-                                width: 16, 
-                                height: 16,
-                                flexShrink: 0
-                              }} 
-                            />
-                          </button>
-                          
-                          {/* Drag handle */}
-                          <div
-                            style={{
-                              cursor: 'grab',
-                              padding: '4px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              borderRadius: '3px',
-                              transition: 'background-color 0.2s',
-                              pointerEvents: 'none' // Let drag events pass through to parent
-                            }}
-                            title="Drag to reorder"
-                          >
-                            <img 
-                              src="/images/dots.svg" 
-                              alt="Drag to reorder" 
-                              style={{ 
-                                width: 16, 
-                                height: 16,
-                                flexShrink: 0,
-                                opacity: 0.7,
-                                pointerEvents: 'none'
-                              }} 
-                            />
+                              console.log(`Moved condition to group ${groupIndex}`);
+                            }
+                          }}
+                        >
+                          {/* Group header */}
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            justifyContent: group.conditions.length === 0 ? 'center' : 'flex-end'
+                          }}>
+                            {group.conditions.length === 0 && (
+                              <span style={{ color: '#6c757d', fontStyle: 'italic' }}>
+                                Drag conditions here to add them to this group
+                              </span>
+                            )}
+                            
+                            {/* Remove button for group */}
+                            <button
+                              onClick={() => {
+                                // Move all conditions back to main list before removing group
+                                const groupConditions = conditionGroups[groupIndex].conditions;
+                                if (groupConditions.length > 0) {
+                                  setFilterConditions([...filterConditions, ...groupConditions]);
+                                  
+                                  // Update input values for moved conditions
+                                  const newInputValues = { ...inputValues };
+                                  groupConditions.forEach((condition, index) => {
+                                    newInputValues[filterConditions.length + index] = condition.value;
+                                  });
+                                  setInputValues(newInputValues);
+                                }
+                                
+                                // Remove the group
+                                const newGroups = conditionGroups.filter((_, i) => i !== groupIndex);
+                                setConditionGroups(newGroups);
+                                setHasUnprocessedChanges(true);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '4px'
+                              }}
+                              title="Remove group"
+                            >
+                              <img 
+                                src="/images/garbage.svg" 
+                                alt="Remove" 
+                                style={{ 
+                                  width: 16, 
+                                  height: 16,
+                                  flexShrink: 0,
+                                  filter: 'opacity(0.6)'
+                                }} 
+                              />
+                            </button>
                           </div>
+                          
+                          {/* Conditions within the group */}
+                          {group.conditions.map((condition, conditionIndex) => (
+                            <div 
+                              key={condition.id} 
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px',
+                                fontSize: '14px',
+                                marginLeft: '12px',
+                                padding: '3px 12px',
+                                borderRadius: '4px',
+                                backgroundColor: '#ffffff',
+                                border: '1px solid #dee2e6',
+                                transition: 'all 0.2s ease',
+                                cursor: 'move',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                              }}
+                              // Drag and drop attributes for reordering within group
+                              draggable={true}
+                              onDragStart={(e) => {
+                                e.dataTransfer.effectAllowed = 'move';
+                                e.dataTransfer.setData('text/plain', `group-${groupIndex}-${conditionIndex}`);
+                                e.target.style.opacity = '0.5';
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.dataTransfer.dropEffect = 'move';
+                              }}
+                              onDragEnter={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.currentTarget.style.backgroundColor = '#e8f4fd';
+                              }}
+                              onDragLeave={(e) => {
+                                if (!e.currentTarget.contains(e.relatedTarget)) {
+                                  e.currentTarget.style.backgroundColor = '#ffffff';
+                                }
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.currentTarget.style.backgroundColor = '#ffffff';
+                                
+                                const dragData = e.dataTransfer.getData('text/plain');
+                                if (dragData.startsWith(`group-${groupIndex}-`)) {
+                                  const draggedConditionIndex = parseInt(dragData.split('-')[2]);
+                                  
+                                  if (draggedConditionIndex !== conditionIndex) {
+                                    // Reorder conditions within the group
+                                    const newGroups = [...conditionGroups];
+                                    const groupConditions = [...newGroups[groupIndex].conditions];
+                                    const draggedItem = groupConditions[draggedConditionIndex];
+                                    
+                                    // Remove the dragged item
+                                    groupConditions.splice(draggedConditionIndex, 1);
+                                    
+                                    // Insert at the new position
+                                    const insertIndex = draggedConditionIndex < conditionIndex ? conditionIndex - 1 : conditionIndex;
+                                    groupConditions.splice(insertIndex, 0, draggedItem);
+                                    
+                                    newGroups[groupIndex].conditions = groupConditions;
+                                    setConditionGroups(newGroups);
+                                    setHasUnprocessedChanges(true);
+                                  }
+                                }
+                              }}
+                              onDragEnd={(e) => {
+                                e.target.style.opacity = '1';
+                              }}
+                            >
+                              {conditionIndex > 0 && (
+                                <>
+                                  {conditionIndex === 1 ? (
+                                    // Second condition gets the logical operator dropdown
+                                    <select
+                                      value={group.logicalOperator}
+                                      onChange={(e) => {
+                                        const newGroups = [...conditionGroups];
+                                        newGroups[groupIndex].logicalOperator = e.target.value;
+                                        setConditionGroups(newGroups);
+                                        setHasUnprocessedChanges(true);
+                                      }}
+                                      onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                                      style={{
+                                        padding: '4px 0px',
+                                        border: '1px solid #ddd',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        width: '48px',
+                                        height: '28px',
+                                        textTransform: 'uppercase',
+                                        marginLeft: '-8px'
+                                      }}
+                                    >
+                                      <option value="and">AND</option>
+                                      <option value="or">OR</option>
+                                    </select>
+                                  ) : (
+                                    // Third+ conditions show the logical operator as non-clickable text
+                                    <span style={{ 
+                                      color: '#666', 
+                                      minWidth: '40px',
+                                      textTransform: 'uppercase',
+                                      fontSize: '12px',
+                                      display: 'inline-block'
+                                    }}>
+                                      {group.logicalOperator}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                              {conditionIndex === 0 && <span style={{ color: '#666', minWidth: '40px' }}>Where</span>}
+                              
+                              {/* Field dropdown */}
+                              <select
+                                value={condition.field}
+                                onChange={(e) => {
+                                  const newGroups = [...conditionGroups];
+                                  newGroups[groupIndex].conditions[conditionIndex].field = e.target.value;
+                                  setConditionGroups(newGroups);
+                                  setHasUnprocessedChanges(true);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                                style={{
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  minWidth: '120px'
+                                }}
+                              >
+                                <option value="">Select field...</option>
+                                {searchableFields.map(field => (
+                                  <option key={field.key} value={field.key}>
+                                    {field.label}
+                                  </option>
+                                ))}
+                              </select>
+                              
+                              {/* Operator dropdown */}
+                              <select
+                                value={condition.operator}
+                                onChange={(e) => {
+                                  const newGroups = [...conditionGroups];
+                                  newGroups[groupIndex].conditions[conditionIndex].operator = e.target.value;
+                                  setConditionGroups(newGroups);
+                                  setHasUnprocessedChanges(true);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                                style={{
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  minWidth: '100px'
+                                }}
+                              >
+                                <option value="contains">contains...</option>
+                                <option value="does not contain">does not contain...</option>
+                                <option value="is">is...</option>
+                                <option value="is not">is not...</option>
+                              </select>
+                              
+                              {/* Value input */}
+                              <input
+                                type="text"
+                                value={condition.value}
+                                onChange={(e) => {
+                                  const newGroups = [...conditionGroups];
+                                  newGroups[groupIndex].conditions[conditionIndex].value = e.target.value;
+                                  setConditionGroups(newGroups);
+                                  setHasUnprocessedChanges(true);
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
+                                placeholder="Enter a value"
+                                style={{
+                                  padding: '4px 8px',
+                                  border: '1px solid #ddd',
+                                  borderRadius: '4px',
+                                  fontSize: '14px',
+                                  minWidth: '120px',
+                                  flex: 1
+                                }}
+                              />
+                              
+                              {/* Remove condition from group button */}
+                              <button
+                                onClick={() => {
+                                  // Move condition back to main list
+                                  const conditionToMove = group.conditions[conditionIndex];
+                                  setFilterConditions([...filterConditions, conditionToMove]);
+                                  
+                                  // Remove from group
+                                  const newGroups = [...conditionGroups];
+                                  newGroups[groupIndex].conditions = newGroups[groupIndex].conditions.filter((_, i) => i !== conditionIndex);
+                                  setConditionGroups(newGroups);
+                                  
+                                  // Update input values
+                                  const newInputValues = { ...inputValues };
+                                  newInputValues[filterConditions.length] = conditionToMove.value;
+                                  setInputValues(newInputValues);
+                                  
+                                  setHasUnprocessedChanges(true);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  padding: '2px'
+                                }}
+                                title="Remove from group"
+                              >
+                                <img 
+                                  src="/images/garbage.svg" 
+                                  alt="Remove" 
+                                  style={{ 
+                                    width: 12, 
+                                    height: 12,
+                                    flexShrink: 0,
+                                    opacity: 0.6
+                                  }} 
+                                />
+                              </button>
+                              
+                              {/* Drag handle */}
+                              <div
+                                style={{
+                                  cursor: 'grab',
+                                  padding: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '3px',
+                                  pointerEvents: 'none'
+                                }}
+                                title="Drag to reorder"
+                              >
+                                <img 
+                                  src="/images/dots.svg" 
+                                  alt="Drag to reorder" 
+                                  style={{ 
+                                    width: 12, 
+                                    height: 12,
+                                    flexShrink: 0,
+                                    opacity: 0.5,
+                                    pointerEvents: 'none'
+                                  }} 
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
@@ -1193,8 +1583,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                     </button>
                     <button
                       onClick={() => {
-                        // TODO: Implement add condition group logic
-                        console.log('Add Condition Group clicked');
+                        const newGroup = {
+                          id: Date.now(),
+                          type: 'group',
+                          conditions: [],
+                          logicalOperator: 'and'
+                        };
+                        setConditionGroups([...conditionGroups, newGroup]);
                       }}
                       style={{
                         display: 'flex',
