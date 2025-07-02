@@ -40,6 +40,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [inputValues, setInputValues] = useState({}); // Local state for input values to enable debouncing
   const [hasUnprocessedChanges, setHasUnprocessedChanges] = useState(false); // Track if user has made changes that haven't been processed
   const [logicalOperator, setLogicalOperator] = useState('and'); // Logical operator for multiple conditions
+  const [draggedCondition, setDraggedCondition] = useState(null); // Track which condition is being dragged
+  const [dragHoverTarget, setDragHoverTarget] = useState(null); // Track which condition is being hovered over during drag
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -560,6 +562,81 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     };
   }, []);
 
+  // Drag and drop handlers for reordering conditions
+  const handleDragStart = (e, conditionIndex) => {
+    setDraggedCondition(conditionIndex);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', conditionIndex.toString());
+    
+    // Add visual feedback
+    e.target.style.opacity = '0.5';
+    console.log(`Started dragging condition ${conditionIndex}`);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedCondition !== null && draggedCondition !== targetIndex) {
+      setDragHoverTarget(targetIndex);
+    }
+  };
+
+  const handleDragLeave = (e, targetIndex) => {
+    // Only clear hover if we're actually leaving this element (not just moving to a child)
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragHoverTarget(null);
+    }
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    
+    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    
+    if (draggedIndex === targetIndex || isNaN(draggedIndex)) {
+      setDragHoverTarget(null);
+      return;
+    }
+
+    console.log(`Dropping condition ${draggedIndex} at position ${targetIndex}`);
+
+    const newConditions = [...filterConditions];
+    const draggedItem = newConditions[draggedIndex];
+    
+    // Remove the dragged item
+    newConditions.splice(draggedIndex, 1);
+    
+    // Insert at the new position
+    const insertIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+    newConditions.splice(insertIndex, 0, draggedItem);
+    
+    // Update input values to match new order
+    const newInputValues = {};
+    newConditions.forEach((condition, newIndex) => {
+      const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
+      newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
+    });
+    
+    setFilterConditions(newConditions);
+    setInputValues(newInputValues);
+    setHasUnprocessedChanges(true);
+    
+    // Clear drag states
+    setDragHoverTarget(null);
+    
+    console.log('New condition order:', newConditions.map(c => `${c.field}:${c.value}`));
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '1';
+    setDraggedCondition(null);
+    setDragHoverTarget(null);
+  };
+
   return (
     <>
       {/* Button/Action header positioned against taskbar */}
@@ -831,13 +908,41 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       
                       {/* Condition rows */}
                       {filterConditions.map((condition, index) => (
-                        <div key={condition.id} style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '8px',
-                          fontSize: '14px',
-                          marginLeft: '16px'
-                        }}>
+                        <div 
+                          key={condition.id} 
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            fontSize: '14px',
+                            marginLeft: '16px',
+                            padding: '3px 12px',
+                            borderRadius: '4px',
+                            backgroundColor: draggedCondition === index 
+                              ? '#e3f2fd' 
+                              : dragHoverTarget === index 
+                                ? '#e8f4fd' 
+                                : '#ffffff',
+                            opacity: draggedCondition === index ? 0.8 : 1,
+                            border: draggedCondition === index 
+                              ? '2px dashed #2196f3' 
+                              : dragHoverTarget === index 
+                                ? '2px dashed #4caf50' 
+                                : '1px solid #dee2e6',
+                            transition: 'all 0.2s ease',
+                            cursor: 'move',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            marginBottom: '0px'
+                          }}
+                          // Drag and drop attributes
+                          draggable={true}
+                          onDragStart={(e) => handleDragStart(e, index)}
+                          onDragOver={handleDragOver}
+                          onDragEnter={(e) => handleDragEnter(e, index)}
+                          onDragLeave={(e) => handleDragLeave(e, index)}
+                          onDrop={(e) => handleDrop(e, index)}
+                          onDragEnd={handleDragEnd}
+                        >
                           {index > 0 && (
                             <>
                               {index === 1 ? (
@@ -849,6 +954,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                     // Mark that we have unprocessed changes for logical operator changes
                                     setHasUnprocessedChanges(true);
                                   }}
+                                  onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
                                   style={{
                                     padding: '4px 0px',
                                     border: '1px solid #ddd',
@@ -889,6 +995,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               // Mark that we have unprocessed changes for field changes too
                               setHasUnprocessedChanges(true);
                             }}
+                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
                             style={{
                               padding: '4px 8px',
                               border: '1px solid #ddd',
@@ -915,6 +1022,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               // Mark that we have unprocessed changes for operator changes too
                               setHasUnprocessedChanges(true);
                             }}
+                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
                             style={{
                               padding: '4px 8px',
                               border: '1px solid #ddd',
@@ -949,6 +1057,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               // Mark that we have unprocessed changes - this will trigger the useEffect debounced search
                               setHasUnprocessedChanges(true);
                             }}
+                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
                             placeholder="Enter a value"
                             style={{
                               padding: '4px 8px',
@@ -975,6 +1084,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               // Mark that we have unprocessed changes for condition removal
                               setHasUnprocessedChanges(true);
                             }}
+                            onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
                             style={{
                               background: 'none',
                               border: 'none',
@@ -993,6 +1103,33 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               }} 
                             />
                           </button>
+                          
+                          {/* Drag handle */}
+                          <div
+                            style={{
+                              cursor: 'grab',
+                              padding: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '3px',
+                              transition: 'background-color 0.2s',
+                              pointerEvents: 'none' // Let drag events pass through to parent
+                            }}
+                            title="Drag to reorder"
+                          >
+                            <img 
+                              src="/images/dots.svg" 
+                              alt="Drag to reorder" 
+                              style={{ 
+                                width: 16, 
+                                height: 16,
+                                flexShrink: 0,
+                                opacity: 0.7,
+                                pointerEvents: 'none'
+                              }} 
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
