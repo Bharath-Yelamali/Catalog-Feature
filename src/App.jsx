@@ -328,13 +328,13 @@ function App() {
   }, [search]);
 
   // Handler for filter-based searches from PartsTable
-  const handleFilterSearch = async (chips) => {
+  const handleFilterSearch = async (chips, signal) => {
     // Track a unique search id for each fetch
     const searchId = Date.now() + Math.random();
     window.__currentSearchId = searchId;
     
-    // Cancel previous fetch if still running
-    if (abortControllerRef.current) {
+    // Cancel previous fetch if still running and no external signal provided
+    if (!signal && abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     
@@ -342,8 +342,14 @@ function App() {
     setLoading(true);
     setError(null);
     
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    // Use the provided signal or create a new controller
+    let controller;
+    if (signal) {
+      controller = { signal };
+    } else {
+      controller = new AbortController();
+      abortControllerRef.current = controller;
+    }
     
     try {
       // Execute search using the search controller with field-specific parameters
@@ -354,8 +360,8 @@ function App() {
         signal: controller.signal
       });
       
-      // Only update state if this is the latest search
-      if (window.__currentSearchId !== searchId) return;
+      // Only update state if this is the latest search and not aborted
+      if (window.__currentSearchId !== searchId || controller.signal?.aborted) return;
       
       // Process results uniformly
       const groupedResults = processSearchResults(data);

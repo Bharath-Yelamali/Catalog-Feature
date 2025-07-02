@@ -38,6 +38,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [filterConditions, setFilterConditions] = useState([]); // Array of condition objects
   const [filteredResults, setFilteredResults] = useState(results); // Filtered results for display
   const [inputValues, setInputValues] = useState({}); // Local state for input values to enable debouncing
+  const [hasUnprocessedChanges, setHasUnprocessedChanges] = useState(false); // Track if user has made changes that haven't been processed
 
   // Helper to truncate from the right (show left side, hide right side)
   const truncate = (str, max = 20) => {
@@ -286,22 +287,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     };
   }, [hideFieldsDropdownOpen, filterDropdownOpen]);
 
-  // Debounced input handler for value changes
-  const debounceRef = useRef(null);
-  
-  const debouncedValueChange = useCallback((index, value) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    
-    debounceRef.current = setTimeout(() => {
-      const newConditions = [...filterConditions];
-      newConditions[index].value = value;
-      setFilterConditions(newConditions);
-    }, 300); // 300ms debounce for typing
-  }, [filterConditions]);
+  // Debouncing refs for API calls
+  const lastKeystrokeRef = useRef(0);
+  const debounceTimeoutRef = useRef(null);
 
-  // Update input values when filter conditions change (for initial loading)
+  // Update input values when filter conditions change (for initial loading only)
   useEffect(() => {
     const newInputValues = {};
     filterConditions.forEach((condition, index) => {
@@ -504,27 +494,52 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       const filtered = applyFilters(conditions, results);
       setFilteredResults(filtered);
     }
-  }, [onFilterSearch, convertFilterConditionsToChips, applyFilters, results]);
+  }, [onFilterSearch, convertFilterConditionsToChips]); // Remove applyFilters and results dependencies
 
   // Apply filters when conditions change (only for complete conditions)
   useEffect(() => {
-    // Only trigger search if we have at least one complete condition
-    const hasCompleteCondition = filterConditions.some(condition => 
-      condition.field && condition.operator && condition.value.trim() !== ''
-    );
-    
-    if (hasCompleteCondition) {
-      triggerFilterSearch(filterConditions);
-    } else if (filterConditions.length === 0) {
-      // Reset to original results when no conditions
-      setFilteredResults(results);
+    // Only trigger search if we have unprocessed changes
+    if (!hasUnprocessedChanges) {
+      return;
     }
-  }, [filterConditions, triggerFilterSearch, results]);
+
+    // Clear the debounce timeout if it exists
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set a new debounce timeout
+    debounceTimeoutRef.current = setTimeout(async () => {
+      // Only trigger search if we have at least one complete condition
+      const hasCompleteCondition = filterConditions.some(condition => 
+        condition.field && condition.operator && condition.value.trim() !== ''
+      );
+      
+      if (hasCompleteCondition) {
+        console.log('Triggering debounced filter search');
+        await triggerFilterSearch(filterConditions);
+        setHasUnprocessedChanges(false);
+      } else if (filterConditions.length === 0) {
+        // Reset to original results when no conditions
+        setFilteredResults(results);
+        setHasUnprocessedChanges(false);
+      }
+    }, 500); // 500ms debounce delay
+  }, [filterConditions, hasUnprocessedChanges]); // Remove triggerFilterSearch dependency
 
   // Update filtered results when base results change
   useEffect(() => {
     setFilteredResults(results);
   }, [results]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -814,6 +829,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               const newConditions = [...filterConditions];
                               newConditions[index].field = e.target.value;
                               setFilterConditions(newConditions);
+                              // Mark that we have unprocessed changes for field changes too
+                              setHasUnprocessedChanges(true);
                             }}
                             style={{
                               padding: '4px 8px',
@@ -838,6 +855,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               const newConditions = [...filterConditions];
                               newConditions[index].operator = e.target.value;
                               setFilterConditions(newConditions);
+                              // Mark that we have unprocessed changes for operator changes too
+                              setHasUnprocessedChanges(true);
                             }}
                             style={{
                               padding: '4px 8px',
@@ -859,10 +878,19 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                             value={inputValues[index] || ''}
                             onChange={(e) => {
                               const value = e.target.value;
-                              // Update local input state immediately
+                              
+                              // Update local input state immediately for UI responsiveness
                               setInputValues(prev => ({ ...prev, [index]: value }));
-                              // Debounce the actual filter condition update
-                              debouncedValueChange(index, value);
+                              
+                              // Update filter conditions immediately (no debouncing here)
+                              setFilterConditions(prevConditions => {
+                                const newConditions = [...prevConditions];
+                                newConditions[index].value = value;
+                                return newConditions;
+                              });
+                              
+                              // Mark that we have unprocessed changes - this will trigger the useEffect debounced search
+                              setHasUnprocessedChanges(true);
                             }}
                             placeholder="Enter a value"
                             style={{
@@ -887,18 +915,26 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                 newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
                               });
                               setInputValues(newInputValues);
+                              // Mark that we have unprocessed changes for condition removal
+                              setHasUnprocessedChanges(true);
                             }}
                             style={{
                               background: 'none',
                               border: 'none',
-                              color: '#dc3545',
                               cursor: 'pointer',
-                              fontSize: '16px',
-                              padding: '2px 4px'
+                              padding: '4px'
                             }}
                             title="Remove condition"
                           >
-                            ×
+                            <img 
+                              src="/images/garbage.svg" 
+                              alt="Remove" 
+                              style={{ 
+                                width: 16, 
+                                height: 16,
+                                flexShrink: 0
+                              }} 
+                            />
                           </button>
                         </div>
                       ))}
@@ -924,6 +960,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         }]);
                         // Initialize input value for the new condition
                         setInputValues(prev => ({ ...prev, [newIndex]: '' }));
+                        // Mark that we have unprocessed changes for adding new condition
+                        setHasUnprocessedChanges(true);
                       }}
                       style={{
                         display: 'flex',
