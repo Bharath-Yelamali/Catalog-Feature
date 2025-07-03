@@ -53,3 +53,33 @@
   flex: 1;
   width: 100%;
 }
+
+/* Style for root drop zone when dragging a group condition out */
+.filter-dropdown__root-drop-active {
+  border: 2.5px dashed #38c172 !important; /* green dashed border */
+  box-shadow: 0 0 0 3px #b6f5d8 !important;
+  border-radius: 8px;
+  transition: border 0.2s, box-shadow 0.2s;
+  padding-top: 0.5em; /* add space so border doesn't overlap header */
+  position: relative;
+}
+
+/* Prevent border from overlapping the header text */
+.filter-dropdown__root-drop-active .filter-dropdown__header {
+  background: #fff;
+  position: relative;
+  z-index: 1;
+  padding-left: 10px;
+  padding-right: 10px;
+  display: inline-block;
+  margin-top: -0.5em;
+}
+
+/* Style for group drop zone when dragging a root condition in */
+.filter-group__root-drop-active {
+  border: 2.5px dashed #38c172 !important;
+  box-shadow: 0 0 0 3px #b6f5d8 !important;
+  border-radius: 8px;
+  transition: border 0.2s, box-shadow 0.2s;
+  position: relative;
+}

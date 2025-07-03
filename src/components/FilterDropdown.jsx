@@ -259,6 +259,9 @@ export function FilterDropdown({
     }, 0);
   };
 
+  // Visual feedback state for root drop zone
+  const [isRootDropActive, setIsRootDropActive] = React.useState(false);
+
   return (
     <div className={`filter-dropdown ${(filterConditions.length === 0 && conditionGroups.length === 0) ? 'filter-dropdown--empty' : ''}`}>
       {(filterConditions.length === 0 && conditionGroups.length === 0) ? (
@@ -266,14 +269,25 @@ export function FilterDropdown({
           No filter conditions are applied
         </div>
       ) : (
-        <div className="filter-dropdown__conditions"
+        <div
+          className={`filter-dropdown__conditions${isRootDropActive ? ' filter-dropdown__root-drop-active' : ''}`}
           onDragOver={e => {
             // Allow drop if dragging a group condition
             if (e.dataTransfer.types.includes('application/group-condition')) {
               e.preventDefault();
+              setIsRootDropActive(true);
             }
           }}
+          onDragEnter={e => {
+            if (e.dataTransfer.types.includes('application/group-condition')) {
+              setIsRootDropActive(true);
+            }
+          }}
+          onDragLeave={e => {
+            setIsRootDropActive(false);
+          }}
           onDrop={e => {
+            setIsRootDropActive(false);
             // Handle drop from group condition
             const data = e.dataTransfer.getData('application/group-condition');
             if (data) {
@@ -291,7 +305,6 @@ export function FilterDropdown({
           <div className="filter-dropdown__header">
             In this view, show records
           </div>
-          
           {/* Unified filter list with universal left column */}
           <UnifiedFilterList
             filterConditions={filterConditions}
@@ -323,7 +336,6 @@ export function FilterDropdown({
           />
         </div>
       )}
-      
       {/* Action buttons */}
       <div className="filter-dropdown__actions">
         <button onClick={handleAddCondition} className="filter-action-btn">

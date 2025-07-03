@@ -269,6 +269,8 @@ export function FilterGroup({
   // Drag state for group conditions
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragHoverIndex, setDragHoverIndex] = useState(null);
+  // Visual feedback for root-to-group drop
+  const [isRootDropActive, setIsRootDropActive] = useState(false);
 
   // Drag handlers for group conditions
   const handleDragStart = (e, idx) => {
@@ -390,36 +392,41 @@ export function FilterGroup({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [addPopupOpen]);
 
-  // Enable drag-and-drop of root or group conditions into this group
+  // Enable drag-and-drop of root conditions into this group
   const handleGroupDrop = (e) => {
     e.preventDefault();
-    // Try root-to-group first
+    setIsRootDropActive(false);
     const rootData = e.dataTransfer.getData('application/root-condition');
     if (rootData) {
       const { conditionIndex } = JSON.parse(rootData);
       if (typeof onAddConditionToGroup === 'function') {
-        // Parent must atomically move from root to this group
-        onAddConditionToGroup(groupId || group.id, conditionIndex, { moveFromRoot: true });
+        onAddConditionToGroup(groupId || group.id, Number(conditionIndex), { moveFromRoot: true });
       }
-      return;
-    }
-    // Try group-to-group (or group-to-this-group)
-    const groupData = e.dataTransfer.getData('application/group-condition');
-    if (groupData) {
-      const { groupId: fromGroupId, conditionIndex } = JSON.parse(groupData);
-      if (typeof onAddConditionToGroup === 'function') {
-        // Parent must atomically move from one group to another
-        onAddConditionToGroup(groupId || group.id, conditionIndex, { moveFromGroup: fromGroupId });
-      }
-      return;
     }
   };
   const handleGroupDragOver = (e) => {
     e.preventDefault();
+    if (e.dataTransfer.types.includes('application/root-condition')) {
+      setIsRootDropActive(true);
+    }
+  };
+  const handleGroupDragEnter = (e) => {
+    if (e.dataTransfer.types.includes('application/root-condition')) {
+      setIsRootDropActive(true);
+    }
+  };
+  const handleGroupDragLeave = (e) => {
+    setIsRootDropActive(false);
   };
 
   return (
-    <div className="filter-group" onDrop={handleGroupDrop} onDragOver={handleGroupDragOver}>
+    <div
+      className={`filter-group${isRootDropActive ? ' filter-group__root-drop-active' : ''}`}
+      onDrop={handleGroupDrop}
+      onDragOver={handleGroupDragOver}
+      onDragEnter={handleGroupDragEnter}
+      onDragLeave={handleGroupDragLeave}
+    >
       {/* Group header: show only if group has children */}
       {group.conditions.length > 0 ? (
         <div className="filter-group__header filter-group__header--filled">
