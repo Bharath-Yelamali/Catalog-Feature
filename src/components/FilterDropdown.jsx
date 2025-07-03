@@ -60,16 +60,31 @@ export function FilterDropdown({
       // Move a root-level condition into the group
       const idx = conditionOrIndex;
       const conditionToMove = filterConditions[idx];
+      console.log('[handleAddConditionToGroup] moveFromRoot:', { groupId, idx, conditionToMove, filterConditions: [...filterConditions] });
       if (!conditionToMove) return;
-      setFilterConditions(prev => prev.filter((_, i) => i !== idx));
-      setConditionGroups(prevGroups => addConditionToGroup(prevGroups, groupId, conditionToMove));
+      setFilterConditions(prev => {
+        const filtered = prev.filter((_, i) => i !== idx);
+        console.log('[setFilterConditions] Removing from root:', { idx, filtered });
+        return filtered;
+      });
+      setConditionGroups(prevGroups => {
+        const updated = addConditionToGroup(prevGroups, groupId, conditionToMove);
+        console.log('[setConditionGroups] Adding to group:', { groupId, conditionToMove, updated });
+        return updated;
+      });
       setHasUnprocessedChanges(true);
     } else {
       // Add a new condition via button
-      setConditionGroups(prevGroups => addConditionToGroup(prevGroups, groupId, {
+      const newCond = {
         ...conditionOrIndex,
         id: `group-condition-${Date.now()}-${Math.floor(Math.random()*10000)}`
-      }));
+      };
+      console.log('[handleAddConditionToGroup] add via button:', { groupId, newCond });
+      setConditionGroups(prevGroups => {
+        const updated = addConditionToGroup(prevGroups, groupId, newCond);
+        console.log('[setConditionGroups] Adding new via button:', { groupId, newCond, updated });
+        return updated;
+      });
       setHasUnprocessedChanges(true);
     }
   };

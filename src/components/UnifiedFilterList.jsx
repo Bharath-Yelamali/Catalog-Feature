@@ -51,7 +51,16 @@ export function UnifiedFilterList({
   return (
     <div className="filter-items-list">
       {allFilterItems.map((item, index) => (
-        <div key={item.id} className="filter-item">
+        <div key={item.id} className="filter-item"
+          // Only make conditions draggable, not groups
+          draggable={item.type === 'condition'}
+          onDragStart={item.type === 'condition' ? (e) => onDragStart && onDragStart(e, index) : undefined}
+          onDragOver={onDragOver}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onDragEnd={onDragEnd}
+        >
           {/* Left column based on position in the unified list */}
           <div className="filter-left-column">
             <LogicalOperatorSelector 

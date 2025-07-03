@@ -364,7 +364,11 @@ export function FilterGroup({
   // Enable drag-and-drop of root conditions into this group
   const handleGroupDrop = (e) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to parent drop zones
     setIsRootDropActive(false);
+    // Guard: only process if not already handled
+    if (e.__dropHandled) return;
+    e.__dropHandled = true;
     const rootData = e.dataTransfer.getData('application/root-condition');
     if (rootData) {
       const { conditionIndex } = JSON.parse(rootData);
@@ -403,8 +407,7 @@ export function FilterGroup({
             Any of the following are true…
           </span>
           <div className="filter-group__header-btn-row" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
-            <button
-              className="filter-group__add-btn"
+            <button className="filter-group__add-btn"
               title="Add Condition"
               type="button"
               onClick={handleAddCondition}
@@ -413,9 +416,6 @@ export function FilterGroup({
             </button>
             <button className="filter-group__remove-btn" title="Remove group" type="button" onClick={() => onRemoveGroup(groupIndex)}>
               <img src="/images/garbage.svg" alt="Remove" className="filter-group__remove-icon" />
-            </button>
-            <button className="filter-group__drag-btn" title="Drag group" type="button">
-              <img src="/images/dots.svg" alt="Drag" className="filter-group__drag-icon" />
             </button>
           </div>
         </div>
@@ -425,8 +425,7 @@ export function FilterGroup({
             Drag conditions here to add them to this group
           </span>
           <div className="filter-group__header-btn-row" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
-            <button
-              className="filter-group__add-btn"
+            <button className="filter-group__add-btn"
               title="Add Condition"
               type="button"
               onClick={handleAddCondition}
@@ -435,9 +434,6 @@ export function FilterGroup({
             </button>
             <button className="filter-group__remove-btn" title="Remove group" type="button" onClick={() => onRemoveGroup(groupIndex)}>
               <img src="/images/garbage.svg" alt="Remove" className="filter-group__remove-icon" />
-            </button>
-            <button className="filter-group__drag-btn" title="Drag group" type="button">
-              <img src="/images/dots.svg" alt="Drag" className="filter-group__drag-icon" />
             </button>
           </div>
         </div>
