@@ -34,7 +34,7 @@ export function FilterDropdown({
   };
 
   // Recursive helper to add a condition to a group by groupId
-  function addConditionToGroup(groups, groupId, newCondition) {
+  function addConditionToGroup(groups, groupId, newCondition, moveFromRootIndex = null) {
     return groups.map(group => {
       if (group.id === groupId) {
         return {
@@ -47,19 +47,31 @@ export function FilterDropdown({
         ...group,
         conditions: group.conditions.map(cond =>
           cond.type === 'group'
-            ? addConditionToGroup([cond], groupId, newCondition)[0]
+            ? addConditionToGroup([cond], groupId, newCondition, moveFromRootIndex)[0]
             : cond
         )
       };
     });
   }
 
-  const handleAddConditionToGroup = (groupId, condition) => {
-    setConditionGroups(prevGroups => addConditionToGroup(prevGroups, groupId, {
-      ...condition,
-      id: `group-condition-${Date.now()}-${Math.floor(Math.random()*10000)}`
-    }));
-    setHasUnprocessedChanges(true);
+  // Handler for adding a condition to a group (from button or drag)
+  const handleAddConditionToGroup = (groupId, conditionOrIndex, opts = {}) => {
+    if (opts.moveFromRoot) {
+      // Move a root-level condition into the group
+      const idx = conditionOrIndex;
+      const conditionToMove = filterConditions[idx];
+      if (!conditionToMove) return;
+      setFilterConditions(prev => prev.filter((_, i) => i !== idx));
+      setConditionGroups(prevGroups => addConditionToGroup(prevGroups, groupId, conditionToMove));
+      setHasUnprocessedChanges(true);
+    } else {
+      // Add a new condition via button
+      setConditionGroups(prevGroups => addConditionToGroup(prevGroups, groupId, {
+        ...conditionOrIndex,
+        id: `group-condition-${Date.now()}-${Math.floor(Math.random()*10000)}`
+      }));
+      setHasUnprocessedChanges(true);
+    }
   };
 
   const handleOperatorChange = (index, value) => {
@@ -183,14 +195,99 @@ export function FilterDropdown({
     setHasUnprocessedChanges(true);
   };
 
+  // Utility: reorder array
+  function reorderArray(arr, fromIndex, toIndex) {
+    const newArr = [...arr];
+    const [moved] = newArr.splice(fromIndex, 1);
+    newArr.splice(toIndex, 0, moved);
+    return newArr;
+  }
+
+  // Handler: reorder conditions within a group
+  function handleReorderConditionInGroup(groupIndex, fromIndex, toIndex) {
+    setConditionGroups(prevGroups => {
+      const newGroups = [...prevGroups];
+      const group = { ...newGroups[groupIndex] };
+      group.conditions = reorderArray(group.conditions, fromIndex, toIndex);
+      newGroups[groupIndex] = group;
+      return newGroups;
+    });
+    setHasUnprocessedChanges(true);
+  }
+
+  // Handler for moving a condition from a group to the root (via drag-and-drop)
+  const handleMoveConditionToRoot = (groupId, conditionIndex) => {
+    let extracted = { newGroups: null, condition: null };
+    function removeAndExtract(groups) {
+      return groups.map(group => {
+        if (group.id === groupId) {
+          const newConds = group.conditions.filter((cond, idx) => {
+            if (idx === conditionIndex) {
+              extracted.condition = cond;
+              return false;
+            }
+            return true;
+          });
+          return { ...group, conditions: newConds };
+        }
+        // Recursively check subgroups
+        return {
+          ...group,
+          conditions: group.conditions.map(cond =>
+            cond.type === 'group'
+              ? removeAndExtract([cond])[0]
+              : cond
+          )
+        };
+      });
+    }
+    setConditionGroups(prevGroups => {
+      extracted = { newGroups: null, condition: null };
+      const newGroups = removeAndExtract(prevGroups);
+      extracted.newGroups = newGroups;
+      return newGroups;
+    });
+    // Use a timeout to ensure setConditionGroups has run before updating root
+    setTimeout(() => {
+      if (extracted.condition) {
+        setFilterConditions(prev => [
+          ...prev,
+          { ...extracted.condition, id: `root-condition-${Date.now()}-${Math.floor(Math.random()*10000)}` }
+        ]);
+        setHasUnprocessedChanges(true);
+      }
+    }, 0);
+  };
+
   return (
-    <div className={`filter-dropdown ${filterConditions.length === 0 ? 'filter-dropdown--empty' : ''}`}>
-      {filterConditions.length === 0 ? (
+    <div className={`filter-dropdown ${(filterConditions.length === 0 && conditionGroups.length === 0) ? 'filter-dropdown--empty' : ''}`}>
+      {(filterConditions.length === 0 && conditionGroups.length === 0) ? (
         <div className="filter-dropdown__empty">
           No filter conditions are applied
         </div>
       ) : (
-        <div className="filter-dropdown__conditions">
+        <div className="filter-dropdown__conditions"
+          onDragOver={e => {
+            // Allow drop if dragging a group condition
+            if (e.dataTransfer.types.includes('application/group-condition')) {
+              e.preventDefault();
+            }
+          }}
+          onDrop={e => {
+            // Handle drop from group condition
+            const data = e.dataTransfer.getData('application/group-condition');
+            if (data) {
+              try {
+                const { groupId, conditionIndex } = JSON.parse(data);
+                if (typeof groupId === 'string' && typeof conditionIndex === 'number') {
+                  handleMoveConditionToRoot(groupId, conditionIndex);
+                }
+              } catch (err) {
+                // Ignore
+              }
+            }
+          }}
+        >
           <div className="filter-dropdown__header">
             In this view, show records
           </div>
@@ -220,6 +317,8 @@ export function FilterDropdown({
             onFieldChangeInGroup={handleGroupConditionFieldChange}
             onOperatorChangeInGroup={handleGroupConditionOperatorChange}
             onValueChangeInGroup={handleGroupConditionValueChange}
+            onReorderConditionInGroup={handleReorderConditionInGroup}
+            onMoveConditionToRoot={handleMoveConditionToRoot}
             setHasUnprocessedChanges={setHasUnprocessedChanges}
           />
         </div>

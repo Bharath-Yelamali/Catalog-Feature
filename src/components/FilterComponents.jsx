@@ -21,7 +21,10 @@ export function FilterCondition({
   onDragEnd,
   searchableFields = [],
   inputValues = {},
-  showLeftColumn = true // Whether to show the left column with WHERE/AND/OR
+  showLeftColumn = true, // Whether to show the left column with WHERE/AND/OR
+  isInGroup = false, // New prop: whether this condition is inside a group
+  groupId, // New prop: group ID, if applicable
+  conditionIndexInGroup // New prop: index of this condition in its group
 }) {
   // Input validation
   if (!condition || typeof condition !== 'object') {
@@ -63,10 +66,15 @@ export function FilterCondition({
   }, [index, onRemove]);
 
   const handleDragStart = useCallback((e) => {
-    if (onDragStart) {
-      onDragStart(e, index);
+    if (isInGroup && typeof groupId === 'string' && typeof conditionIndexInGroup === 'number') {
+      // Dragging from group: use a clear type
+      e.dataTransfer.setData('application/group-condition', JSON.stringify({ groupId, conditionIndex: conditionIndexInGroup }));
+    } else if (!isInGroup) {
+      // Dragging from root: use a clear type
+      e.dataTransfer.setData('application/root-condition', JSON.stringify({ conditionIndex: index }));
+      if (onDragStart) onDragStart(e, index);
     }
-  }, [index, onDragStart]);
+  }, [index, onDragStart, isInGroup, groupId, conditionIndexInGroup]);
 
   const handleDragEnter = useCallback((e) => {
     if (onDragEnter) {
@@ -98,7 +106,6 @@ export function FilterCondition({
           showLabel={true}
         />
       )}
-      
       {/* Condition box with controls */}
       <div
         className={`filter-condition__box ${
@@ -245,7 +252,8 @@ export function FilterGroup({
   onAddConditionToGroup,
   onAddGroupToGroup,
   maxNesting = 3,
-  nestingLevel = 1
+  nestingLevel = 1,
+  onReorderConditionInGroup // <-- new prop
 }) {
   // Input validation
   if (!group || typeof group !== 'object' || !Array.isArray(group.conditions)) {
@@ -257,6 +265,32 @@ export function FilterGroup({
     console.error('FilterGroup: Invalid groupIndex prop');
     return null;
   }
+
+  // Drag state for group conditions
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dragHoverIndex, setDragHoverIndex] = useState(null);
+
+  // Drag handlers for group conditions
+  const handleDragStart = (e, idx) => {
+    setDraggedIndex(idx);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    setDragHoverIndex(idx);
+  };
+  const handleDrop = (e, idx) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== idx && typeof onReorderConditionInGroup === 'function') {
+      onReorderConditionInGroup(groupId || group.id, draggedIndex, idx);
+    }
+    setDraggedIndex(null);
+    setDragHoverIndex(null);
+  };
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragHoverIndex(null);
+  };
 
   const handleGroupLogicalOperatorChange = useCallback((e) => {
     // This would be passed down from parent if needed
@@ -356,8 +390,36 @@ export function FilterGroup({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [addPopupOpen]);
 
+  // Enable drag-and-drop of root or group conditions into this group
+  const handleGroupDrop = (e) => {
+    e.preventDefault();
+    // Try root-to-group first
+    const rootData = e.dataTransfer.getData('application/root-condition');
+    if (rootData) {
+      const { conditionIndex } = JSON.parse(rootData);
+      if (typeof onAddConditionToGroup === 'function') {
+        // Parent must atomically move from root to this group
+        onAddConditionToGroup(groupId || group.id, conditionIndex, { moveFromRoot: true });
+      }
+      return;
+    }
+    // Try group-to-group (or group-to-this-group)
+    const groupData = e.dataTransfer.getData('application/group-condition');
+    if (groupData) {
+      const { groupId: fromGroupId, conditionIndex } = JSON.parse(groupData);
+      if (typeof onAddConditionToGroup === 'function') {
+        // Parent must atomically move from one group to another
+        onAddConditionToGroup(groupId || group.id, conditionIndex, { moveFromGroup: fromGroupId });
+      }
+      return;
+    }
+  };
+  const handleGroupDragOver = (e) => {
+    e.preventDefault();
+  };
+
   return (
-    <div className="filter-group">
+    <div className="filter-group" onDrop={handleGroupDrop} onDragOver={handleGroupDragOver}>
       {/* Group header: show only if group has children */}
       {group.conditions.length > 0 ? (
         <div className="filter-group__header filter-group__header--filled">
@@ -474,7 +536,7 @@ export function FilterGroup({
       )}
       {/* Conditions within the group, rendered below the button row */}
       {group.conditions.map((condition, conditionIndex) => (
-        <div key={condition.id} className="filter-item-combined">
+        <div key={condition.id} className={`filter-item-combined${draggedIndex === conditionIndex ? ' filter-condition__box--dragging' : ''}${dragHoverIndex === conditionIndex ? ' filter-condition__box--drag-hover' : ''}`}> 
           {/* Left column for Where/AND/OR, always outside the box */}
           <div className="filter-left-column">
             <LogicalOperatorSelector
@@ -495,8 +557,8 @@ export function FilterGroup({
             condition={condition}
             index={conditionIndex}
             logicalOperator={group.logicalOperator || 'or'}
-            draggedCondition={null} // You can wire up drag state if needed
-            dragHoverTarget={null}
+            draggedCondition={draggedIndex}
+            dragHoverTarget={dragHoverIndex}
             onFieldChange={(idx, value) => onConditionFieldChange(groupIndex, idx, value)}
             onOperatorChange={(idx, value) => onConditionOperatorChange(groupIndex, idx, value)}
             onValueChange={(idx, value) => onConditionValueChange(groupIndex, idx, value)}
@@ -506,15 +568,18 @@ export function FilterGroup({
                 onRemoveCondition(groupIndex, idx);
               }
             }}
-            onDragStart={() => {}}
-            onDragOver={() => {}}
-            onDragEnter={() => {}}
-            onDragLeave={() => {}}
-            onDrop={() => {}}
-            onDragEnd={() => {}}
+            onDragStart={(e) => handleDragStart(e, conditionIndex)}
+            onDragOver={(e) => handleDragOver(e, conditionIndex)}
+            onDragEnter={(e) => handleDragOver(e, conditionIndex)}
+            onDragLeave={handleDragEnd}
+            onDrop={(e) => handleDrop(e, conditionIndex)}
+            onDragEnd={handleDragEnd}
             searchableFields={searchableFields}
             inputValues={{ [conditionIndex]: condition.value }}
             showLeftColumn={false}
+            isInGroup={true}
+            groupId={groupId || group.id}
+            conditionIndexInGroup={conditionIndex}
           />
         </div>
       ))}
