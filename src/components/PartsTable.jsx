@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { updateSpareValue } from '../api/parts';
-import { executeSearch, processSearchResults } from '../controllers/searchController';
-import { buildSearchParams } from '../utils/searchUtils';
+import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton, useSearchUtilities } from './SearchBarLogic';
 
 function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch }) {
   const [expandedValue, setExpandedValue] = useState(null);
@@ -27,90 +26,59 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // 1. Add state to track the order in which instances are checked
   const [instanceSelectionOrder, setInstanceSelectionOrder] = useState([]); // array of instance ids in order of selection
-  
-  // State for hide fields functionality
-  const [hideFieldsDropdownOpen, setHideFieldsDropdownOpen] = useState(false);
-  const [hiddenFields, setHiddenFields] = useState({}); // { [fieldName]: boolean }
-  const [fieldSearchQuery, setFieldSearchQuery] = useState(''); // Search query for fields
 
-  // State for filter functionality
-  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [filterConditions, setFilterConditions] = useState([]); // Array of condition objects
-  const [conditionGroups, setConditionGroups] = useState([]); // Array of condition group objects
-  const [filteredResults, setFilteredResults] = useState(results); // Filtered results for display
-  const [inputValues, setInputValues] = useState({}); // Local state for input values to enable debouncing
-  const [hasUnprocessedChanges, setHasUnprocessedChanges] = useState(false); // Track if user has made changes that haven't been processed
-  const [logicalOperator, setLogicalOperator] = useState('and'); // Logical operator for multiple conditions
-  const [draggedCondition, setDraggedCondition] = useState(null); // Track which condition is being dragged
-  const [dragHoverTarget, setDragHoverTarget] = useState(null); // Track which condition is being hovered over during drag
+  // Use field management hook
+  const {
+    hideFieldsDropdownOpen,
+    setHideFieldsDropdownOpen,
+    hiddenFields,
+    setHiddenFields,
+    fieldSearchQuery,
+    setFieldSearchQuery,
+    filteredFields,
+    hiddenFieldCount,
+    toggleFieldVisibility,
+    getMainTableGridColumns,
+    getInstanceTableGridColumns,
+    allFields
+  } = useFieldManagement();
 
-  // Helper to truncate from the right (show left side, hide right side)
-  const truncate = (str, max = 20) => {
-    if (!str || str.length <= max) return str;
-    return str.slice(0, max) + '...';
-  };
+  // Use filter management hook
+  const {
+    filterDropdownOpen,
+    setFilterDropdownOpen,
+    filterConditions,
+    setFilterConditions,
+    conditionGroups,
+    setConditionGroups,
+    filteredResults,
+    setFilteredResults,
+    inputValues,
+    setInputValues,
+    hasUnprocessedChanges,
+    setHasUnprocessedChanges,
+    logicalOperator,
+    setLogicalOperator,
+    draggedCondition,
+    setDraggedCondition,
+    dragHoverTarget,
+    setDragHoverTarget,
+    activeFilterCount,
+    applyFilters,
+    matchesCondition,
+    convertFilterConditionsToChips,
+    triggerFilterSearch,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnter,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    searchableFields
+  } = useFilterManagement(results, onFilterSearch);
 
-  // Define all available fields for the hide/show functionality
-  const allFields = [
-    { key: 'qty', label: 'Qty', isMainTable: true },
-    { key: 'total', label: 'Total', isMainTable: true },
-    { key: 'inUse', label: 'In Use', isMainTable: true },
-    { key: 'essentialReserve', label: 'Essential Reserve', isMainTable: true },
-    { key: 'usableSurplus', label: 'Usable Surplus', isMainTable: true },
-    { key: 'inventoryItemNumber', label: 'Inventory Item Number', isMainTable: true },
-    { key: 'manufacturerPartNumber', label: 'Manufacturer Part #', isMainTable: true },
-    { key: 'manufacturerName', label: 'Manufacturer Name', isMainTable: true },
-    { key: 'inventoryDescription', label: 'Inventory Description', isMainTable: true },
-    { key: 'instanceId', label: 'Instance ID', isMainTable: false },
-    { key: 'serialNumber', label: 'Serial Number/Name', isMainTable: false },
-    { key: 'quantity', label: 'Quantity', isMainTable: false },
-    { key: 'inventoryMaturity', label: 'Inventory Maturity', isMainTable: false },
-    { key: 'associatedProject', label: 'Associated Project', isMainTable: false },
-    { key: 'hardwareCustodian', label: 'Hardware Custodian', isMainTable: false },
-    { key: 'parentPath', label: 'Parent Path', isMainTable: false }
-  ];
-
-  // Define only the searchable fields for the filter dropdown
-  const searchableFields = [
-    { key: 'inventoryItemNumber', label: 'Inventory Item Number', isMainTable: true },
-    { key: 'manufacturerPartNumber', label: 'Manufacturer Part #', isMainTable: true },
-    { key: 'manufacturerName', label: 'Manufacturer Name', isMainTable: true },
-    { key: 'inventoryDescription', label: 'Inventory Description', isMainTable: true },
-    { key: 'instanceId', label: 'Instance ID', isMainTable: false },
-    { key: 'associatedProject', label: 'Associated Project', isMainTable: false },
-    { key: 'hardwareCustodian', label: 'Hardware Custodian', isMainTable: false },
-    { key: 'parentPath', label: 'Parent Path', isMainTable: false }
-  ];
-
-  const toggleFieldVisibility = (fieldKey) => {
-    setHiddenFields(prev => ({
-      ...prev,
-      [fieldKey]: !prev[fieldKey]
-    }));
-  };
-
-  // Count active filter conditions
-  const activeFilterCount = filterConditions.filter(condition => 
-    condition.field && condition.operator && condition.value.trim() !== ''
-  ).length;
-
-  // Filter fields based on search query
-  const filteredFields = allFields.filter(field => 
-    field.label.toLowerCase().includes(fieldSearchQuery.toLowerCase())
-  );
-
-  // Count hidden fields
-  const hiddenFieldCount = Object.values(hiddenFields).filter(Boolean).length;
-
-  // Helper function to generate grid template columns for main table
-  const getMainTableGridColumns = () => {
-    return `40px ${!hiddenFields.qty ? '80px' : ''} 40px ${!hiddenFields.total ? '1fr' : ''} ${!hiddenFields.inUse ? '1fr' : ''} ${!hiddenFields.essentialReserve ? '1fr' : ''} ${!hiddenFields.usableSurplus ? '1fr' : ''} ${!hiddenFields.inventoryItemNumber ? '1.2fr' : ''} ${!hiddenFields.manufacturerPartNumber ? '1.2fr' : ''} ${!hiddenFields.manufacturerName ? '1.2fr' : ''} ${!hiddenFields.inventoryDescription ? '2fr' : ''}`.replace(/\s+/g, ' ').trim();
-  };
-
-  // Helper function to generate grid template columns for instance table
-  const getInstanceTableGridColumns = () => {
-    return `1fr ${!hiddenFields.instanceId ? '2fr' : ''} ${!hiddenFields.serialNumber ? '2fr' : ''} ${!hiddenFields.quantity ? '2fr' : ''} ${!hiddenFields.inventoryMaturity ? '1fr' : ''} ${!hiddenFields.associatedProject ? '2fr' : ''} ${!hiddenFields.hardwareCustodian ? '2fr' : ''} ${!hiddenFields.parentPath ? '2fr' : ''}`.replace(/\s+/g, ' ').trim();
-  };
+  // Use search utilities hook
+  const { highlightFieldWithMatches, truncateText } = useSearchUtilities();
 
   // Handler for clicking a cell
   const handleCellClick = (label, value) => {
@@ -166,51 +134,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       }
       return newSelected;
     });
-  };
-
-  // Helper to highlight all backend-matched keywords in a field
-  const highlightFieldWithMatches = (text, matches) => {
-    if (!matches || !text) return text;
-    // matches is an array of keywords to highlight
-    let result = [];
-    let lowerText = text.toLowerCase();
-    let ranges = [];
-    for (const kw of matches) {
-      if (!kw) continue;
-      let idx = lowerText.indexOf(kw.toLowerCase());
-      while (idx !== -1) {
-        ranges.push({ start: idx, end: idx + kw.length });
-        idx = lowerText.indexOf(kw.toLowerCase(), idx + kw.length);
-      }
-    }
-    if (ranges.length === 0) return text;
-    // Sort and merge overlapping ranges
-    ranges.sort((a, b) => a.start - b.start);
-    let merged = [];
-    for (const r of ranges) {
-      if (!merged.length || merged[merged.length - 1].end < r.start) {
-        merged.push({ ...r });
-      } else {
-        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, r.end);
-      }
-    }
-    // Build highlighted output
-    let cursor = 0;
-    for (const m of merged) {
-      if (cursor < m.start) {
-        result.push(text.slice(cursor, m.start));
-      }
-      result.push(
-        <span style={{ background: '#ffe066', color: '#222', fontWeight: 600 }} key={m.start}>
-          {text.slice(m.start, m.end)}
-        </span>
-      );
-      cursor = m.end;
-    }
-    if (cursor < text.length) {
-      result.push(text.slice(cursor));
-    }
-    return result;
   };
 
   const handleExpandToggle = (itemNumber) => {
@@ -274,1376 +197,64 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     };
   }, [requestPopup.open]);
 
-  // Close hide fields dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (hideFieldsDropdownOpen && !event.target.closest('.hide-fields-container')) {
-        setHideFieldsDropdownOpen(false);
-      }
-      if (filterDropdownOpen && !event.target.closest('.filter-container')) {
-        setFilterDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [hideFieldsDropdownOpen, filterDropdownOpen]);
-
-  // Debouncing refs for API calls
-  const lastKeystrokeRef = useRef(0);
-  const debounceTimeoutRef = useRef(null);
-
-  // Update input values when filter conditions change (for initial loading only)
-  useEffect(() => {
-    const newInputValues = {};
-    filterConditions.forEach((condition, index) => {
-      newInputValues[index] = condition.value;
-    });
-    setInputValues(newInputValues);
-  }, [filterConditions.length]); // Only react to array length changes, not value changes
-
-  // Filter function that applies all conditions to results (client-side fallback only)
-  const applyFilters = useCallback((conditions, data) => {
-    if (!conditions || conditions.length === 0) {
-      return data;
-    }
-
-    const filtered = data.filter(group => {
-      const part = group.instances[0];
-      
-      const matchesAllConditions = conditions.every(condition => {
-        if (!condition.field || !condition.operator || condition.value === '') {
-          return true; // Skip incomplete conditions
-        }
-
-        let fieldValue = '';
-        let matches = false;
-        
-        // Map field keys to actual data values
-        switch (condition.field) {
-          case 'inventoryItemNumber':
-            fieldValue = part.m_inventory_item?.item_number || '';
-            matches = matchesCondition(fieldValue, condition.operator, condition.value);
-            break;
-          case 'manufacturerPartNumber':
-            fieldValue = part.m_mfg_part_number || '';
-            matches = matchesCondition(fieldValue, condition.operator, condition.value);
-            break;
-          case 'manufacturerName':
-            fieldValue = part.m_mfg_name || '';
-            matches = matchesCondition(fieldValue, condition.operator, condition.value);
-            break;
-          case 'inventoryDescription':
-            fieldValue = part.m_inventory_description || part.m_description || '';
-            
-            // Debug: Log every part's inventory description when searching for "rail"
-            if (condition.value.toLowerCase() === 'rail') {
-              console.log('DEBUG - Part:', {
-                id: part.m_id,
-                inv_desc: part.m_inventory_description,
-                desc: part.m_description,
-                fieldValue: fieldValue,
-                searchValue: condition.value,
-                hasRail: fieldValue.toLowerCase().includes('rail')
-              });
-            }
-            
-            matches = matchesCondition(fieldValue, condition.operator, condition.value);
-            break;
-          case 'instanceId':
-            // For instance fields, check all instances in the group
-            matches = group.instances.some(instance => {
-              const instValue = instance.m_id || '';
-              return matchesCondition(instValue, condition.operator, condition.value);
-            });
-            break;
-          case 'associatedProject':
-            matches = group.instances.some(instance => {
-              const instValue = instance.m_project?.keyed_name || instance.associated_project || '';
-              return matchesCondition(instValue, condition.operator, condition.value);
-            });
-            break;
-          case 'hardwareCustodian':
-            matches = group.instances.some(instance => {
-              const instValue = instance["m_custodian@aras.keyed_name"] || instance.m_custodian || '';
-              return matchesCondition(instValue, condition.operator, condition.value);
-            });
-            break;
-          case 'parentPath':
-            matches = group.instances.some(instance => {
-              const instValue = instance.m_parent_ref_path || '';
-              return matchesCondition(instValue, condition.operator, condition.value);
-            });
-            break;
-          default:
-            matches = true;
-        }
-
-        return matches;
-      });
-
-      return matchesAllConditions;
-    });
-    
-    // Debug for "rail" search
-    const hasRailCondition = conditions.some(c => c.value.toLowerCase() === 'rail' && c.field === 'inventoryDescription');
-    if (hasRailCondition) {
-      console.log('DEBUG - After filtering for "rail":', {
-        originalCount: data.length,
-        filteredCount: filtered.length,
-        conditions: conditions
-      });
-    }
-
-    return filtered;
-  }, []);
-
-  // Helper function to check if a value matches a condition
-  const matchesCondition = (fieldValue, operator, searchValue) => {
-    const field = String(fieldValue).toLowerCase();
-    const search = String(searchValue).toLowerCase();
-
-    let result = false;
-    switch (operator) {
-      case 'contains':
-        result = field.includes(search);
-        break;
-      case 'does not contain':
-        result = !field.includes(search);
-        break;
-      case 'is':
-        result = field === search;
-        break;
-      case 'is not':
-        result = field !== search;
-        break;
-      default:
-        result = true;
-    }
-
-    // Log for debugging
-    if (operator === 'contains') {
-      console.log(`matchesCondition: "${field}" ${operator} "${search}" = ${result}`);
-    }
-
-    return result;
-  };
-
-  // Convert filter conditions to search chips format for API
-  const convertFilterConditionsToChips = useCallback((conditions) => {
-    const filteredConditions = conditions
-      .filter(condition => condition.field && condition.operator && condition.value.trim() !== '')
-      .map(condition => {
-        // Map field keys to API field names
-        const fieldMapping = {
-          'inventoryItemNumber': 'm_inventory_item',
-          'manufacturerPartNumber': 'm_mfg_part_number',
-          'manufacturerName': 'm_mfg_name',
-          'inventoryDescription': 'm_inventory_description',
-          'instanceId': 'm_id',
-          'associatedProject': 'item_number',
-          'hardwareCustodian': 'm_custodian@aras.keyed_name',
-          'parentPath': 'm_parent_ref_path'
-        };
-
-        // Send operator-value object to backend
-        return {
-          field: fieldMapping[condition.field] || condition.field,
-          value: {
-            operator: condition.operator,
-            value: condition.value.trim()
-          }
-        };
-      });
-
-    // Return structured format with logical operator
-    return {
-      logicalOperator: logicalOperator,
-      conditions: filteredConditions
-    };
-  }, [logicalOperator]);
-
-  // Trigger API search when filter conditions are complete and have changed
-  const triggerFilterSearch = useCallback(async (conditions) => {
-    if (!onFilterSearch) {
-      // Fallback to client-side filtering if no API handler provided
-      const filtered = applyFilters(conditions, results);
-      setFilteredResults(filtered);
-      return;
-    }
-
-    // Convert conditions to search chips format
-    const chips = convertFilterConditionsToChips(conditions);
-    
-    if (chips.length === 0) {
-      // No valid filter conditions - reset to original results
-      setFilteredResults(results);
-      return;
-    }
-
-    try {
-      // Trigger API search with filter conditions
-      console.log('Triggering filter search with conditions:', chips);
-      await onFilterSearch(chips);
-    } catch (error) {
-      // Ignore AbortError as it's expected when searches are cancelled
-      if (error.name === 'AbortError') {
-        console.log('Filter search was cancelled (this is normal)');
-        return;
-      }
-      
-      console.error('Filter search failed:', error);
-      // On error, fallback to client-side filtering
-      const filtered = applyFilters(conditions, results);
-      setFilteredResults(filtered);
-    }
-  }, [onFilterSearch, convertFilterConditionsToChips]); // Remove applyFilters and results dependencies
-
-  // Apply filters when conditions change (only for complete conditions)
-  useEffect(() => {
-    // Only trigger search if we have unprocessed changes
-    if (!hasUnprocessedChanges) {
-      return;
-    }
-
-    // Clear the debounce timeout if it exists
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
-
-    // Set a new debounce timeout
-    debounceTimeoutRef.current = setTimeout(async () => {
-      // Check if we have at least one complete condition
-      const hasCompleteCondition = filterConditions.some(condition => 
-        condition.field && condition.operator && condition.value.trim() !== ''
-      );
-      
-      if (hasCompleteCondition) {
-        console.log('Triggering debounced filter search');
-        await triggerFilterSearch(filterConditions);
-      } else {
-        // When no conditions OR all conditions are incomplete OR conditions array is empty
-        // We need to trigger the original search to get back unfiltered results
-        console.log('Clearing filters - triggering original search to get unfiltered results');
-        if (onFilterSearch) {
-          try {
-            // Pass empty array to trigger original search behavior in App.jsx
-            await onFilterSearch([]);
-          } catch (error) {
-            if (error.name !== 'AbortError') {
-              console.error('Failed to clear filters:', error);
-              // Fallback to local reset if API call fails
-              setFilteredResults(results);
-            }
-          }
-        } else {
-          // No API handler, just reset locally
-          setFilteredResults(results);
-        }
-      }
-      
-      // Mark changes as processed regardless of success/failure
-      setHasUnprocessedChanges(false);
-    }, 500); // 500ms debounce delay
-  }, [filterConditions, hasUnprocessedChanges]); // Remove triggerFilterSearch dependency
-
-  // Update filtered results when base results change
-  useEffect(() => {
-    setFilteredResults(results);
-  }, [results]);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Drag and drop handlers for reordering conditions
-  const handleDragStart = (e, conditionIndex) => {
-    setDraggedCondition(conditionIndex);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', conditionIndex.toString());
-    
-    // Add visual feedback
-    e.target.style.opacity = '0.5';
-    console.log(`Started dragging condition ${conditionIndex}`);
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDragEnter = (e, targetIndex) => {
-    e.preventDefault();
-    if (draggedCondition !== null && draggedCondition !== targetIndex) {
-      setDragHoverTarget(targetIndex);
-    }
-  };
-
-  const handleDragLeave = (e, targetIndex) => {
-    // Only clear hover if we're actually leaving this element (not just moving to a child)
-    if (!e.currentTarget.contains(e.relatedTarget)) {
-      setDragHoverTarget(null);
-    }
-  };
-
-  const handleDrop = (e, targetIndex) => {
-    e.preventDefault();
-    
-    const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
-    
-    if (draggedIndex === targetIndex || isNaN(draggedIndex)) {
-      setDragHoverTarget(null);
-      return;
-    }
-
-    console.log(`Dropping condition ${draggedIndex} at position ${targetIndex}`);
-
-    const newConditions = [...filterConditions];
-    const draggedItem = newConditions[draggedIndex];
-    
-    // Remove the dragged item
-    newConditions.splice(draggedIndex, 1);
-    
-    // Insert at the new position
-    const insertIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    newConditions.splice(insertIndex, 0, draggedItem);
-    
-    // Update input values to match new order
-    const newInputValues = {};
-    newConditions.forEach((condition, newIndex) => {
-      const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
-      newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
-    });
-    
-    setFilterConditions(newConditions);
-    setInputValues(newInputValues);
-    setHasUnprocessedChanges(true);
-    
-    // Clear drag states
-    setDragHoverTarget(null);
-    
-    console.log('New condition order:', newConditions.map(c => `${c.field}:${c.value}`));
-  };
-
-  const handleDragEnd = (e) => {
-    e.target.style.opacity = '1';
-    setDraggedCondition(null);
-    setDragHoverTarget(null);
-  };
-
   return (
     <>
       {/* Button/Action header positioned against taskbar */}
       <div className="search-result-button-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>            <div style={{ position: 'relative' }} className="hide-fields-container">
-              <button
-                style={{
-                  padding: '8px 16px',
-                  background: hiddenFieldCount > 0 ? '#007bff' : 'transparent',
-                  color: hiddenFieldCount > 0 ? '#fff' : '#333',
-                  border: 'none',
-                  borderRadius: 4,
-                  fontWeight: 500,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  transition: 'background 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-                onMouseOver={e => {
-                  if (hiddenFieldCount === 0) {
-                    e.currentTarget.style.background = '#e9ecef';
-                  }
-                }}
-                onMouseOut={e => {
-                  if (hiddenFieldCount === 0) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-                onClick={() => {
-                  setHideFieldsDropdownOpen(!hideFieldsDropdownOpen);
-                }}
-                aria-label="Hide or show table fields"
-              >
-                <img 
-                  src="/images/hide.svg" 
-                  alt="" 
-                  style={{ 
-                    width: 16, 
-                    height: 16,
-                    flexShrink: 0,
-                    filter: hiddenFieldCount > 0 ? 'brightness(0) invert(1)' : 'none'
-                  }} 
-                />
-                {hiddenFieldCount > 0 ? `${hiddenFieldCount} hidden field${hiddenFieldCount === 1 ? '' : 's'}` : 'Hide Fields'}
-              </button>
-
-              {hideFieldsDropdownOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  background: '#fff',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  zIndex: 1000,
-                  minWidth: '320px',
-                  maxHeight: '400px',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  {/* Search bar */}
-                  <div style={{ padding: '12px 16px 8px 16px', borderBottom: '1px solid #eee' }}>
-                    <input
-                      type="text"
-                      placeholder="Search fields..."
-                      value={fieldSearchQuery}
-                      onChange={e => setFieldSearchQuery(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: '1px solid #ddd',
-                        borderRadius: '4px',
-                        fontSize: '14px',
-                        outline: 'none'
-                      }}
-                    />
-                  </div>
-                  
-                  {/* Scrollable field list */}
-                  <div style={{ 
-                    padding: '8px 0', 
-                    maxHeight: '280px', 
-                    overflowY: 'auto',
-                    flexGrow: 1
-                  }}>
-                    {/* Main table fields */}
-                    <div style={{ padding: '0 16px 8px 16px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>
-                        Main Table Fields
-                      </div>
-                      {filteredFields.filter(field => field.isMainTable).map(field => (
-                        <label key={field.key} style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          padding: '6px 0',
-                          cursor: 'pointer',
-                          fontSize: '14px'
-                        }}>
-                          <input
-                            type="checkbox"
-                            checked={!hiddenFields[field.key]}
-                            onChange={() => toggleFieldVisibility(field.key)}
-                            style={{ marginRight: '8px' }}
-                          />
-                          {field.label}
-                        </label>
-                      ))}
-                    </div>
-                    
-                    {/* Instance detail fields */}
-                    <div style={{ padding: '0 16px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>
-                        Instance Detail Fields
-                      </div>
-                      {filteredFields.filter(field => !field.isMainTable).map(field => (
-                        <label key={field.key} style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          padding: '6px 0',
-                          cursor: 'pointer',
-                          fontSize: '14px'
-                        }}>
-                          <input
-                            type="checkbox"
-                            checked={!hiddenFields[field.key]}
-                            onChange={() => toggleFieldVisibility(field.key)}
-                            style={{ marginRight: '8px' }}
-                          />
-                          {field.label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {/* Bottom buttons - always visible */}
-                  <div style={{ 
-                    padding: '12px 16px', 
-                    borderTop: '1px solid #eee',
-                    display: 'flex',
-                    gap: '8px',
-                    justifyContent: 'space-between'
-                  }}>
-                    <button
-                      onClick={() => {
-                        const newHiddenFields = {};
-                        allFields.forEach(field => {
-                          newHiddenFields[field.key] = true;
-                        });
-                        setHiddenFields(newHiddenFields);
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        background: '#dc3545',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        flex: 1
-                      }}
-                    >
-                      Hide All
-                    </button>
-                    <button
-                      onClick={() => {
-                        setHiddenFields({});
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        background: '#28a745',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        flex: 1
-                      }}
-                    >
-                      Show All
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+        <div className="flex-start">
+            <HideFieldsButton
+              hiddenFieldCount={hiddenFieldCount}
+              hideFieldsDropdownOpen={hideFieldsDropdownOpen}
+              setHideFieldsDropdownOpen={setHideFieldsDropdownOpen}
+              filteredFields={filteredFields}
+              hiddenFields={hiddenFields}
+              toggleFieldVisibility={toggleFieldVisibility}
+              fieldSearchQuery={fieldSearchQuery}
+              setFieldSearchQuery={setFieldSearchQuery}
+              setHiddenFields={setHiddenFields}
+              allFields={allFields}
+            />
             
-            <div style={{ position: 'relative' }} className="filter-container">
-              <button
-                style={{
-                  padding: '8px 16px',
-                  background: activeFilterCount > 0 ? '#007bff' : 'transparent',
-                  color: activeFilterCount > 0 ? '#fff' : '#333',
-                  border: 'none',
-                  borderRadius: 4,
-                  fontWeight: 500,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  transition: 'background 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-                onMouseOver={e => {
-                  if (activeFilterCount === 0) {
-                    e.currentTarget.style.background = '#e9ecef';
-                  }
-                }}
-                onMouseOut={e => {
-                  if (activeFilterCount === 0) {
-                    e.currentTarget.style.background = 'transparent';
-                  }
-                }}
-                onClick={() => {
-                  setFilterDropdownOpen(!filterDropdownOpen);
-                }}
-                aria-label="Filter table data"
-              >
-                <img 
-                  src="/images/filter.svg" 
-                  alt="" 
-                  style={{ 
-                    width: 16, 
-                    height: 16,
-                    flexShrink: 0,
-                    filter: activeFilterCount > 0 ? 'brightness(0) invert(1)' : 'none'
-                  }} 
-                />
-                {activeFilterCount > 0 ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'Filter'}
-              </button>
-
-              {filterDropdownOpen && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  background: '#fff',
-                  border: '1px solid #ddd',
-                  borderRadius: '6px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                  zIndex: 1000,
-                  minWidth: '500px',
-                  padding: '16px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  ...(filterConditions.length === 0 && { minHeight: 'auto', padding: '12px' })
-                }}>
-                  {filterConditions.length === 0 ? (
-                    // Show "No filter conditions" message when no conditions exist
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#666',
-                      fontSize: '14px',
-                      fontStyle: 'italic',
-                      marginBottom: '12px'
-                    }}>
-                      No filter conditions are applied
-                    </div>
-                  ) : (
-                    // Show filter builder interface when conditions exist
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, marginBottom: '16px' }}>
-                      {/* Header text */}
-                      <div style={{ fontSize: '14px', fontWeight: '500', color: '#333', textAlign: 'left' }}>
-                        In this view, show records
-                      </div>
-                      
-                      {/* Condition rows and groups */}
-                      {filterConditions.map((condition, index) => (
-                        <div 
-                          key={condition.id}
-                          style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px',
-                            fontSize: '14px',
-                            marginLeft: '16px',
-                            marginBottom: '0px'
-                          }}
-                        >
-                          {/* AND/OR dropdown or "Where" label - outside the box */}
-                          {index > 0 && (
-                            <>
-                              {index === 1 ? (
-                                // Second condition gets the logical operator dropdown
-                                <select
-                                  value={logicalOperator}
-                                  onChange={(e) => {
-                                    setLogicalOperator(e.target.value);
-                                    // Mark that we have unprocessed changes for logical operator changes
-                                    setHasUnprocessedChanges(true);
-                                  }}
-                                  style={{
-                                    padding: '2px 0px',
-                                    border: '1px solid #ddd',
-                                    borderRadius: '4px',
-                                    fontSize: '10px',
-                                    width: '46px',
-                                    height: '30px',
-                                    textTransform: 'uppercase'
-                                  }}
-                                >
-                                  <option value="and">AND</option>
-                                  <option value="or">OR</option>
-                                </select>
-                              ) : (
-                                // Third+ conditions show the logical operator as non-clickable text
-                                <span style={{ 
-                                  color: '#666', 
-                                  minWidth: '40px',
-                                  textTransform: 'uppercase',
-                                  fontSize: '12px',
-                                  display: 'inline-block'
-                                }}>
-                                  {logicalOperator}
-                                </span>
-                              )}
-                            </>
-                          )}
-                          {index === 0 && <span style={{ color: '#666', minWidth: '46px' }}>Where</span>}
-                          
-                          {/* Condition box with controls */}
-                          <div
-                            style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '12px', // widened from 8px
-                              padding: '3px 20px', // widened from 3px 12px
-                              borderRadius: '4px',
-                              backgroundColor: draggedCondition === index 
-                                ? '#e3f2fd' 
-                                : dragHoverTarget === index 
-                                  ? '#e8f4fd' 
-                                  : '#ffffff',
-                              opacity: draggedCondition === index ? 0.8 : 1,
-                              border: draggedCondition === index 
-                                ? '2px dashed #2196f3' 
-                                : dragHoverTarget === index 
-                                  ? '2px dashed #4caf50' 
-                                  : '1px solid #dee2e6',
-                              transition: 'all 0.2s ease',
-                              cursor: 'move',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                              flex: 1,
-                              minWidth: 0,
-                              maxWidth: '700px' // add a max width to allow more space
-                            }}
-                            // Drag and drop attributes
-                            draggable={true}
-                            onDragStart={(e) => handleDragStart(e, index)}
-                            onDragOver={handleDragOver}
-                            onDragEnter={(e) => handleDragEnter(e, index)}
-                            onDragLeave={(e) => handleDragLeave(e, index)}
-                            onDrop={(e) => handleDrop(e, index)}
-                            onDragEnd={handleDragEnd}
-                          >
-                            {/* Field dropdown */}
-                            <select
-                              value={condition.field}
-                              onChange={(e) => {
-                                const newConditions = [...filterConditions];
-                                newConditions[index].field = e.target.value;
-                                setFilterConditions(newConditions);
-                                // Mark that we have unprocessed changes for field changes too
-                                setHasUnprocessedChanges(true);
-                              }}
-                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                              style={{
-                                padding: '4px 8px',
-                                border: '1px solid #ddd',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                                minWidth: '120px'
-                              }}
-                            >
-                              <option value="">Select field...</option>
-                              {searchableFields.map(field => (
-                                <option key={field.key} value={field.key}>
-                                  {field.label}
-                                </option>
-                              ))}
-                            </select>
-                            
-                            {/* Operator dropdown */}
-                            <select
-                              value={condition.operator}
-                              onChange={(e) => {
-                                const newConditions = [...filterConditions];
-                                newConditions[index].operator = e.target.value;
-                                setFilterConditions(newConditions);
-                                // Mark that we have unprocessed changes for operator changes too
-                                setHasUnprocessedChanges(true);
-                              }}
-                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                              style={{
-                                padding: '4px 8px',
-                                border: '1px solid #ddd',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                                minWidth: '100px'
-                              }}
-                            >
-                              <option value="contains">contains...</option>
-                              <option value="does not contain">does not contain...</option>
-                              <option value="is">is...</option>
-                              <option value="is not">is not...</option>
-                            </select>
-                            
-                            {/* Value input */}
-                            <input
-                              type="text"
-                              value={inputValues[index] || ''}
-                              onChange={(e) => {
-                                const value = e.target.value;
-                                
-                                // Update local input state immediately for UI responsiveness
-                                setInputValues(prev => ({ ...prev, [index]: value }));
-                                
-                                // Update filter conditions immediately (no debouncing here)
-                                setFilterConditions(prevConditions => {
-                                  const newConditions = [...prevConditions];
-                                  newConditions[index].value = value;
-                                  return newConditions;
-                                });
-                                
-                                // Mark that we have unprocessed changes - this will trigger the useEffect debounced search
-                                setHasUnprocessedChanges(true);
-                              }}
-                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                              placeholder="Enter a value"
-                              style={{
-                                padding: '4px 8px',
-                                border: '1px solid #ddd',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                                minWidth: '120px',
-                                flex: 1
-                              }}
-                            />
-                            
-                            {/* Remove button */}
-                            <button
-                              onClick={() => {
-                                const newConditions = filterConditions.filter((_, i) => i !== index);
-                                setFilterConditions(newConditions);
-                                // Clean up input values - reindex remaining values
-                                const newInputValues = {};
-                                newConditions.forEach((condition, newIndex) => {
-                                  const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
-                                  newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
-                                });
-                                setInputValues(newInputValues);
-                                // Mark that we have unprocessed changes for condition removal
-                                setHasUnprocessedChanges(true);
-                              }}
-                              onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '4px'
-                              }}
-                              title="Remove condition"
-                            >
-                              <img 
-                                src="/images/garbage.svg" 
-                                alt="Remove" 
-                                style={{ 
-                                  width: 16, 
-                                  height: 16,
-                                  flexShrink: 0
-                                }} 
-                              />
-                            </button>
-                            
-                            {/* Drag handle */}
-                            <div
-                              style={{
-                                cursor: 'grab',
-                                padding: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '3px',
-                                transition: 'background-color 0.2s',
-                                pointerEvents: 'none' // Let drag events pass through to parent
-                              }}
-                              title="Drag to reorder"
-                            >
-                              <img 
-                                src="/images/dots.svg" 
-                                alt="Drag to reorder" 
-                                style={{ 
-                                  width: 16, 
-                                  height: 16,
-                                  flexShrink: 0,
-                                  opacity: 0.7,
-                                  pointerEvents: 'none'
-                                }} 
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {/* Condition groups */}
-                      {conditionGroups.map((group, groupIndex) => (
-                        <div 
-                          key={group.id} 
-                          style={{ 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            gap: '4px',
-                            fontSize: '14px',
-                            marginLeft: '16px',
-                            padding: '8px 12px',
-                            borderRadius: '4px',
-                            backgroundColor: '#e9ecef',
-                            border: '2px dashed #adb5bd',
-                            transition: 'all 0.2s ease',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                            marginBottom: '0px',
-                            minHeight: '28px'
-                          }}
-                          // Drag and drop attributes for accepting conditions
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                          }}
-                          onDragEnter={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.style.backgroundColor = '#d1ecf1';
-                            e.currentTarget.style.borderColor = '#bee5eb';
-                          }}
-                          onDragLeave={(e) => {
-                            if (!e.currentTarget.contains(e.relatedTarget)) {
-                              e.currentTarget.style.backgroundColor = '#e9ecef';
-                              e.currentTarget.style.borderColor = '#adb5bd';
-                            }
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.style.backgroundColor = '#e9ecef';
-                            e.currentTarget.style.borderColor = '#adb5bd';
-                            
-                            const draggedIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                            if (!isNaN(draggedIndex) && draggedIndex >= 0 && draggedIndex < filterConditions.length) {
-                              // Move condition to this group
-                              const conditionToMove = filterConditions[draggedIndex];
-                              
-                              // Remove condition from main list
-                              const newConditions = filterConditions.filter((_, i) => i !== draggedIndex);
-                              setFilterConditions(newConditions);
-                              
-                              // Add condition to this group
-                              const newGroups = [...conditionGroups];
-                              newGroups[groupIndex].conditions.push(conditionToMove);
-                              setConditionGroups(newGroups);
-                              
-                              // Update input values
-                              const newInputValues = {};
-                              newConditions.forEach((condition, newIndex) => {
-                                const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
-                                newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
-                              });
-                              setInputValues(newInputValues);
-                              
-                              setHasUnprocessedChanges(true);
-                              console.log(`Moved condition to group ${groupIndex}`);
-                            }
-                          }}
-                        >
-                          {/* Group header */}
-                          <div style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px',
-                            justifyContent: group.conditions.length === 0 ? 'center' : 'flex-end'
-                          }}>
-                            {group.conditions.length === 0 && (
-                              <span style={{ color: '#6c757d', fontStyle: 'italic' }}>
-                                Drag conditions here to add them to this group
-                              </span>
-                            )}
-                            
-                            {/* Remove button for group */}
-                            <button
-                              onClick={() => {
-                                // Move all conditions back to main list before removing group
-                                const groupConditions = conditionGroups[groupIndex].conditions;
-                                if (groupConditions.length > 0) {
-                                  setFilterConditions([...filterConditions, ...groupConditions]);
-                                  
-                                  // Update input values for moved conditions
-                                  const newInputValues = { ...inputValues };
-                                  groupConditions.forEach((condition, index) => {
-                                    newInputValues[filterConditions.length + index] = condition.value;
-                                  });
-                                  setInputValues(newInputValues);
-                                }
-                                
-                                // Remove the group
-                                const newGroups = conditionGroups.filter((_, i) => i !== groupIndex);
-                                setConditionGroups(newGroups);
-                                setHasUnprocessedChanges(true);
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                cursor: 'pointer',
-                                padding: '4px'
-                              }}
-                              title="Remove group"
-                            >
-                              <img 
-                                src="/images/garbage.svg" 
-                                alt="Remove" 
-                                style={{ 
-                                  width: 16, 
-                                  height: 16,
-                                  flexShrink: 0,
-                                  filter: 'opacity(0.6)'
-                                }} 
-                              />
-                            </button>
-                          </div>
-                          
-                          {/* Conditions within the group */}
-                          {group.conditions.map((condition, conditionIndex) => (
-                            <div 
-                              key={condition.id} 
-                              style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                fontSize: '14px',
-                                marginLeft: '12px',
-                                padding: '3px 12px',
-                                borderRadius: '4px',
-                                backgroundColor: '#ffffff',
-                                border: '1px solid #dee2e6',
-                                transition: 'all 0.2s ease',
-                                cursor: 'move',
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                              }}
-                              // Drag and drop attributes for reordering within group
-                              draggable={true}
-                              onDragStart={(e) => {
-                                e.dataTransfer.effectAllowed = 'move';
-                                e.dataTransfer.setData('text/plain', `group-${groupIndex}-${conditionIndex}`);
-                                e.target.style.opacity = '0.5';
-                              }}
-                              onDragOver={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                e.dataTransfer.dropEffect = 'move';
-                              }}
-                              onDragEnter={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                e.currentTarget.style.backgroundColor = '#e8f4fd';
-                              }}
-                              onDragLeave={(e) => {
-                                if (!e.currentTarget.contains(e.relatedTarget)) {
-                                  e.currentTarget.style.backgroundColor = '#ffffff';
-                                }
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                e.currentTarget.style.backgroundColor = '#ffffff';
-                                
-                                const dragData = e.dataTransfer.getData('text/plain');
-                                if (dragData.startsWith(`group-${groupIndex}-`)) {
-                                  const draggedConditionIndex = parseInt(dragData.split('-')[2]);
-                                  
-                                  if (draggedConditionIndex !== conditionIndex) {
-                                    // Reorder conditions within the group
-                                    const newGroups = [...conditionGroups];
-                                    const groupConditions = [...newGroups[groupIndex].conditions];
-                                    const draggedItem = groupConditions[draggedConditionIndex];
-                                    
-                                    // Remove the dragged item
-                                    groupConditions.splice(draggedConditionIndex, 1);
-                                    
-                                    // Insert at the new position
-                                    const insertIndex = draggedConditionIndex < conditionIndex ? conditionIndex - 1 : conditionIndex;
-                                    groupConditions.splice(insertIndex, 0, draggedItem);
-                                    
-                                    newGroups[groupIndex].conditions = groupConditions;
-                                    setConditionGroups(newGroups);
-                                    setHasUnprocessedChanges(true);
-                                  }
-                                }
-                              }}
-                              onDragEnd={(e) => {
-                                e.target.style.opacity = '1';
-                              }}
-                            >
-                              {conditionIndex > 0 && (
-                                <>
-                                  {conditionIndex === 1 ? (
-                                    // Second condition gets the logical operator dropdown
-                                    <select
-                                      value={group.logicalOperator}
-                                      onChange={(e) => {
-                                        const newGroups = [...conditionGroups];
-                                        newGroups[groupIndex].logicalOperator = e.target.value;
-                                        setConditionGroups(newGroups);
-                                        setHasUnprocessedChanges(true);
-                                      }}
-                                      onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                                      style={{
-                                        padding: '4px 0px',
-                                        border: '1px solid #ddd',
-                                        borderRadius: '4px',
-                                        fontSize: '12px',
-                                        width: '48px',
-                                        height: '28px',
-                                        textTransform: 'uppercase',
-                                        marginLeft: '-8px'
-                                      }}
-                                    >
-                                      <option value="and">AND</option>
-                                      <option value="or">OR</option>
-                                    </select>
-                                  ) : (
-                                    // Third+ conditions show the logical operator as non-clickable text
-                                    <span style={{ 
-                                      color: '#666', 
-                                      minWidth: '40px',
-                                      textTransform: 'uppercase',
-                                      fontSize: '12px',
-                                      display: 'inline-block'
-                                    }}>
-                                      {group.logicalOperator}
-                                    </span>
-                                  )}
-                                </>
-                              )}
-                              {conditionIndex === 0 && <span style={{ color: '#666', minWidth: '40px' }}>Where</span>}
-                              
-                              {/* Field dropdown */}
-                              <select
-                                value={condition.field}
-                                onChange={(e) => {
-                                  const newGroups = [...conditionGroups];
-                                  newGroups[groupIndex].conditions[conditionIndex].field = e.target.value;
-                                  setConditionGroups(newGroups);
-                                  setHasUnprocessedChanges(true);
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                                style={{
-                                  padding: '4px 8px',
-                                  border: '1px solid #ddd',
-                                  borderRadius: '4px',
-                                  fontSize: '14px',
-                                  minWidth: '120px'
-                                }}
-                              >
-                                <option value="">Select field...</option>
-                                {searchableFields.map(field => (
-                                  <option key={field.key} value={field.key}>
-                                    {field.label}
-                                  </option>
-                                ))}
-                              </select>
-                              
-                              {/* Operator dropdown */}
-                              <select
-                                value={condition.operator}
-                                onChange={(e) => {
-                                  const newGroups = [...conditionGroups];
-                                  newGroups[groupIndex].conditions[conditionIndex].operator = e.target.value;
-                                  setConditionGroups(newGroups);
-                                  setHasUnprocessedChanges(true);
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                                style={{
-                                  padding: '4px 8px',
-                                  border: '1px solid #ddd',
-                                  borderRadius: '4px',
-                                  fontSize: '14px',
-                                  minWidth: '100px'
-                                }}
-                              >
-                                <option value="contains">contains...</option>
-                                <option value="does not contain">does not contain...</option>
-                                <option value="is">is...</option>
-                                <option value="is not">is not...</option>
-                              </select>
-                              
-                              {/* Value input */}
-                              <input
-                                type="text"
-                                value={condition.value}
-                                onChange={(e) => {
-                                  const newGroups = [...conditionGroups];
-                                  newGroups[groupIndex].conditions[conditionIndex].value = e.target.value;
-                                  setConditionGroups(newGroups);
-                                  setHasUnprocessedChanges(true);
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()} // Prevent interfering with drag
-                                placeholder="Enter a value"
-                                style={{
-                                  padding: '4px 8px',
-                                  border: '1px solid #ddd',
-                                  borderRadius: '4px',
-                                  fontSize: '14px',
-                                  minWidth: '120px',
-                                  flex: 1
-                                }}
-                              />
-                              
-                              {/* Remove condition from group button */}
-                              <button
-                                onClick={() => {
-                                  // Move condition back to main list
-                                  const conditionToMove = group.conditions[conditionIndex];
-                                  setFilterConditions([...filterConditions, conditionToMove]);
-                                  
-                                  // Remove from group
-                                  const newGroups = [...conditionGroups];
-                                  newGroups[groupIndex].conditions = newGroups[groupIndex].conditions.filter((_, i) => i !== conditionIndex);
-                                  setConditionGroups(newGroups);
-                                  
-                                  // Update input values
-                                  const newInputValues = { ...inputValues };
-                                  newInputValues[filterConditions.length] = conditionToMove.value;
-                                  setInputValues(newInputValues);
-                                  
-                                  setHasUnprocessedChanges(true);
-                                }}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  padding: '2px'
-                                }}
-                                title="Remove from group"
-                              >
-                                <img 
-                                  src="/images/garbage.svg" 
-                                  alt="Remove" 
-                                  style={{ 
-                                    width: 12, 
-                                    height: 12,
-                                    flexShrink: 0,
-                                    opacity: 0.6
-                                  }} 
-                                />
-                              </button>
-                              
-                              {/* Drag handle */}
-                              <div
-                                style={{
-                                  cursor: 'grab',
-                                  padding: '2px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  borderRadius: '3px',
-                                  pointerEvents: 'none'
-                                }}
-                                title="Drag to reorder"
-                              >
-                                <img 
-                                  src="/images/dots.svg" 
-                                  alt="Drag to reorder" 
-                                  style={{ 
-                                    width: 12, 
-                                    height: 12,
-                                    flexShrink: 0,
-                                    opacity: 0.5,
-                                    pointerEvents: 'none'
-                                  }} 
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Bottom buttons - always visible on the left side */}
-                  <div style={{ 
-                    borderTop: '1px solid #eee',
-                    paddingTop: '12px',
-                    display: 'flex',
-                    justifyContent: 'flex-start',
-                    gap: '8px'
-                  }}>
-                    <button
-                      onClick={() => {
-                        const newIndex = filterConditions.length;
-                        setFilterConditions([...filterConditions, {
-                          id: Date.now(),
-                          field: 'inventoryItemNumber',
-                          operator: 'contains',
-                          value: ''
-                        }]);
-                        // Initialize input value for the new condition
-                        setInputValues(prev => ({ ...prev, [newIndex]: '' }));
-                        // Mark that we have unprocessed changes for adding new condition
-                        setHasUnprocessedChanges(true);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 8px',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        color: '#495057',
-                        transition: 'background 0.2s',
-                        height: '28px',
-                        whiteSpace: 'nowrap'
-                      }}
-                      onMouseOver={e => {
-                        e.currentTarget.style.background = '#e9ecef';
-                      }}
-                      onMouseOut={e => {
-                        e.currentTarget.style.background = 'transparent';
-                      }}
-                    >
-                      <img 
-                        src="/images/plus.svg" 
-                        alt="" 
-                        style={{ 
-                          width: 12, 
-                          height: 12,
-                          flexShrink: 0
-                        }} 
-                      />
-                      Add Condition
-                    </button>
-                    <button
-                      onClick={() => {
-                        const newGroup = {
-                          id: Date.now(),
-                          type: 'group',
-                          conditions: [],
-                          logicalOperator: 'and'
-                        };
-                        setConditionGroups([...conditionGroups, newGroup]);
-                      }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        padding: '4px 8px',
-                        background: 'transparent',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        color: '#495057',
-                        transition: 'background 0.2s',
-                        height: '28px',
-                        whiteSpace: 'nowrap'
-                      }}
-                      onMouseOver={e => {
-                        e.currentTarget.style.background = '#e9ecef';
-                      }}
-                      onMouseOut={e => {
-                        e.currentTarget.style.background = 'transparent';
-                      }}
-                    >
-                      <img 
-                        src="/images/plus.svg" 
-                        alt="" 
-                        style={{ 
-                          width: 12, 
-                          height: 12,
-                          flexShrink: 0
-                        }} 
-                      />
-                      Add Condition Group
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <span style={{ fontSize: 16, fontWeight: 600, color: '#333' }}>
+            <FilterButton
+              activeFilterCount={activeFilterCount}
+              filterDropdownOpen={filterDropdownOpen}
+              setFilterDropdownOpen={setFilterDropdownOpen}
+              filterConditions={filterConditions}
+              setFilterConditions={setFilterConditions}
+              conditionGroups={conditionGroups}
+              setConditionGroups={setConditionGroups}
+              inputValues={inputValues}
+              setInputValues={setInputValues}
+              hasUnprocessedChanges={hasUnprocessedChanges}
+              setHasUnprocessedChanges={setHasUnprocessedChanges}
+              logicalOperator={logicalOperator}
+              setLogicalOperator={setLogicalOperator}
+              draggedCondition={draggedCondition}
+              dragHoverTarget={dragHoverTarget}
+              handleDragStart={handleDragStart}
+              handleDragOver={handleDragOver}
+              handleDragEnter={handleDragEnter}
+              handleDragLeave={handleDragLeave}
+              handleDrop={handleDrop}
+              handleDragEnd={handleDragEnd}
+              searchableFields={searchableFields}
+            />
+            
+            <span className="header-text">
               Actions & Filters
             </span>
             {/* Add buttons/filters here as needed */}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="flex-end">
             {/* Right side - could add export button, etc. */}
-            <span style={{ fontSize: 14, color: '#666' }}>
+            <span className="item-count-text">
               {displayGroups.length} items
             </span>
           </div>
         </div>
       
       {/* Column header positioned below button header */}
-      <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: getMainTableGridColumns(), minWidth: 0 }}>
+      <div className="search-result-item search-result-header main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
           <div className="search-result-field">
             <input
               type="checkbox"
@@ -1686,7 +297,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             const usableSurplus = generalInventoryAmount - essentialReserve;
             return (
               <div key={group.itemNumber}>
-                <div className="search-result-item" style={{ display: 'grid', gridTemplateColumns: getMainTableGridColumns(), minWidth: 0 }}>
+                <div className="search-result-item main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
                   <div className="search-result-field">
                     <input
                       type="checkbox"
@@ -1699,7 +310,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                     <div className="search-result-field">
                       <input
                         type="text"
-                        className="quantity-input"
+                        className="quantity-input quantity-input-table"
                         value={quantities[group.itemNumber] || ''}
                         onChange={e => handleQuantityChange(group.itemNumber, e.target.value)}
                         onBlur={e => {
@@ -1711,39 +322,35 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         onKeyDown={e => handleQuantityChange(group.itemNumber, quantities[group.itemNumber] || e.target.value, e)}
                         placeholder="0"
                         min="0"
-                        style={{ width: 60, textAlign: 'center' }}
                         aria-label="Quantity"
                       />
                     </div>
                   )}
                   <div className="search-result-field">
-                    <button onClick={() => handleExpandToggle(group.itemNumber)} aria-label="Expand details" style={{ padding: 0, background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>
+                    <button onClick={() => handleExpandToggle(group.itemNumber)} aria-label="Expand details" className="expand-button">
                       {expandedRows[group.itemNumber] ? '▲' : '▼'}
                     </button>
                   </div>
-                  {!hiddenFields.total && <div className="search-result-field">{truncate(part.total?.toString()) ?? 'N/A'}</div>}
-                  {!hiddenFields.inUse && <div className="search-result-field">{truncate(part.inUse?.toString()) ?? 'N/A'}</div>}
-                  {!hiddenFields.essentialReserve && <div className="search-result-field">{truncate(essentialReserve.toString())}</div>}
+                  {!hiddenFields.total && <div className="search-result-field">{truncateText(part.total?.toString()) ?? 'N/A'}</div>}
+                  {!hiddenFields.inUse && <div className="search-result-field">{truncateText(part.inUse?.toString()) ?? 'N/A'}</div>}
+                  {!hiddenFields.essentialReserve && <div className="search-result-field">{truncateText(essentialReserve.toString())}</div>}
                   {!hiddenFields.usableSurplus && (
-                    <div className="search-result-field" style={{
-                      color: usableSurplus > 0 ? '#228B22' : undefined,
-                      fontWeight: usableSurplus > 0 ? 700 : undefined,
-                    }}>
-                      {truncate(usableSurplus.toString())}
+                    <div className={`search-result-field ${usableSurplus > 0 ? 'usable-surplus-positive' : ''}`}>
+                      {truncateText(usableSurplus.toString())}
                     </div>
                   )}
-                  {!hiddenFields.inventoryItemNumber && <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>}
-                  {!hiddenFields.manufacturerPartNumber && <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>}
-                  {!hiddenFields.manufacturerName && <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>}
-                  {!hiddenFields.inventoryDescription && <div className="search-result-field" onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)} style={{ cursor: (part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>}
+                  {!hiddenFields.inventoryItemNumber && <div className={`search-result-field ${part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)}>{highlightFieldWithMatches(truncateText(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>}
+                  {!hiddenFields.manufacturerPartNumber && <div className={`search-result-field ${part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)}>{highlightFieldWithMatches(truncateText(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>}
+                  {!hiddenFields.manufacturerName && <div className={`search-result-field ${part.m_mfg_name && part.m_mfg_name.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)}>{highlightFieldWithMatches(truncateText(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>}
+                  {!hiddenFields.inventoryDescription && <div className={`search-result-field ${(part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)}>{highlightFieldWithMatches(truncateText((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>}
                 </div>
                 {expandedRows[group.itemNumber] && (
-                  <div style={{ background: '#f9f9f9', padding: '0 16px 12px 16px', borderBottom: '1px solid #eee' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', margin: '8px 0 4px 0', gap: 0 }}>
-                      <span style={{ fontSize: 20, marginBottom: 2 }}>Instances:</span>
+                  <div className="instance-section">
+                    <div className="instance-header">
+                      <span className="instance-header-title">Instances:</span>
                     </div>
                     {isAdmin && (
-                      <div style={{ margin: '0 0 8px 0', fontWeight: 400, fontSize: 16, color: '#2d6a4f', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                      <div className="spare-threshold-section">
                         Spare Threshold for this item:
                         <input
                           type="number"
@@ -1783,33 +390,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               console.error('Failed to update spare threshold:', err);
                             }
                           }}
-                          style={{ width: 60, marginLeft: 6, fontWeight: 600, color: '#2d6a4f', border: '1px solid #bcd6f7', borderRadius: 4, padding: '2px 6px', background: '#f8fafc' }}
+                          className="spare-threshold-input"
                           aria-label="Edit spare threshold for this item"
                         />
                       </div>
                     )}
-                    <div style={{ display: 'grid', gridTemplateColumns: getInstanceTableGridColumns(), gap: 8, fontWeight: 'bold', marginBottom: 4, alignItems: 'center', minHeight: 40 }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <div className="instance-grid-header" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
+                      <div className="request-button-container">
                         <button
                           type="button"
-                          style={{
-                            background: 'none',
-                            color: '#222',
-                            border: '1px solid #ccc',
-                            borderRadius: 4,
-                            padding: '4px 8px',
-                            fontWeight: 600,
-                            fontSize: 14,
-                            cursor: 'pointer',
-                            marginBottom: 0,
-                            width: 'auto',
-                            minWidth: 60,
-                            transition: 'background 0.15s',
-                          }}
-                          onMouseOver={e => (e.currentTarget.style.background = '#ffe066')}
-                          onFocus={e => (e.currentTarget.style.background = '#ffe066')}
-                          onMouseOut={e => (e.currentTarget.style.background = 'none')}
-                          onBlur={e => (e.currentTarget.style.background = 'none')}
+                          className="request-button"
                           onClick={() => {
                             // Find all checked instances for this group
                             const checkedInstances = (generalInventoryFilter[group.itemNumber]
@@ -1854,7 +444,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         >
                           Request
                         </button>
-                        <span style={{ display: 'block', fontWeight: 400, fontSize: 13, color: '#2d6a4f', marginTop: 4 }}>
+                        <span className="checked-quantity-display">
                           {/* Calculate total quantity of checked instances for this group, capped at usableSurplus */}
                           {(() => {
                             const checkedInstances = (generalInventoryFilter[group.itemNumber]
@@ -1867,25 +457,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           })()}
                         </span>
                       </div>
-                      {!hiddenFields.instanceId && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Instance ID</div>}
-                      {!hiddenFields.serialNumber && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Serial Number/Name</div>}
-                      {!hiddenFields.quantity && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Quantity</div>}
-                      {!hiddenFields.inventoryMaturity && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Inventory Maturity</div>}
+                      {!hiddenFields.instanceId && <div className="table-cell">Instance ID</div>}
+                      {!hiddenFields.serialNumber && <div className="table-cell">Serial Number/Name</div>}
+                      {!hiddenFields.quantity && <div className="table-cell">Quantity</div>}
+                      {!hiddenFields.inventoryMaturity && <div className="table-cell">Inventory Maturity</div>}
                       {!hiddenFields.associatedProject && (
-                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
+                        <div className="column-header-dropdown">
                           <span
-                            style={{
-                              fontWeight: 600,
-                              fontSize: 15,
-                              color: '#222',
-                              cursor: 'pointer',
-                              userSelect: 'none',
-                              padding: 0,
-                              margin: 0,
-                              display: 'flex',
-                              alignItems: 'center',
-                              height: '100%'
-                            }}
+                            className="column-header-dropdown-trigger"
                             aria-label="Filter by associated project"
                             tabIndex={0}
                             onClick={e => {
@@ -1894,31 +473,18 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                             }}
                             onBlur={e => {
                               // Optionally close dropdown on blur
-                            }}
-                          >
+                            }}                            >
                             Associated Project
-                            <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
+                            <span className="column-header-dropdown-arrow">▼</span>
                           </span>
                           {openProjectDropdown[group.itemNumber] && (
                             <div
-                              style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                background: '#fff',
-                                border: '1px solid #ccc',
-                                borderRadius: 4,
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                                zIndex: 10,
-                                minWidth: 120,
-                                marginTop: 2,
-                              }}
+                              className="filter-dropdown-container"
                               tabIndex={0}
                               onBlur={() => setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
                             >
                               <div
-                                style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !projectFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
+                                className={`filter-dropdown-item ${!projectFilter[group.itemNumber] ? 'filter-dropdown-item--selected' : ''}`}
                                 onClick={() => {
                                   setProjectFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
                                   setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
@@ -1930,7 +496,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                 .map(project => (
                                   <div
                                     key={project}
-                                    style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: projectFilter[group.itemNumber] === project ? '#f0f0f0' : 'transparent' }}
+                                    className={`filter-dropdown-item ${projectFilter[group.itemNumber] === project ? 'filter-dropdown-item--selected' : ''}`}
                                     onClick={() => {
                                       setProjectFilter(prev => ({ ...prev, [group.itemNumber]: project }));
                                       setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
@@ -1943,22 +509,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           )}
                         </div>
                       )}
-                      {!hiddenFields.hardwareCustodian && <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Hardware Custodian</div>}
+                      {!hiddenFields.hardwareCustodian && <div className="table-cell">Hardware Custodian</div>}
                       {!hiddenFields.parentPath && (
-                        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
+                        <div className="column-header-dropdown">
                           <span
-                            style={{
-                              fontWeight: 600,
-                              fontSize: 15,
-                              color: '#222',
-                              cursor: 'pointer',
-                              userSelect: 'none',
-                              padding: 0,
-                              margin: 0,
-                              display: 'flex',
-                              alignItems: 'center',
-                              height: '100%'
-                            }}
+                            className="column-header-dropdown-trigger"
                             aria-label="Filter by parent path section"
                             tabIndex={0}
                             onClick={e => {
@@ -1967,31 +522,18 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                             }}
                             onBlur={e => {
                               // Optionally close dropdown on blur
-                            }}
-                          >
+                            }}                            >
                             Parent Path
-                            <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
+                            <span className="column-header-dropdown-arrow">▼</span>
                           </span>
                           {openParentPathDropdown[group.itemNumber] && (
                             <div
-                              style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                background: '#fff',
-                                border: '1px solid #ccc',
-                                borderRadius: 4,
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                                zIndex: 10,
-                                minWidth: 120,
-                                marginTop: 2,
-                              }}
+                              className="filter-dropdown-container"
                               tabIndex={0}
                               onBlur={() => setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
                             >
                               <div
-                                style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !parentPathFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
+                                className={`filter-dropdown-item ${!parentPathFilter[group.itemNumber] ? 'filter-dropdown-item--selected' : ''}`}
                                 onClick={() => {
                                   setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
                                   setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
@@ -2011,7 +553,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                 .map(section => (
                                   <div
                                     key={section}
-                                    style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: parentPathFilter[group.itemNumber] === section ? '#f0f0f0' : 'transparent' }}
+                                    className={`filter-dropdown-item ${parentPathFilter[group.itemNumber] === section ? 'filter-dropdown-item--selected' : ''}`}
                                     onClick={() => {
                                       setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: section }));
                                       setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
@@ -2025,7 +567,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         </div>
                       )}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: getInstanceTableGridColumns(), gap: 8, marginBottom: 8 }}>
+                    <div className="instance-grid-spacer" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
                       <div></div>
                       {!hiddenFields.instanceId && <div></div>}
                       {!hiddenFields.serialNumber && <div></div>}
@@ -2082,8 +624,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       // - OR this is the first instance to push over the cap (overflowId === instance.id)
                       const disableCheckbox = !checked && runningTotal >= usableSurplus && overflowId !== instance.id;
                       return (
-                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: getInstanceTableGridColumns(), gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
-                          <div style={{textAlign: 'center'}}>
+                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} className="instance-table-row" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
+                          <div className="instance-checkbox">
                             {instance.generalInventory ? (
                               <input
                                 type="checkbox"
@@ -2112,7 +654,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                   href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  style={{ color: '#1976d2', textDecoration: 'underline', wordBreak: 'break-all' }}
+                                  className="instance-link"
                                 >
                                   {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
                                 </a>
@@ -2136,36 +678,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             );
           })}
           {expandedValue && (
-            <div style={{
-              position: 'fixed',
-              top: 0, left: 0,
-              width: '100vw',
-              height: '100vh',
-              background: 'rgba(0,0,0,0.2)',
-              zIndex: 2000,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }} onClick={handleClose}>
-              <div style={{
-                background: '#fff',
-                padding: '24px 32px',
-                borderRadius: 8,
-                boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                minWidth: 320,
-                maxWidth: '80vw',
-                wordBreak: 'break-all',
-                position: 'relative',
-                cursor: 'auto'
-              }} onClick={e => e.stopPropagation()}>
-                <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{expandedLabel}</div>
+            <div className="expanded-modal-overlay" onClick={handleClose}>
+              <div className="expanded-modal-content" onClick={e => e.stopPropagation()}>
+                <div className="expanded-modal-header">{expandedLabel}</div>
                 <textarea
                   value={expandedValue}
                   readOnly
-                  style={{ width: '100%', minHeight: 60, fontSize: 15, padding: 8, borderRadius: 4, border: '1px solid #ccc', resize: 'vertical' }}
+                  className="expanded-modal-textarea"
                   onFocus={e => e.target.select()}
                 />
-                <button style={{ marginTop: 12, float: 'right' }} onClick={handleClose}>Close</button>
+                <button className="expanded-modal-close-btn" onClick={handleClose}>Close</button>
               </div>
             </div>
           )}

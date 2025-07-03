@@ -17,6 +17,7 @@ components/
 ├── HomePage.jsx              # Main application page
 ├── LoginPage.jsx             # Authentication interface
 ├── SearchBar.jsx             # Advanced search component
+├── SearchBarLogic.jsx        # Search utilities and filtering logic
 ├── PartsTable.jsx            # Results display with highlighting
 ├── OrdersPage.jsx            # Order management interface
 ├── ConfirmationSummary.jsx   # Order confirmation
@@ -162,63 +163,56 @@ const removeChip = (chipId) => {
 - `m_quantity` - Quantity
 
 ### PartsTable.jsx
-**Results display with advanced highlighting and interaction**
+**Results display with advanced interaction and business logic**
 
 ```jsx
 import PartsTable from './components/PartsTable.jsx';
 
 <PartsTable
-  parts={searchResults}
+  results={searchResults}
+  selected={selectedParts}
+  setSelected={setSelectedParts}
+  quantities={quantities}
+  setQuantities={setQuantities}
   loading={loading}
-  onSort={handleSort}
-  onUpdateSpare={handleSpareUpdate}
-  searchMode={searchMode}
+  isAdmin={isAdmin}
+  accessToken={accessToken}
+  onFilterSearch={handleFilterSearch}
 />
 ```
 
 **Props:**
-- `parts` - Array of part objects to display
+- `results` - Array of part groups to display
+- `selected` - Selected parts object
+- `setSelected` - Function to update selected parts
+- `quantities` - Quantities object for selected parts
+- `setQuantities` - Function to update quantities
 - `loading` - Loading state for search operations
-- `onSort(column, direction)` - Sort callback
-- `onUpdateSpare(partId, value)` - Spare value update
-- `searchMode` - Current search mode for highlighting
+- `isAdmin` - Admin privileges flag
+- `accessToken` - Authentication token
+- `onFilterSearch` - Filter search callback
 
 **Features:**
 
-#### Advanced Highlighting
-- **General search**: Highlights matching keywords across fields
-- **Specify search**: Highlights field-specific matches
-- **NOT logic**: Visual indication of excluded terms
-- **Multi-color highlighting**: Different colors for different matches
-
-```jsx
-// Highlighting implementation
-const renderHighlightedText = (text, matches) => {
-  if (!matches || matches.length === 0) return text;
-  
-  let highlightedText = text;
-  matches.forEach((match, index) => {
-    const regex = new RegExp(`(${escapeRegex(match)})`, 'gi');
-    const className = `highlight-${index % 3}`;
-    highlightedText = highlightedText.replace(regex, 
-      `<span class="${className}">$1</span>`
-    );
-  });
-  
-  return <span dangerouslySetInnerHTML={{ __html: highlightedText }} />;
-};
-```
-
-#### Interactive Features
-- **Sortable columns**: Click column headers to sort
-- **Inline editing**: Edit spare values directly in table
-- **Responsive design**: Horizontal scroll on mobile
-- **Row selection**: Select multiple parts for bulk operations
+#### Business Logic
+- **Part Selection**: Checkbox-based selection with quantity input
+- **Spare Management**: Admin-only spare threshold editing
+- **Request Management**: Hardware custodian request functionality
+- **Instance Management**: Detailed instance-level operations
 
 #### Data Display
-- **Quantity breakdown**: Total, in-use, spare quantities
-- **Status indicators**: Visual status for different part states
-- **Rich data formatting**: Proper formatting for numbers, dates, etc.
+- **Quantity Calculations**: Total, in-use, essential reserve, usable surplus
+- **Status Indicators**: Visual status for different part states
+- **Instance Details**: Expandable detailed instance information
+- **Field Visibility**: Integration with hide/show fields functionality
+
+#### Interactive Features
+- **Expandable Rows**: Click to show/hide instance details
+- **Inline Editing**: Edit spare values directly in table
+- **Instance Filtering**: Filter instances by project and parent path
+- **Request Workflow**: Select instances and generate requests
+
+**Note:** Text highlighting functionality is provided by `useSearchUtilities` hook from SearchBarLogic.jsx.
 
 ### OrdersPage.jsx
 **Order management and tracking interface**
@@ -296,6 +290,136 @@ const validationRules = {
   quantity: { required: true, type: 'number', min: 0 }
 };
 ```
+
+### SearchBarLogic.jsx
+**Search utilities, filtering logic, and field management**
+
+```jsx
+import { 
+  useFieldManagement, 
+  useFilterManagement, 
+  useSearchUtilities,
+  HideFieldsButton, 
+  FilterButton 
+} from './components/SearchBarLogic.jsx';
+```
+
+**Features:**
+
+#### useFieldManagement Hook
+Manages field visibility and table layout configuration:
+
+```jsx
+const {
+  hiddenFields,
+  setHiddenFields,
+  filteredFields,
+  hiddenFieldCount,
+  toggleFieldVisibility,
+  getMainTableGridColumns,
+  getInstanceTableGridColumns
+} = useFieldManagement();
+```
+
+**Returns:**
+- `hiddenFields` - Object mapping field keys to hidden state
+- `toggleFieldVisibility(fieldKey)` - Toggle visibility of a specific field
+- `getMainTableGridColumns()` - Generate CSS grid columns for main table
+- `getInstanceTableGridColumns()` - Generate CSS grid columns for instance table
+
+#### useFilterManagement Hook
+Handles advanced filtering functionality with API integration:
+
+```jsx
+const {
+  filterConditions,
+  setFilterConditions,
+  filteredResults,
+  activeFilterCount,
+  triggerFilterSearch
+} = useFilterManagement(results, onFilterSearch);
+```
+
+**Filter Conditions:**
+- Field-based filtering with operators (contains, is, etc.)
+- Logical operators (AND/OR) between conditions
+- Real-time debounced search execution
+- Client-side fallback filtering
+
+#### useSearchUtilities Hook
+Provides text processing utilities for search result display:
+
+```jsx
+const { 
+  highlightFieldWithMatches, 
+  truncateText 
+} = useSearchUtilities();
+```
+
+**Utilities:**
+- `highlightFieldWithMatches(text, matches)` - Highlights search terms in text
+- `truncateText(str, max)` - Truncates text with ellipsis
+
+**Text Highlighting:**
+```jsx
+// Highlight search matches in result text
+const highlightedText = highlightFieldWithMatches(
+  "Rail bearing assembly", 
+  ["rail", "bearing"]
+);
+// Returns: [
+//   <span className="search-highlight">Rail</span>,
+//   " ",
+//   <span className="search-highlight">bearing</span>,
+//   " assembly"
+// ]
+```
+
+#### UI Components
+
+**HideFieldsButton Component:**
+```jsx
+<HideFieldsButton
+  hiddenFieldCount={hiddenFieldCount}
+  hideFieldsDropdownOpen={hideFieldsDropdownOpen}
+  setHideFieldsDropdownOpen={setHideFieldsDropdownOpen}
+  filteredFields={filteredFields}
+  hiddenFields={hiddenFields}
+  toggleFieldVisibility={toggleFieldVisibility}
+  fieldSearchQuery={fieldSearchQuery}
+  setFieldSearchQuery={setFieldSearchQuery}
+  setHiddenFields={setHiddenFields}
+  allFields={allFields}
+/>
+```
+
+**FilterButton Component:**
+```jsx
+<FilterButton
+  activeFilterCount={activeFilterCount}
+  filterDropdownOpen={filterDropdownOpen}
+  setFilterDropdownOpen={setFilterDropdownOpen}
+  filterConditions={filterConditions}
+  setFilterConditions={setFilterConditions}
+  // ... other filter props
+/>
+```
+
+**Available Filter Fields:**
+- `inventoryItemNumber` - Inventory item number
+- `manufacturerPartNumber` - Manufacturer part number
+- `manufacturerName` - Manufacturer name
+- `inventoryDescription` - Part description
+- `instanceId` - Instance identifier
+- `associatedProject` - Associated project
+- `hardwareCustodian` - Hardware custodian
+- `parentPath` - Parent path reference
+
+**Filter Operators:**
+- `contains` - Text contains value
+- `does not contain` - Text does not contain value
+- `is` - Exact match
+- `is not` - Not exact match
 
 ## 🎨 Styling Architecture
 
