@@ -78,7 +78,8 @@
 /* Style for group drop zone when dragging a root condition in */
 .filter-group {
   width: 100%;
-  min-width: 420px; /* Match the min width of a root condition row, adjust as needed */
+  min-width: 720px; /* Match the min width of a root condition row, adjust as needed */
+  min-height: 48px; /* Match the min height of a root condition row (adjust as needed) */
   box-sizing: border-box;
 }
 

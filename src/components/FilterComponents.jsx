@@ -350,10 +350,6 @@ export function FilterGroup({
   // This would need to be passed from FilterDropdown
   const groupPosition = groupIndex;
 
-  // Popup state for add button
-  const [addPopupOpen, setAddPopupOpen] = useState(false);
-  const addBtnRef = useRef(null);
-
   // Handler for adding a new condition to this group
   const handleAddCondition = () => {
     if (onAddConditionToGroup && nestingLevel <= maxNesting) {
@@ -362,35 +358,8 @@ export function FilterGroup({
         operator: 'contains',
         value: ''
       });
-      setAddPopupOpen(false);
     }
   };
-
-  // Handler for adding a new group to this group
-  const handleAddGroup = () => {
-    if (onAddGroupToGroup && nestingLevel < maxNesting) {
-      onAddGroupToGroup(groupIndex, {
-        id: `group-${Date.now()}`,
-        type: 'group',
-        conditions: [],
-        logicalOperator: 'or',
-        nestingLevel: nestingLevel + 1
-      });
-      setAddPopupOpen(false);
-    }
-  };
-
-  // Close popup when clicking outside
-  React.useEffect(() => {
-    if (!addPopupOpen) return;
-    function handleClick(e) {
-      if (addBtnRef.current && !addBtnRef.current.contains(e.target)) {
-        setAddPopupOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [addPopupOpen]);
 
   // Enable drag-and-drop of root conditions into this group
   const handleGroupDrop = (e) => {
@@ -436,45 +405,11 @@ export function FilterGroup({
           <div className="filter-group__header-btn-row" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
             <button
               className="filter-group__add-btn"
-              title="Add"
+              title="Add Condition"
               type="button"
-              ref={addBtnRef}
-              onClick={() => setAddPopupOpen((v) => !v)}
-              style={{ position: 'relative' }}
+              onClick={handleAddCondition}
             >
               <img src="/images/plus.svg" alt="Add" className="filter-group__add-icon" />
-              {addPopupOpen && (
-                <div
-                  className="filter-group__add-popup"
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: '0',
-                    marginTop: '6px',
-                    background: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    zIndex: 1000,
-                    minWidth: '180px',
-                    padding: '8px 0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0',
-                  }}
-                  onMouseEnter={() => setAddPopupOpen(true)}
-                  onMouseLeave={() => setAddPopupOpen(false)}
-                >
-                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddCondition}>
-                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
-                    Add Condition
-                  </button>
-                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddGroup}>
-                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
-                    Add Condition Group
-                  </button>
-                </div>
-              )}
             </button>
             <button className="filter-group__remove-btn" title="Remove group" type="button" onClick={() => onRemoveGroup(groupIndex)}>
               <img src="/images/garbage.svg" alt="Remove" className="filter-group__remove-icon" />
@@ -492,45 +427,11 @@ export function FilterGroup({
           <div className="filter-group__header-btn-row" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
             <button
               className="filter-group__add-btn"
-              title="Add"
+              title="Add Condition"
               type="button"
-              ref={addBtnRef}
-              onClick={() => setAddPopupOpen((v) => !v)}
-              style={{ position: 'relative' }}
+              onClick={handleAddCondition}
             >
               <img src="/images/plus.svg" alt="Add" className="filter-group__add-icon" />
-              {addPopupOpen && (
-                <div
-                  className="filter-group__add-popup"
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: '0',
-                    marginTop: '6px',
-                    background: '#fff',
-                    border: '1px solid #ddd',
-                    borderRadius: '6px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    zIndex: 1000,
-                    minWidth: '180px',
-                    padding: '8px 0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0',
-                  }}
-                  onMouseEnter={() => setAddPopupOpen(true)}
-                  onMouseLeave={() => setAddPopupOpen(false)}
-                >
-                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddCondition}>
-                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
-                    Add Condition
-                  </button>
-                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddGroup}>
-                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
-                    Add Condition Group
-                  </button>
-                </div>
-              )}
             </button>
             <button className="filter-group__remove-btn" title="Remove group" type="button" onClick={() => onRemoveGroup(groupIndex)}>
               <img src="/images/garbage.svg" alt="Remove" className="filter-group__remove-icon" />
