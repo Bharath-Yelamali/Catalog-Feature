@@ -55,6 +55,7 @@ export function useDragAndDrop(
     }
 
     console.log(`Dropping condition ${draggedIndex} at position ${targetIndex}`);
+    console.log('Before reordering:', filterConditions.map((c, i) => `${i}: ${c.field}:${c.value || ''}`));
 
     const newConditions = [...filterConditions];
     const draggedItem = newConditions[draggedIndex];
@@ -63,8 +64,10 @@ export function useDragAndDrop(
     newConditions.splice(draggedIndex, 1);
     
     // Insert at the new position
-    const insertIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    newConditions.splice(insertIndex, 0, draggedItem);
+    // When dragging down (lower index to higher index), we should insert at the target position
+    // When dragging up (higher index to lower index), we should insert at the target position
+    // This creates a consistent user experience regardless of drag direction
+    newConditions.splice(targetIndex, 0, draggedItem);
     
     // Update input values to match new order
     const newInputValues = {};
@@ -80,7 +83,7 @@ export function useDragAndDrop(
     // Clear drag states
     setDragHoverTarget(null);
     
-    console.log('New condition order:', newConditions.map(c => `${c.field}:${c.value}`));
+    console.log('New condition order:', newConditions.map((c, i) => `${i}: ${c.field}:${c.value || ''}`));
   }, [filterConditions, inputValues, setFilterConditions, setInputValues, setHasUnprocessedChanges, setDragHoverTarget]);
 
   const handleDragEnd = useCallback((e) => {

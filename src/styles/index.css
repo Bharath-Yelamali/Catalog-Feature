@@ -17,6 +17,7 @@
 
 /* 6. Parts Table */
 @import './partstable.css';
+@import './filter-universal.css'; /* Universal filter styling */
 
 /* 7. Required Fields */
 @import './requiredfields.css';

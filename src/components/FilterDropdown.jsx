@@ -1,5 +1,6 @@
 import React from 'react';
 import { FilterCondition, FilterGroup } from './FilterComponents';
+import { UnifiedFilterList } from './UnifiedFilterList';
 
 export function FilterDropdown({
   filterConditions,
@@ -22,6 +23,7 @@ export function FilterDropdown({
   handleDragEnd,
   searchableFields
 }) {
+  console.log('FilterDropdown received searchableFields:', searchableFields);
   
   // Handler functions for conditions
   const handleFieldChange = (index, value) => {
@@ -31,8 +33,39 @@ export function FilterDropdown({
     setHasUnprocessedChanges(true);
   };
 
+  // Recursive helper to add a condition to a group by groupId
+  function addConditionToGroup(groups, groupId, newCondition) {
+    return groups.map(group => {
+      if (group.id === groupId) {
+        return {
+          ...group,
+          conditions: [...group.conditions, newCondition]
+        };
+      }
+      // Recursively update subgroups
+      return {
+        ...group,
+        conditions: group.conditions.map(cond =>
+          cond.type === 'group'
+            ? addConditionToGroup([cond], groupId, newCondition)[0]
+            : cond
+        )
+      };
+    });
+  }
+
+  const handleAddConditionToGroup = (groupId, condition) => {
+    setConditionGroups(prevGroups => addConditionToGroup(prevGroups, groupId, {
+      ...condition,
+      id: `group-condition-${Date.now()}-${Math.floor(Math.random()*10000)}`
+    }));
+    setHasUnprocessedChanges(true);
+  };
+
   const handleOperatorChange = (index, value) => {
+    console.log(`handleOperatorChange called with index: ${index}, value: ${value}`);
     if (index === 'logical') {
+      console.log('Setting logical operator to:', value);
       setLogicalOperator(value);
     } else {
       const newConditions = [...filterConditions];
@@ -72,9 +105,15 @@ export function FilterDropdown({
 
   const handleAddCondition = () => {
     const newIndex = filterConditions.length;
+    const defaultField = searchableFields && searchableFields.length > 0 
+      ? searchableFields[0].key 
+      : 'inventoryItemNumber';
+      
+    console.log('Adding new condition with searchableFields:', searchableFields);
+    
     setFilterConditions([...filterConditions, {
       id: Date.now(),
-      field: 'inventoryItemNumber',
+      field: defaultField,
       operator: 'contains',
       value: ''
     }]);
@@ -85,7 +124,7 @@ export function FilterDropdown({
 
   const handleAddGroup = () => {
     const newGroup = {
-      id: Date.now(),
+      id: `group-${Date.now()}-${Math.floor(Math.random()*10000)}`,
       type: 'group',
       conditions: [],
       logicalOperator: 'and'
@@ -116,20 +155,11 @@ export function FilterDropdown({
   };
 
   const handleRemoveConditionFromGroup = (groupIndex, conditionIndex) => {
-    // Move condition back to main list
-    const conditionToMove = conditionGroups[groupIndex].conditions[conditionIndex];
-    setFilterConditions([...filterConditions, conditionToMove]);
-    
-    // Remove from group
+    // Remove the condition from the group only (do not move to root)
     const newGroups = [...conditionGroups];
     newGroups[groupIndex].conditions = newGroups[groupIndex].conditions.filter((_, i) => i !== conditionIndex);
     setConditionGroups(newGroups);
-    
-    // Update input values
-    const newInputValues = { ...inputValues };
-    newInputValues[filterConditions.length] = conditionToMove.value;
-    setInputValues(newInputValues);
-    
+    // Optionally clean up input values for this condition if needed
     setHasUnprocessedChanges(true);
   };
 
@@ -165,49 +195,33 @@ export function FilterDropdown({
             In this view, show records
           </div>
           
-          {/* Render filter conditions */}
-          {filterConditions.map((condition, index) => (
-            <FilterCondition
-              key={condition.id}
-              condition={condition}
-              index={index}
-              logicalOperator={logicalOperator}
-              draggedCondition={draggedCondition}
-              dragHoverTarget={dragHoverTarget}
-              onFieldChange={handleFieldChange}
-              onOperatorChange={handleOperatorChange}
-              onValueChange={handleValueChange}
-              onRemove={handleRemoveCondition}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnter={handleDragEnter}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-              searchableFields={searchableFields}
-              inputValues={inputValues}
-            />
-          ))}
-          
-          {/* Render condition groups */}
-          {conditionGroups.map((group, groupIndex) => (
-            <FilterGroup
-              key={group.id}
-              group={group}
-              groupIndex={groupIndex}
-              onConditionFieldChange={handleGroupConditionFieldChange}
-              onConditionOperatorChange={handleGroupConditionOperatorChange}
-              onConditionValueChange={handleGroupConditionValueChange}
-              onRemoveCondition={handleRemoveConditionFromGroup}
-              onRemoveGroup={handleRemoveGroup}
-              searchableFields={searchableFields}
-              filterConditions={filterConditions}
-              setFilterConditions={setFilterConditions}
-              inputValues={inputValues}
-              setInputValues={setInputValues}
-              setHasUnprocessedChanges={setHasUnprocessedChanges}
-            />
-          ))}
+          {/* Unified filter list with universal left column */}
+          <UnifiedFilterList
+            filterConditions={filterConditions}
+            conditionGroups={conditionGroups}
+            logicalOperator={logicalOperator}
+            onOperatorChange={handleOperatorChange}
+            inputValues={inputValues}
+            searchableFields={searchableFields}
+            draggedCondition={draggedCondition}
+            dragHoverTarget={dragHoverTarget}
+            onFieldChange={handleFieldChange}
+            onValueChange={handleValueChange}
+            onRemoveCondition={handleRemoveCondition}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
+            onRemoveGroup={handleRemoveGroup}
+            onAddConditionToGroup={handleAddConditionToGroup}
+            onRemoveConditionFromGroup={handleRemoveConditionFromGroup}
+            onFieldChangeInGroup={handleGroupConditionFieldChange}
+            onOperatorChangeInGroup={handleGroupConditionOperatorChange}
+            onValueChangeInGroup={handleGroupConditionValueChange}
+            setHasUnprocessedChanges={setHasUnprocessedChanges}
+          />
         </div>
       )}
       

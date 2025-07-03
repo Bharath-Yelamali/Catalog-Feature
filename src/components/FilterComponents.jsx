@@ -1,8 +1,9 @@
-import React, { useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { LogicalOperatorSelector } from './LogicalOperatorSelector';
 
 // Individual Filter Condition Component
-export function FilterCondition({
+export function FilterCondition({ 
   condition,
   index,
   logicalOperator,
@@ -19,7 +20,8 @@ export function FilterCondition({
   onDrop,
   onDragEnd,
   searchableFields = [],
-  inputValues = {}
+  inputValues = {},
+  showLeftColumn = true // Whether to show the left column with WHERE/AND/OR
 }) {
   // Input validation
   if (!condition || typeof condition !== 'object') {
@@ -86,27 +88,16 @@ export function FilterCondition({
 
   return (
     <div className="filter-condition">
-      {/* AND/OR dropdown or "Where" label */}
-      {index > 0 && (
-        <>
-          {index === 1 ? (
-            <select
-              value={logicalOperator}
-              onChange={onOperatorChange}
-              className="filter-condition__operator--select"
-              aria-label="Logical operator between conditions"
-            >
-              <option value="and">AND</option>
-              <option value="or">OR</option>
-            </select>
-          ) : (
-            <span className="filter-condition__operator">
-              {logicalOperator?.toUpperCase()}
-            </span>
-          )}
-        </>
+      {/* Conditionally show left column based on prop */}
+      {showLeftColumn && (
+        <LogicalOperatorSelector 
+          index={index}
+          logicalOperator={logicalOperator}
+          onOperatorChange={onOperatorChange}
+          isFirstItem={true}
+          showLabel={true}
+        />
       )}
-      {index === 0 && <span className="filter-condition__where">Where</span>}
       
       {/* Condition box with controls */}
       <div
@@ -237,6 +228,8 @@ FilterCondition.defaultProps = {
 export function FilterGroup({
   group,
   groupIndex,
+  groupId, // <-- new prop
+  logicalOperator,
   onConditionFieldChange,
   onConditionOperatorChange,
   onConditionValueChange,
@@ -247,7 +240,12 @@ export function FilterGroup({
   setFilterConditions,
   inputValues = {},
   setInputValues,
-  setHasUnprocessedChanges
+  setHasUnprocessedChanges,
+  showLeftColumn = true,
+  onAddConditionToGroup,
+  onAddGroupToGroup,
+  maxNesting = 3,
+  nestingLevel = 1
 }) {
   // Input validation
   if (!group || typeof group !== 'object' || !Array.isArray(group.conditions)) {
@@ -312,160 +310,212 @@ export function FilterGroup({
     }
   }, [filterConditions, setFilterConditions, inputValues, setInputValues, setHasUnprocessedChanges, groupIndex]);
 
+  // Get the group's position in the overall list of conditions + groups
+  // This would need to be passed from FilterDropdown
+  const groupPosition = groupIndex;
+
+  // Popup state for add button
+  const [addPopupOpen, setAddPopupOpen] = useState(false);
+  const addBtnRef = useRef(null);
+
+  // Handler for adding a new condition to this group
+  const handleAddCondition = () => {
+    if (onAddConditionToGroup && nestingLevel <= maxNesting) {
+      onAddConditionToGroup(groupId || group.id, {
+        field: searchableFields[0]?.key || '',
+        operator: 'contains',
+        value: ''
+      });
+      setAddPopupOpen(false);
+    }
+  };
+
+  // Handler for adding a new group to this group
+  const handleAddGroup = () => {
+    if (onAddGroupToGroup && nestingLevel < maxNesting) {
+      onAddGroupToGroup(groupIndex, {
+        id: `group-${Date.now()}`,
+        type: 'group',
+        conditions: [],
+        logicalOperator: 'or',
+        nestingLevel: nestingLevel + 1
+      });
+      setAddPopupOpen(false);
+    }
+  };
+
+  // Close popup when clicking outside
+  React.useEffect(() => {
+    if (!addPopupOpen) return;
+    function handleClick(e) {
+      if (addBtnRef.current && !addBtnRef.current.contains(e.target)) {
+        setAddPopupOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [addPopupOpen]);
+
   return (
-    <div 
-      className="filter-group"
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      }}
-      onDragEnter={(e) => {
-        e.preventDefault();
-        e.currentTarget.style.backgroundColor = '#d1ecf1';
-        e.currentTarget.style.borderColor = '#bee5eb';
-      }}
-      onDragLeave={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-          e.currentTarget.style.backgroundColor = '#e9ecef';
-          e.currentTarget.style.borderColor = '#adb5bd';
-        }
-      }}
-      onDrop={handleDragToGroup}
-    >
-      {/* Group header */}
-      <div className={`filter-group__header ${
-        group.conditions.length === 0 ? 'filter-group__header--empty' : 'filter-group__header--filled'
-      }`}>
-        {group.conditions.length === 0 && (
-          <span className="filter-group__empty-text">
+    <div className="filter-group">
+      {/* Group header: show only if group has children */}
+      {group.conditions.length > 0 ? (
+        <div className="filter-group__header filter-group__header--filled">
+          <span className="filter-group__header-text" style={{ flex: 1, textAlign: 'left', fontWeight: 600 }}>
+            Any of the following are true…
+          </span>
+          <div className="filter-group__header-btn-row" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
+            <button
+              className="filter-group__add-btn"
+              title="Add"
+              type="button"
+              ref={addBtnRef}
+              onClick={() => setAddPopupOpen((v) => !v)}
+              style={{ position: 'relative' }}
+            >
+              <img src="/images/plus.svg" alt="Add" className="filter-group__add-icon" />
+              {addPopupOpen && (
+                <div
+                  className="filter-group__add-popup"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: '0',
+                    marginTop: '6px',
+                    background: '#fff',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    minWidth: '180px',
+                    padding: '8px 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0',
+                  }}
+                  onMouseEnter={() => setAddPopupOpen(true)}
+                  onMouseLeave={() => setAddPopupOpen(false)}
+                >
+                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddCondition}>
+                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
+                    Add Condition
+                  </button>
+                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddGroup}>
+                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
+                    Add Condition Group
+                  </button>
+                </div>
+              )}
+            </button>
+            <button className="filter-group__remove-btn" title="Remove group" type="button" onClick={() => onRemoveGroup(groupIndex)}>
+              <img src="/images/garbage.svg" alt="Remove" className="filter-group__remove-icon" />
+            </button>
+            <button className="filter-group__drag-btn" title="Drag group" type="button">
+              <img src="/images/dots.svg" alt="Drag" className="filter-group__drag-icon" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="filter-group__header filter-group__header--empty">
+          <span className="filter-group__empty-text" style={{ flex: 1, textAlign: 'left' }}>
             Drag conditions here to add them to this group
           </span>
-        )}
-        
-        {/* Remove button for group */}
-        <button
-          onClick={() => onRemoveGroup(groupIndex)}
-          className="filter-group__remove-btn"
-          title="Remove group"
-        >
-          <img 
-            src="/images/garbage.svg" 
-            alt="Remove" 
-            className="filter-group__remove-icon"
-          />
-        </button>
-      </div>
-      
-      {/* Conditions within the group */}
-      {group.conditions.map((condition, conditionIndex) => (
-        <div 
-          key={condition.id} 
-          className="filter-group__condition"
-          draggable={true}
-          onDragStart={(e) => {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', `group-${groupIndex}-${conditionIndex}`);
-            e.target.style.opacity = '0.5';
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.dataTransfer.dropEffect = 'move';
-          }}
-          onDragEnter={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.currentTarget.style.backgroundColor = '#e8f4fd';
-          }}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget)) {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-            }
-          }}
-          onDragEnd={(e) => {
-            e.target.style.opacity = '1';
-          }}
-        >
-          {conditionIndex > 0 && (
-            <>
-              {conditionIndex === 1 ? (
-                <select
-                  value={group.logicalOperator}
-                  onChange={handleGroupLogicalOperatorChange}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  className="filter-group__condition-operator--select"
+          <div className="filter-group__header-btn-row" style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
+            <button
+              className="filter-group__add-btn"
+              title="Add"
+              type="button"
+              ref={addBtnRef}
+              onClick={() => setAddPopupOpen((v) => !v)}
+              style={{ position: 'relative' }}
+            >
+              <img src="/images/plus.svg" alt="Add" className="filter-group__add-icon" />
+              {addPopupOpen && (
+                <div
+                  className="filter-group__add-popup"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: '0',
+                    marginTop: '6px',
+                    background: '#fff',
+                    border: '1px solid #ddd',
+                    borderRadius: '6px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    minWidth: '180px',
+                    padding: '8px 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0',
+                  }}
+                  onMouseEnter={() => setAddPopupOpen(true)}
+                  onMouseLeave={() => setAddPopupOpen(false)}
                 >
-                  <option value="and">AND</option>
-                  <option value="or">OR</option>
-                </select>
-              ) : (
-                <span className="filter-condition__operator">
-                  {group.logicalOperator}
-                </span>
+                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddCondition}>
+                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
+                    Add Condition
+                  </button>
+                  <button className="filter-group__add-popup-btn" type="button" style={{ display: 'flex', alignItems: 'center', width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 16px', fontSize: '14px', color: '#222' }} onClick={handleAddGroup}>
+                    <img src="/images/plus.svg" alt="Add" style={{ width: '16px', height: '16px', marginRight: '10px' }} />
+                    Add Condition Group
+                  </button>
+                </div>
               )}
-            </>
-          )}
-          {conditionIndex === 0 && <span className="filter-condition__where">Where</span>}
-          
-          {/* Field dropdown */}
-          <select
-            value={condition.field}
-            onChange={(e) => onConditionFieldChange(groupIndex, conditionIndex, e.target.value)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="filter-form-select"
-          >
-            <option value="">Select field...</option>
-            {searchableFields.map(field => (
-              <option key={field.key} value={field.key}>
-                {field.label}
-              </option>
-            ))}
-          </select>
-          
-          {/* Operator dropdown */}
-          <select
-            value={condition.operator}
-            onChange={(e) => onConditionOperatorChange(groupIndex, conditionIndex, e.target.value)}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="filter-form-select filter-form-select--operator"
-          >
-            <option value="contains">contains...</option>
-            <option value="does not contain">does not contain...</option>
-            <option value="is">is...</option>
-            <option value="is not">is not...</option>
-          </select>
-          
-          {/* Value input */}
-          <input
-            type="text"
-            value={condition.value}
-            onChange={(e) => onConditionValueChange(groupIndex, conditionIndex, e.target.value)}
-            onMouseDown={(e) => e.stopPropagation()}
-            placeholder="Enter a value"
-            className="filter-form-input"
-          />
-          
-          {/* Remove condition from group button */}
-          <button
-            onClick={() => onRemoveCondition(groupIndex, conditionIndex)}
-            className="filter-group__condition-remove"
-            title="Remove from group"
-          >
-            <img 
-              src="/images/garbage.svg" 
-              alt="Remove" 
-              className="filter-group__condition-remove-icon"
-            />
-          </button>
-          
-          {/* Drag handle */}
-          <div className="filter-group__drag-handle" title="Drag to reorder">
-            <img 
-              src="/images/dots.svg" 
-              alt="Drag to reorder" 
-              className="filter-group__drag-handle-icon"
+            </button>
+            <button className="filter-group__remove-btn" title="Remove group" type="button" onClick={() => onRemoveGroup(groupIndex)}>
+              <img src="/images/garbage.svg" alt="Remove" className="filter-group__remove-icon" />
+            </button>
+            <button className="filter-group__drag-btn" title="Drag group" type="button">
+              <img src="/images/dots.svg" alt="Drag" className="filter-group__drag-icon" />
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Conditions within the group, rendered below the button row */}
+      {group.conditions.map((condition, conditionIndex) => (
+        <div key={condition.id} className="filter-item-combined">
+          {/* Left column for Where/AND/OR, always outside the box */}
+          <div className="filter-left-column">
+            <LogicalOperatorSelector
+              index={conditionIndex}
+              logicalOperator={group.logicalOperator || 'or'}
+              onOperatorChange={(_, value) => {
+                // Implement group-specific handling here if needed
+                console.log('Changing group condition operator to:', value);
+              }}
+              isFirstItem={conditionIndex === 0}
+              showLabel={true}
+              textClassName="filter-universal-operator--text"
+              dropdownClassName="filter-universal-operator--select"
             />
           </div>
+          {/* Use FilterCondition for consistent rendering */}
+          <FilterCondition
+            condition={condition}
+            index={conditionIndex}
+            logicalOperator={group.logicalOperator || 'or'}
+            draggedCondition={null} // You can wire up drag state if needed
+            dragHoverTarget={null}
+            onFieldChange={(idx, value) => onConditionFieldChange(groupIndex, idx, value)}
+            onOperatorChange={(idx, value) => onConditionOperatorChange(groupIndex, idx, value)}
+            onValueChange={(idx, value) => onConditionValueChange(groupIndex, idx, value)}
+            onRemove={(idx) => {
+              // Remove the condition from this group's conditions array only
+              if (typeof onRemoveCondition === 'function') {
+                onRemoveCondition(groupIndex, idx);
+              }
+            }}
+            onDragStart={() => {}}
+            onDragOver={() => {}}
+            onDragEnter={() => {}}
+            onDragLeave={() => {}}
+            onDrop={() => {}}
+            onDragEnd={() => {}}
+            searchableFields={searchableFields}
+            inputValues={{ [conditionIndex]: condition.value }}
+            showLeftColumn={false}
+          />
         </div>
       ))}
     </div>
@@ -473,7 +523,7 @@ export function FilterGroup({
 }
 
 // PropTypes for FilterGroup
-FilterGroup.propTypes = {
+export const FilterGroupPropTypes = {
   group: PropTypes.shape({
     conditions: PropTypes.array.isRequired,
     logicalOperator: PropTypes.oneOf(['and', 'or'])
@@ -495,6 +545,8 @@ FilterGroup.propTypes = {
   setInputValues: PropTypes.func,
   setHasUnprocessedChanges: PropTypes.func
 };
+
+FilterGroup.propTypes = FilterGroupPropTypes;
 
 // Default props for FilterGroup
 FilterGroup.defaultProps = {
