@@ -15,6 +15,7 @@ const FIELD_CONFIG = {
     'm_custodian': 'm_custodian',
     'm_custodian@aras.keyed_name': 'm_custodian@aras.keyed_name',
     'm_inventory_item': 'm_inventory_item/item_number',
+    'm_project': 'm_project/item_number', // <-- Added mapping for associated project
     'm_id': 'm_id',
     'item_number': 'item_number',
     'm_maturity': 'm_maturity',

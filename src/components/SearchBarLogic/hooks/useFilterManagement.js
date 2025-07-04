@@ -374,59 +374,48 @@ export function useFilterManagement(results = [], onFilterSearch) {
 
   // Apply filters when conditions change (only for complete conditions)
   useEffect(() => {
-    // Only trigger search if we have unprocessed changes
     if (!hasUnprocessedChanges) {
       return;
     }
 
-    // Clear the debounce timeout if it exists
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
 
-    // Set a new debounce timeout
     debounceTimeoutRef.current = setTimeout(async () => {
       try {
-        // Validate filter conditions array
         if (!Array.isArray(filterConditions)) {
           console.warn('Filter conditions is not an array');
           setHasUnprocessedChanges(false);
           return;
         }
-        
-        // Check if we have at least one complete condition
-        const hasCompleteCondition = filterConditions.some(condition => {
-          if (!condition || typeof condition !== 'object') {
-            return false;
-          }
-          return condition.field && condition.operator && condition.value?.trim() !== '';
-        });
-        
-        if (hasCompleteCondition) {
+
+        // Only use complete conditions for searching
+        const completeConditions = filterConditions.filter(condition =>
+          condition && typeof condition === 'object' &&
+          condition.field && condition.operator && condition.value?.trim() !== ''
+        );
+
+        if (completeConditions.length > 0) {
           console.log('Triggering debounced filter search');
-          await triggerFilterSearch(filterConditions);
+          await triggerFilterSearch(completeConditions);
         } else {
           // When no conditions OR all conditions are incomplete OR conditions array is empty
           // We need to trigger the original search to get back unfiltered results
           console.log('Clearing filters - triggering original search to get unfiltered results');
           if (onFilterSearch) {
             try {
-              // Pass empty array to trigger original search behavior in App.jsx
               await onFilterSearch([]);
             } catch (error) {
               if (error.name !== 'AbortError') {
                 console.error('Failed to clear filters:', error);
-                // Fallback to local reset if API call fails
                 setFilteredResults(results);
               }
             }
           } else {
-            // No API handler, just reset locally
             setFilteredResults(results);
           }
         }
-        
-        // Mark changes as processed regardless of success/failure
         setHasUnprocessedChanges(false);
       } catch (error) {
         console.error('Error in filter conditions effect:', error);

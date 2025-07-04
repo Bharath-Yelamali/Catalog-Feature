@@ -74,7 +74,6 @@ export function FilterDropdown({
       value: ''
     }]);
     setInputValues(prev => ({ ...prev, [newIndex]: '' }));
-    setHasUnprocessedChanges(true);
   };
 
   return (

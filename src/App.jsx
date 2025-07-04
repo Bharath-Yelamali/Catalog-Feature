@@ -605,6 +605,7 @@ function App() {
                 requestPopup={requestPopup}
                 setRequestPopup={setRequestPopup}
                 onFilterSearch={handleFilterSearch}
+                loading={loading} // Pass loading state to PartsTable
               />
             </>
           )}

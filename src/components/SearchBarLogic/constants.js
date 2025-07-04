@@ -35,7 +35,7 @@ export const searchableFields = [
   { key: 'manufacturerName', label: 'Manufacturer Name', isMainTable: true },
   { key: 'inventoryDescription', label: 'Inventory Description', isMainTable: true },
   { key: 'instanceId', label: 'Instance ID', isMainTable: false },
-  { key: 'associatedProject', label: 'Associated Project', isMainTable: false },
+  { key: 'm_project', label: 'Associated Project', isMainTable: false },
   { key: 'hardwareCustodian', label: 'Hardware Custodian', isMainTable: false },
   { key: 'parentPath', label: 'Parent Path', isMainTable: false }
 ];

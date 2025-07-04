@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { updateSpareValue } from '../api/parts';
 import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton, useSearchUtilities } from './SearchBarLogic';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch, loading, spinner }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -214,15 +214,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               setHiddenFields={setHiddenFields}
               allFields={allFields}
             />
-            
             <FilterButton
               activeFilterCount={activeFilterCount}
               filterDropdownOpen={filterDropdownOpen}
               setFilterDropdownOpen={setFilterDropdownOpen}
               filterConditions={filterConditions}
               setFilterConditions={setFilterConditions}
-              conditionGroups={conditionGroups}
-              setConditionGroups={setConditionGroups}
               inputValues={inputValues}
               setInputValues={setInputValues}
               hasUnprocessedChanges={hasUnprocessedChanges}
@@ -239,19 +236,44 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               handleDragEnd={handleDragEnd}
               searchableFields={searchableFields}
             />
-            
-            <span className="header-text">
-              Actions & Filters
+            <span className="item-count-text" style={{ marginLeft: 16 }}>
+              {loading ? (
+                <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 50 50"
+                    style={{ display: 'block' }}
+                  >
+                    <circle
+                      cx="25"
+                      cy="25"
+                      r="20"
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth="5"
+                      strokeLinecap="round"
+                      strokeDasharray="31.415, 31.415"
+                      transform="rotate(0 25 25)"
+                    >
+                      <animateTransform
+                        attributeName="transform"
+                        type="rotate"
+                        from="0 25 25"
+                        to="360 25 25"
+                        dur="0.8s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  </svg>
+                </span>
+              ) : (
+                `${displayGroups.length} items`
+              )}
             </span>
-            {/* Add buttons/filters here as needed */}
-          </div>
-          <div className="flex-end">
-            {/* Right side - could add export button, etc. */}
-            <span className="item-count-text">
-              {displayGroups.length} items
-            </span>
-          </div>
         </div>
+        {/* Right side - could add export button, etc. */}
+      </div>
       
       {/* Column header positioned below button header */}
       <div className="search-result-item search-result-header main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
