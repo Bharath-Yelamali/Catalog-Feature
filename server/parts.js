@@ -474,18 +474,22 @@ function applyFieldHighlighting(results, fieldParams) {
  * Apply client-side filtering for fields that can't be handled in OData
  * @param {Array} results - Results to filter
  * @param {Object} fieldParams - Field parameters
- * @param {string} logicalOperator - 'and' or 'or' for combining different field filters
  * @returns {Array} Filtered results
  */
-function applyClientSideFilters(results, fieldParams, logicalOperator = 'and') {
+function applyClientSideFilters(results, fieldParams) {
   const clientSideFilters = Object.entries(fieldParams).filter(([field]) => field.includes('@'));
+  
   if (clientSideFilters.length === 0) return results;
+  
   console.log('Applying client-side filters for @ fields:', clientSideFilters);
+  
   return results.filter(part => {
-    const matches = clientSideFilters.map(([field, fieldValue]) => {
+    return clientSideFilters.every(([field, fieldValue]) => {
       if (!fieldValue) return true;
+      
       // Handle both new format {operator, value} and legacy format
       let conditions = [];
+      
       if (Array.isArray(fieldValue)) {
         conditions = fieldValue.map(item => {
           if (typeof item === 'object' && item.operator && item.value) {
@@ -506,21 +510,30 @@ function applyClientSideFilters(results, fieldParams, logicalOperator = 'and') {
         const actualValue = isNot ? value.substring(1) : value;
         conditions = [{ operator: isNot ? 'does not contain' : 'contains', value: actualValue }];
       }
+      
       // Filter out empty conditions
-      conditions = conditions.filter(condition => condition.value && condition.value.trim() !== '');
+      conditions = conditions.filter(condition => 
+        condition.value && condition.value.trim() !== ''
+      );
+      
       if (conditions.length === 0) return true;
+      
       const partFieldValue = field === 'm_custodian@aras.keyed_name' 
         ? part["m_custodian@aras.keyed_name"] 
         : part[field];
+      
       // Apply each condition and combine results
       return conditions.every(condition => {
         const actualValue = condition.value.trim();
+        
         if (!partFieldValue) {
           // If no field value, "does not contain" and "is not" should pass, others should fail
           return condition.operator === 'does not contain' || condition.operator === 'is not';
         }
+        
         const fieldStr = String(partFieldValue).toLowerCase();
         const searchStr = actualValue.toLowerCase();
+        
         switch (condition.operator) {
           case 'contains':
             return fieldStr.includes(searchStr);
@@ -535,12 +548,6 @@ function applyClientSideFilters(results, fieldParams, logicalOperator = 'and') {
         }
       });
     });
-    // Combine using the logical operator
-    if (logicalOperator === 'or') {
-      return matches.some(Boolean); // At least one client-side field matches
-    } else {
-      return matches.every(Boolean); // All client-side fields must match
-    }
   });
 }
 
@@ -631,7 +638,7 @@ router.get('/parts', async (req, res) => {
     }
     
     // Apply client-side filtering for @ fields
-    results = applyClientSideFilters(results, fieldParams, logicalOperator);
+    results = applyClientSideFilters(results, fieldParams);
     
     // Add highlighting for field-specific searches if we have field parameters and not a general search
     const hasFieldParams = Object.keys(fieldParams).some(field => hasFieldValues(fieldParams[field]));
@@ -753,6 +760,74 @@ router.patch('/m_Instance/:id/spare-value', async (req, res) => {
     res.json(data);  } catch (err) {
     // Keep error logging in case of exceptions, but make it more concise
     res.status(500).json({ error: 'Failed to update spare_value in IMS: ' + err.message });
+  }
+});
+
+/**
+ * GET /parts-client-side
+ * Fetch all inventoried parts, then filter client-side using the 8 searchable fields.
+ * Query param: search (applies to all 8 fields, comma-separated for AND, ! for NOT)
+ */
+router.get('/parts-client-side', async (req, res) => {
+  const startTime = Date.now();
+  try {
+    // Validate authorization
+    const authHeader = req.headers['authorization'];
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'Missing or invalid access token. Please log in.' });
+    }
+
+    // Only filter on classification eq 'Inventoried', no $top limit
+    const odataUrl = `${BASE_URL}m_Instance?$filter=classification eq 'Inventoried'&$select=${FIELD_CONFIG.SELECT_FIELDS.join(',')}&$expand=${FIELD_CONFIG.EXPAND_FIELDS.join(',')}`;
+    console.log('Fetching ALL inventoried parts for client-side filtering:', odataUrl);
+
+    const fetchStart = Date.now();
+    const response = await fetch(odataUrl, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const fetchTime = Date.now() - fetchStart;
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OData API error (${response.status}):`, errorText);
+      return res.status(response.status).json({ 
+        error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` 
+      });
+    }
+
+    // Process results
+    const data = await response.json();
+    let results = data.value || [];
+
+    // Group and calculate totals (reuse your existing logic)
+    const groupStart = Date.now();
+    results = groupAndProcessParts(results);
+    const groupTime = Date.now() - groupStart;
+
+    // Apply client-side filtering using the 8 searchable fields
+    const { search } = req.query;
+    let searchTime = 0;
+    if (search?.trim()) {
+      const searchStart = Date.now();
+      // Use your applySearchFilter, which already supports all 8 fields
+      results = applySearchFilter(results, search.trim());
+      searchTime = Date.now() - searchStart;
+    }
+
+    // No result limit!
+    const totalTime = Date.now() - startTime;
+    console.log('--- Performance Metrics (client-side endpoint) ---');
+    console.log(`OData fetch: ${fetchTime}ms`);
+    console.log(`Grouping: ${groupTime}ms`);
+    if (searchTime > 0) console.log(`Search filtering: ${searchTime}ms`);
+    console.log(`Total: ${totalTime}ms`);
+
+    res.json({ value: results });
+
+  } catch (err) {
+    console.error('Internal server error:', err);
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 

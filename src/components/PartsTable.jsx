@@ -213,17 +213,15 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // Add local state for global search if not provided
   const [localSearch, setLocalSearch] = useState(typeof search === 'string' ? search : '');
+  // Add state for global search results (overrides filteredResults when searching)
+  const [globalSearchResults, setGlobalSearchResults] = useState(null);
+
+  // Helper: which results to display
+  const resultsToDisplay = globalSearchResults !== null ? globalSearchResults : displayGroups;
+  const isEmpty = (globalSearchResults !== null ? globalSearchResults.length : filteredResults.length) === 0;
 
   // Get currently visible fields (not hidden)
   const visibleFields = getVisibleFields(allFields, hiddenFields);
-
-  // Handler for global search (now only updates the input, does not affect filter conditions)
-  const handleGlobalSearch = (e) => {
-    const searchText = e.target.value;
-    if (typeof setSearch === 'function') setSearch(searchText);
-    else setLocalSearch(searchText);
-    // No filter condition logic here; global search is now a no-op for filtering
-  };
 
   return (
     <>
@@ -266,8 +264,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             />
             {/* Global Search Bar */}
             <GlobalSearchBar
-              value={typeof setSearch === 'function' ? search : localSearch}
-              onChange={handleGlobalSearch}
+              value={localSearch}
+              setResults={results => {
+                setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
+                // Keep localSearch in sync with input
+                // (GlobalSearchBar should call a prop to update localSearch on every keystroke)
+              }}
+              accessToken={accessToken}
+              setInputValue={setLocalSearch}
             />
             <span className="item-count-text" style={{ marginLeft: 16 }}>
               {loading ? (
@@ -301,7 +305,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   </svg>
                 </span>
               ) : (
-                `${displayGroups.length} items`
+                `${resultsToDisplay.length} items`
               )}
             </span>
         </div>
@@ -332,13 +336,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       
       {/* Main table content */}
       <div className="search-results-dropdown">
-        {filteredResults.length === 0 ? (
+        {isEmpty ? (
           <div className="search-results-empty">
             {results.length === 0 ? 'No parts found.' : 'No parts match the current filters.'}
           </div>
         ) : (
           <>
-          {displayGroups.map(group => {
+          {resultsToDisplay.map(group => {
             const part = group.instances[0];
             // If spare_value is null, treat it as 0
             const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
