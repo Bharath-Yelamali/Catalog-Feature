@@ -13,8 +13,6 @@ export function FilterButton({
   setFilterDropdownOpen,
   filterConditions,
   setFilterConditions,
-  conditionGroups,
-  setConditionGroups,
   inputValues,
   setInputValues,
   hasUnprocessedChanges,
@@ -50,8 +48,6 @@ export function FilterButton({
         <FilterDropdown
           filterConditions={filterConditions}
           setFilterConditions={setFilterConditions}
-          conditionGroups={conditionGroups}
-          setConditionGroups={setConditionGroups}
           inputValues={inputValues}
           setInputValues={setInputValues}
           hasUnprocessedChanges={hasUnprocessedChanges}
@@ -80,8 +76,6 @@ FilterButton.propTypes = {
   setFilterDropdownOpen: PropTypes.func.isRequired,
   filterConditions: PropTypes.array.isRequired,
   setFilterConditions: PropTypes.func.isRequired,
-  conditionGroups: PropTypes.array.isRequired,
-  setConditionGroups: PropTypes.func.isRequired,
   inputValues: PropTypes.object.isRequired,
   setInputValues: PropTypes.func.isRequired,
   hasUnprocessedChanges: PropTypes.bool.isRequired,

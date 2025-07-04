@@ -1,15 +1,13 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { FilterCondition, FilterGroup } from './FilterComponents';
+import { FilterCondition } from './FilterComponents';
 import { LogicalOperatorSelector } from './LogicalOperatorSelector';
 
 /**
- * UnifiedFilterList component that handles both conditions and groups with a unified left column
- * for WHERE/AND/OR operators
+ * UnifiedFilterList component for flat filter conditions with a unified left column
  */
 export function UnifiedFilterList({
   filterConditions = [],
-  conditionGroups = [],
   logicalOperator = 'and',
   onOperatorChange,
   inputValues = {},
@@ -25,22 +23,10 @@ export function UnifiedFilterList({
   onDragLeave,
   onDrop,
   onDragEnd,
-  onRemoveGroup,
-  onAddConditionToGroup,
-  onRemoveConditionFromGroup,
-  onFieldChangeInGroup,
-  onOperatorChangeInGroup,
-  onValueChangeInGroup,
   setHasUnprocessedChanges
 }) {
-  // Combine and sort conditions and groups by their positions
-  const allFilterItems = [
-    ...filterConditions.map(condition => ({ ...condition, type: 'condition' })),
-    ...conditionGroups.map(group => ({ ...group, type: 'group' }))
-  ].sort((a, b) => a.position - b.position);
-
-  // Check if there are no items
-  if (allFilterItems.length === 0) {
+  // Only flat filter conditions
+  if (filterConditions.length === 0) {
     return (
       <div className="filter-dropdown__empty">
         No filter conditions added yet. Click "Add Condition" to start filtering.
@@ -50,11 +36,10 @@ export function UnifiedFilterList({
 
   return (
     <div className="filter-items-list">
-      {allFilterItems.map((item, index) => (
+      {filterConditions.map((item, index) => (
         <div key={item.id} className="filter-item"
-          // Only make conditions draggable, not groups
-          draggable={item.type === 'condition'}
-          onDragStart={item.type === 'condition' ? (e) => onDragStart && onDragStart(e, index) : undefined}
+          draggable={true}
+          onDragStart={onDragStart ? (e) => onDragStart(e, index) : undefined}
           onDragOver={onDragOver}
           onDragEnter={onDragEnter}
           onDragLeave={onDragLeave}
@@ -74,48 +59,28 @@ export function UnifiedFilterList({
             />
           </div>
 
-          {/* Content area based on item type */}
+          {/* Content area for flat condition */}
           <div className="filter-item-content">
-            {item.type === 'condition' ? (
-              <FilterCondition
-                condition={item}
-                index={filterConditions.findIndex(c => c.id === item.id)}
-                logicalOperator={logicalOperator}
-                draggedCondition={draggedCondition}
-                dragHoverTarget={dragHoverTarget}
-                onFieldChange={onFieldChange}
-                onOperatorChange={onOperatorChange}
-                onValueChange={onValueChange}
-                onRemove={onRemoveCondition}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDragEnter={onDragEnter}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-                onDragEnd={onDragEnd}
-                searchableFields={searchableFields}
-                inputValues={inputValues}
-                showLeftColumn={false} // Don't show left column in condition since it's now handled at the unified level
-              />
-            ) : (
-              <FilterGroup
-                group={item}
-                groupIndex={conditionGroups.findIndex(g => g.id === item.id)}
-                groupId={item.id}
-                logicalOperator={logicalOperator}
-                onRemoveGroup={onRemoveGroup}
-                onConditionFieldChange={onFieldChangeInGroup}
-                onConditionOperatorChange={onOperatorChangeInGroup}
-                onConditionValueChange={onValueChangeInGroup}
-                onRemoveCondition={onRemoveConditionFromGroup}
-                searchableFields={searchableFields}
-                inputValues={inputValues}
-                setHasUnprocessedChanges={setHasUnprocessedChanges}
-                showLeftColumn={false} // Don't show left column in group since it's now handled at the unified level
-                onAddConditionToGroup={onAddConditionToGroup}
-                // ...pass other handlers as needed...
-              />
-            )}
+            <FilterCondition
+              condition={item}
+              index={index}
+              logicalOperator={logicalOperator}
+              draggedCondition={draggedCondition}
+              dragHoverTarget={dragHoverTarget}
+              onFieldChange={onFieldChange}
+              onOperatorChange={onOperatorChange}
+              onValueChange={onValueChange}
+              onRemove={onRemoveCondition}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDragEnter={onDragEnter}
+              onDragLeave={onDragLeave}
+              onDrop={onDrop}
+              onDragEnd={onDragEnd}
+              searchableFields={searchableFields}
+              inputValues={inputValues}
+              showLeftColumn={false}
+            />
           </div>
         </div>
       ))}
@@ -125,7 +90,6 @@ export function UnifiedFilterList({
 
 UnifiedFilterList.propTypes = {
   filterConditions: PropTypes.array.isRequired,
-  conditionGroups: PropTypes.array.isRequired,
   logicalOperator: PropTypes.string.isRequired,
   onOperatorChange: PropTypes.func.isRequired,
   inputValues: PropTypes.object,
@@ -141,12 +105,6 @@ UnifiedFilterList.propTypes = {
   onDragLeave: PropTypes.func,
   onDrop: PropTypes.func,
   onDragEnd: PropTypes.func,
-  onRemoveGroup: PropTypes.func.isRequired,
-  onAddConditionToGroup: PropTypes.func.isRequired,
-  onRemoveConditionFromGroup: PropTypes.func.isRequired,
-  onFieldChangeInGroup: PropTypes.func.isRequired,
-  onOperatorChangeInGroup: PropTypes.func.isRequired,
-  onValueChangeInGroup: PropTypes.func.isRequired,
   setHasUnprocessedChanges: PropTypes.func
 };
 
