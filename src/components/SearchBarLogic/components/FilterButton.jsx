@@ -34,14 +34,14 @@ export function FilterButton({
       <button
         className={`filter-button ${activeFilterCount > 0 ? 'filter-button--active' : ''}`}
         onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
-        aria-label="Filter table data"
+        aria-label="Advanced Search table data"
       >
         <img 
           src="/images/filter.svg" 
           alt="" 
           className="filter-button__icon"
         />
-        {activeFilterCount > 0 ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'Filter'}
+        {activeFilterCount > 0 ? `${activeFilterCount} active filter${activeFilterCount === 1 ? '' : 's'}` : 'Advanced Search'}
       </button>
 
       {filterDropdownOpen && (

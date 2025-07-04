@@ -126,8 +126,8 @@ export function FilterCondition({
         >
           <option value="contains">contains...</option>
           <option value="does not contain">does not contain...</option>
-          <option value="is">is...</option>
-          <option value="is not">is not...</option>
+          <option value="is">==</option>
+          <option value="is not">!=</option>
         </select>
         {/* Value input */}
         <input

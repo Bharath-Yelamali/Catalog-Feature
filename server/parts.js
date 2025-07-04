@@ -474,22 +474,18 @@ function applyFieldHighlighting(results, fieldParams) {
  * Apply client-side filtering for fields that can't be handled in OData
  * @param {Array} results - Results to filter
  * @param {Object} fieldParams - Field parameters
+ * @param {string} logicalOperator - 'and' or 'or' for combining different field filters
  * @returns {Array} Filtered results
  */
-function applyClientSideFilters(results, fieldParams) {
+function applyClientSideFilters(results, fieldParams, logicalOperator = 'and') {
   const clientSideFilters = Object.entries(fieldParams).filter(([field]) => field.includes('@'));
-  
   if (clientSideFilters.length === 0) return results;
-  
   console.log('Applying client-side filters for @ fields:', clientSideFilters);
-  
   return results.filter(part => {
-    return clientSideFilters.every(([field, fieldValue]) => {
+    const matches = clientSideFilters.map(([field, fieldValue]) => {
       if (!fieldValue) return true;
-      
       // Handle both new format {operator, value} and legacy format
       let conditions = [];
-      
       if (Array.isArray(fieldValue)) {
         conditions = fieldValue.map(item => {
           if (typeof item === 'object' && item.operator && item.value) {
@@ -510,30 +506,21 @@ function applyClientSideFilters(results, fieldParams) {
         const actualValue = isNot ? value.substring(1) : value;
         conditions = [{ operator: isNot ? 'does not contain' : 'contains', value: actualValue }];
       }
-      
       // Filter out empty conditions
-      conditions = conditions.filter(condition => 
-        condition.value && condition.value.trim() !== ''
-      );
-      
+      conditions = conditions.filter(condition => condition.value && condition.value.trim() !== '');
       if (conditions.length === 0) return true;
-      
       const partFieldValue = field === 'm_custodian@aras.keyed_name' 
         ? part["m_custodian@aras.keyed_name"] 
         : part[field];
-      
       // Apply each condition and combine results
       return conditions.every(condition => {
         const actualValue = condition.value.trim();
-        
         if (!partFieldValue) {
           // If no field value, "does not contain" and "is not" should pass, others should fail
           return condition.operator === 'does not contain' || condition.operator === 'is not';
         }
-        
         const fieldStr = String(partFieldValue).toLowerCase();
         const searchStr = actualValue.toLowerCase();
-        
         switch (condition.operator) {
           case 'contains':
             return fieldStr.includes(searchStr);
@@ -548,6 +535,12 @@ function applyClientSideFilters(results, fieldParams) {
         }
       });
     });
+    // Combine using the logical operator
+    if (logicalOperator === 'or') {
+      return matches.some(Boolean); // At least one client-side field matches
+    } else {
+      return matches.every(Boolean); // All client-side fields must match
+    }
   });
 }
 
@@ -638,7 +631,7 @@ router.get('/parts', async (req, res) => {
     }
     
     // Apply client-side filtering for @ fields
-    results = applyClientSideFilters(results, fieldParams);
+    results = applyClientSideFilters(results, fieldParams, logicalOperator);
     
     // Add highlighting for field-specific searches if we have field parameters and not a general search
     const hasFieldParams = Object.keys(fieldParams).some(field => hasFieldValues(fieldParams[field]));

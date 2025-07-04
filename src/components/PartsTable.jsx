@@ -1,8 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { updateSpareValue } from '../api/parts';
+import { updateSpareValue, fetchPartsByFields } from '../api/parts';
+import { searchableFields } from './SearchBarLogic/constants';
 import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton, useSearchUtilities } from './SearchBarLogic';
+import { GlobalSearchBar } from './SearchBarLogic/components/GlobalSearchBar';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch, loading, spinner }) {
+// Utility to get visible fields (not hidden)
+function getVisibleFields(allFields, hiddenFields) {
+  // allFields: array of field objects or strings
+  // hiddenFields: object with field keys as keys and true/false as values
+  // If allFields is array of objects, use .key
+  if (allFields.length > 0 && typeof allFields[0] === 'object') {
+    return allFields.filter(field => !hiddenFields[field.key]).map(field => field.key);
+  }
+  // If allFields is array of strings
+  return allFields.filter(field => !hiddenFields[field]);
+}
+
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch, loading, spinner }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -197,6 +211,20 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     };
   }, [requestPopup.open]);
 
+  // Add local state for global search if not provided
+  const [localSearch, setLocalSearch] = useState(typeof search === 'string' ? search : '');
+
+  // Get currently visible fields (not hidden)
+  const visibleFields = getVisibleFields(allFields, hiddenFields);
+
+  // Handler for global search (now only updates the input, does not affect filter conditions)
+  const handleGlobalSearch = (e) => {
+    const searchText = e.target.value;
+    if (typeof setSearch === 'function') setSearch(searchText);
+    else setLocalSearch(searchText);
+    // No filter condition logic here; global search is now a no-op for filtering
+  };
+
   return (
     <>
       {/* Button/Action header positioned against taskbar */}
@@ -235,6 +263,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               handleDrop={handleDrop}
               handleDragEnd={handleDragEnd}
               searchableFields={searchableFields}
+            />
+            {/* Global Search Bar */}
+            <GlobalSearchBar
+              value={typeof setSearch === 'function' ? search : localSearch}
+              onChange={handleGlobalSearch}
             />
             <span className="item-count-text" style={{ marginLeft: 16 }}>
               {loading ? (

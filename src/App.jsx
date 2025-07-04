@@ -555,7 +555,7 @@ function App() {
         <LoginPage setPage={setPage} handleLoginSuccess={handleLoginSuccess} />
       )}
       {page === 'search' && (
-        <>
+        <div style={{ paddingTop: '120px', minHeight: '50vh', background: '#f7fafd' }}>
           {/* Redirect to home page if not logged in and somehow navigated to search page */}
           {!accessToken ? (
             <>{setPage('home')}</>
@@ -587,7 +587,8 @@ function App() {
                 Export
               </button>
             );
-            return null;          })()}
+            return null;
+          })()}
           {accessToken && showResults && (
             <>
               {loading && <div>Loading parts...</div>}
@@ -609,7 +610,7 @@ function App() {
               />
             </>
           )}
-        </>
+        </div>
       )}
       <main className="main-content">        {page === 'about' && <div>About Page</div>}
         {page === 'orders' && (
