@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
+import hideIcon from '../../../assets/hide.svg';
 
 /**
  * Hide Fields Button Component
@@ -86,7 +87,7 @@ export function HideFieldsButton({
         aria-haspopup="true"
       >
         <img 
-          src="/images/hide.svg" 
+          src={hideIcon} 
           alt="" 
           className="hide-fields-button-icon"
         />

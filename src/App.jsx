@@ -10,6 +10,12 @@ import LoginPage from './components/LoginPage';
 import { fetchUserFirstName } from './api/userInfo';
 import OrdersPage from './components/OrdersPage';
 import ReactDOM from 'react-dom';
+// Update SVG imports to use assets folder
+import wizardIcon from './assets/wizard.svg';
+import hideIcon from './assets/hide.svg';
+import filterIcon from './assets/filter.svg';
+import garbageIcon from './assets/garbage.svg';
+import plusIcon from './assets/plus.svg';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -523,8 +529,9 @@ function App() {
       )}
       <nav className="taskbar">
         <div className="taskbar-title clickable" onClick={() => setPage('home')}>
-          <img src="/wizard.svg" alt="Wizard Logo" className="taskbar-logo" />
-        </div>        <ul className="taskbar-links">
+          <img src={wizardIcon} alt="Wizard Logo" className="taskbar-logo" />
+        </div>
+        <ul className="taskbar-links">
           {/* Only show Search link if user is logged in */}
           {accessToken && (
             <li><a href="#" onClick={() => setPage('search')}>Search</a></li>

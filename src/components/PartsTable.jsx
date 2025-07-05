@@ -3,7 +3,8 @@ import { updateSpareValue, fetchPartsByFields } from '../api/parts';
 import { searchableFields } from './SearchBarLogic/constants';
 import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton, useSearchUtilities } from './SearchBarLogic';
 import { GlobalSearchBar } from './SearchBarLogic/components/GlobalSearchBar';
-import downloadIcon from '../../public/images/download.svg';
+import downloadIcon from "../assets/download.svg";
+import nextIcon from "../assets/next.svg";
 import * as XLSX from 'xlsx';
 
 // Utility to get visible fields (not hidden)
@@ -302,15 +303,54 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               handleDragEnd={handleDragEnd}
               searchableFields={searchableFields}
             />
-            {/* Global Search Bar */}
-            <GlobalSearchBar
-              value={localSearch}
-              setResults={results => {
-                setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
-              }}
-              accessToken={accessToken}
-              setInputValue={setLocalSearch}
-            />
+            {/* Global Search Bar and item count */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GlobalSearchBar
+                value={localSearch}
+                setResults={results => {
+                  setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
+                }}
+                accessToken={accessToken}
+                setInputValue={setLocalSearch}
+              />
+              <span className="item-count-text" style={{ marginLeft: 8 }}>
+                {loading ? (
+                  <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 50 50"
+                      style={{ display: 'block' }}
+                    >
+                      <circle
+                        cx="25"
+                        cy="25"
+                        r="20"
+                        fill="none"
+                        stroke="#2563eb"
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        strokeDasharray="31.415, 31.415"
+                        transform="rotate(0 25 25)"
+                      >
+                        <animateTransform
+                          attributeName="transform"
+                          type="rotate"
+                          from="0 25 25"
+                          to="360 25 25"
+                          dur="0.8s"
+                          repeatCount="indefinite"
+                        />
+                      </circle>
+                    </svg>
+                  </span>
+                ) : (
+                  `${resultsToDisplay.length} items`
+                )}
+              </span>
+            </div>
+        </div>
+        <div className="flex-end">
             {/* Download/Export Button */}
             <button
               className="download-export-btn"
@@ -331,43 +371,31 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             >
               <img src={downloadIcon} alt="Download" style={{ width: 28, height: 28 }} />
             </button>
-            <span className="item-count-text" style={{ marginLeft: 16 }}>
-              {loading ? (
-                <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 50 50"
-                    style={{ display: 'block' }}
-                  >
-                    <circle
-                      cx="25"
-                      cy="25"
-                      r="20"
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeDasharray="31.415, 31.415"
-                      transform="rotate(0 25 25)"
-                    >
-                      <animateTransform
-                        attributeName="transform"
-                        type="rotate"
-                        from="0 25 25"
-                        to="360 25 25"
-                        dur="0.8s"
-                        repeatCount="indefinite"
-                      />
-                    </circle>
-                  </svg>
-                </span>
-              ) : (
-                `${resultsToDisplay.length} items`
-              )}
-            </span>
+            {/* Next/Checkout Button */}
+            <button
+              className="next-btn"
+              style={{
+                marginLeft: 12,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                opacity: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 0.5 : 1
+              }}
+              onClick={
+                (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== ''))
+                  ? undefined
+                  : () => setPage('requiredFields')
+              }
+              disabled={Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')}
+              title="Proceed to required fields"
+              aria-label="Proceed to required fields"
+            >
+              <img src={nextIcon} alt="Next" style={{ width: 28, height: 28 }} />
+            </button>
         </div>
-        {/* Right side - could add export button, etc. */}
       </div>
       
       {/* Column header positioned below button header */}

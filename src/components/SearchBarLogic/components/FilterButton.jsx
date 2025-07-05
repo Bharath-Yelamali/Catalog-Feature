@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { FilterDropdown } from '../../FilterDropdown';
+import filterIcon from '../../../assets/filter.svg';
 
 /**
  * FilterButton component for managing filter conditions
@@ -37,7 +38,7 @@ export function FilterButton({
         aria-label="Advanced Search table data"
       >
         <img 
-          src="/images/filter.svg" 
+          src={filterIcon} 
           alt="" 
           className="filter-button__icon"
         />

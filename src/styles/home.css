@@ -4,7 +4,7 @@
 .homepage-banner {
   width: 100vw;
   min-height: 450px;
-  background: #f5f8fc url('/images/banner-bg.jpg') center center/cover no-repeat;
+  background: #f5f8fc url('../assets/banner-bg.jpg') center center/cover no-repeat;
   margin: 0;
   border-radius: 0;
   box-shadow: 0 2px 12px rgba(44,130,201,0.07);
