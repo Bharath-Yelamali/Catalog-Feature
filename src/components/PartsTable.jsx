@@ -3,6 +3,9 @@ import { updateSpareValue, fetchPartsByFields } from '../api/parts';
 import { searchableFields } from './SearchBarLogic/constants';
 import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton, useSearchUtilities } from './SearchBarLogic';
 import { GlobalSearchBar } from './SearchBarLogic/components/GlobalSearchBar';
+import downloadIcon from "../assets/download.svg";
+import nextIcon from "../assets/next.svg";
+import * as XLSX from 'xlsx';
 
 // Utility to get visible fields (not hidden)
 function getVisibleFields(allFields, hiddenFields) {
@@ -223,6 +226,44 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // Get currently visible fields (not hidden)
   const visibleFields = getVisibleFields(allFields, hiddenFields);
 
+  // Export handler for checked items
+  const handleExport = () => {
+    const checkedGroups = Object.entries(selected);
+    if (!checkedGroups.length) return;
+    const exportRows = checkedGroups.flatMap(([itemNumber, group]) => {
+      const qty = quantities[itemNumber] || '';
+      if (Array.isArray(group.instances)) {
+        return group.instances.map(instance => ({ ...instance, __exportQty: qty }));
+      } else {
+        return [{ ...group, __exportQty: qty }];
+      }
+    });
+    const data = exportRows.map(row => ({
+      'Qty': row.__exportQty ?? '',
+      'Total': row.total ?? 'N/A',
+      'In Use': row.inUse ?? 'N/A',
+      'Spare': row.spare ?? 'N/A',
+      'Inventory Item Number': row.m_inventory_item?.item_number ?? 'N/A',
+      'Serial Number/Name': row.m_serial_number ?? row.m_name ?? 'N/A',
+      'Inventory Maturity': row.m_inventory_maturity ?? 'N/A',
+      'Manufacturer Part #': row.m_mfg_part_number ?? 'N/A',
+      'Manufacturer Name': row.m_mfg_name ?? 'N/A',
+      'Hardware Custodian': row.m_hardware_custodian?.keyed_name ?? row.m_hardware_custodian?.id ?? 'N/A',
+      'Parent Path': row.m_parent_path ?? 'N/A',
+      'Inventory Description': row.m_inventory_description ?? row.m_description ?? 'N/A',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data, { header: [
+      'Qty', 'Total', 'In Use', 'Spare', 'Inventory Item Number', 'Serial Number/Name', 'Inventory Maturity',
+      'Manufacturer Part #', 'Manufacturer Name', 'Hardware Custodian', 'Parent Path', 'Inventory Description'] });
+    ws['!cols'] = [
+      { wch: 6 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 28 }, { wch: 32 },
+    ];
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Selected Parts');
+    XLSX.writeFile(wb, `selected_parts_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
   return (
     <>
       {/* Button/Action header positioned against taskbar */}
@@ -262,54 +303,99 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               handleDragEnd={handleDragEnd}
               searchableFields={searchableFields}
             />
-            {/* Global Search Bar */}
-            <GlobalSearchBar
-              value={localSearch}
-              setResults={results => {
-                setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
-                // Keep localSearch in sync with input
-                // (GlobalSearchBar should call a prop to update localSearch on every keystroke)
-              }}
-              accessToken={accessToken}
-              setInputValue={setLocalSearch}
-            />
-            <span className="item-count-text" style={{ marginLeft: 16 }}>
-              {loading ? (
-                <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 50 50"
-                    style={{ display: 'block' }}
-                  >
-                    <circle
-                      cx="25"
-                      cy="25"
-                      r="20"
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth="5"
-                      strokeLinecap="round"
-                      strokeDasharray="31.415, 31.415"
-                      transform="rotate(0 25 25)"
+            {/* Global Search Bar and item count */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GlobalSearchBar
+                value={localSearch}
+                setResults={results => {
+                  setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
+                }}
+                accessToken={accessToken}
+                setInputValue={setLocalSearch}
+              />
+              <span className="item-count-text" style={{ marginLeft: 8 }}>
+                {loading ? (
+                  <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 50 50"
+                      style={{ display: 'block' }}
                     >
-                      <animateTransform
-                        attributeName="transform"
-                        type="rotate"
-                        from="0 25 25"
-                        to="360 25 25"
-                        dur="0.8s"
-                        repeatCount="indefinite"
-                      />
-                    </circle>
-                  </svg>
-                </span>
-              ) : (
-                `${resultsToDisplay.length} items`
-              )}
-            </span>
+                      <circle
+                        cx="25"
+                        cy="25"
+                        r="20"
+                        fill="none"
+                        stroke="#2563eb"
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        strokeDasharray="31.415, 31.415"
+                        transform="rotate(0 25 25)"
+                      >
+                        <animateTransform
+                          attributeName="transform"
+                          type="rotate"
+                          from="0 25 25"
+                          to="360 25 25"
+                          dur="0.8s"
+                          repeatCount="indefinite"
+                        />
+                      </circle>
+                    </svg>
+                  </span>
+                ) : (
+                  `${resultsToDisplay.length} items`
+                )}
+              </span>
+            </div>
         </div>
-        {/* Right side - could add export button, etc. */}
+        <div className="flex-end">
+            {/* Download/Export Button */}
+            <button
+              className="download-export-btn"
+              style={{
+                marginLeft: 12,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: Object.keys(selected).length === 0 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                opacity: Object.keys(selected).length === 0 ? 0.5 : 1
+              }}
+              onClick={Object.keys(selected).length === 0 ? undefined : handleExport}
+              disabled={Object.keys(selected).length === 0}
+              title="Export selected parts"
+              aria-label="Export selected parts"
+            >
+              <img src={downloadIcon} alt="Download" style={{ width: 28, height: 28 }} />
+            </button>
+            {/* Next/Checkout Button */}
+            <button
+              className="next-btn"
+              style={{
+                marginLeft: 12,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                opacity: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 0.5 : 1
+              }}
+              onClick={
+                (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== ''))
+                  ? undefined
+                  : () => setPage('requiredFields')
+              }
+              disabled={Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')}
+              title="Proceed to required fields"
+              aria-label="Proceed to required fields"
+            >
+              <img src={nextIcon} alt="Next" style={{ width: 28, height: 28 }} />
+            </button>
+        </div>
       </div>
       
       {/* Column header positioned below button header */}

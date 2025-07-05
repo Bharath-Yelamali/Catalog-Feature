@@ -1,5 +1,6 @@
 import React from 'react';
 import { UnifiedFilterList } from './UnifiedFilterList';
+import plusIcon from '../assets/plus.svg';
 
 export function FilterDropdown({
   filterConditions,
@@ -111,7 +112,7 @@ export function FilterDropdown({
       <div className="filter-dropdown__actions">
         <button onClick={handleAddCondition} className="filter-action-btn">
           <img 
-            src="/images/plus.svg" 
+            src={plusIcon} 
             alt="" 
             className="filter-action-btn__icon"
           />

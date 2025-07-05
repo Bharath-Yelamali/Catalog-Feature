@@ -1,6 +1,8 @@
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { LogicalOperatorSelector } from './LogicalOperatorSelector';
+import garbageIcon from '../assets/garbage.svg';
+import dotsIcon from '../assets/dots.svg';
 
 // Individual Filter Condition Component (flat only)
 export function FilterCondition({ 
@@ -148,7 +150,7 @@ export function FilterCondition({
           aria-label={`Remove filter condition ${index + 1}`}
         >
           <img 
-            src="/images/garbage.svg" 
+            src={garbageIcon} 
             alt="" 
             className="filter-form-button--remove-icon"
           />
@@ -160,7 +162,7 @@ export function FilterCondition({
           aria-label={`Drag to reorder condition ${index + 1}`}
         >
           <img 
-            src="/images/dots.svg" 
+            src={dotsIcon} 
             alt="" 
             className="filter-drag-handle__icon"
           />
