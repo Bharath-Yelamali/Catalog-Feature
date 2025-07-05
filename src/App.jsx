@@ -359,7 +359,14 @@ function App() {
     
     try {
       let data;
-      
+      // If chips is empty or has no conditions, and search is also empty, show empty state
+      if ((!chips || chips.length === 0 || (chips.conditions && chips.conditions.length === 0)) && (!search || search.trim() === '')) {
+        setResults([]);
+        setShowResults(false);
+        setLastSearch('');
+        setLoading(false);
+        return;
+      }
       // If chips is empty or has no conditions, we want to go back to the original search
       if (!chips || chips.length === 0 || (chips.conditions && chips.conditions.length === 0)) {
         // Execute the original search (searchAll with the current search term)
