@@ -5,6 +5,7 @@ import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton
 import { GlobalSearchBar } from './SearchBarLogic/components/GlobalSearchBar';
 import downloadIcon from "../assets/download.svg";
 import nextIcon from "../assets/next.svg";
+import personIcon from '../assets/person.svg';
 import * as XLSX from 'xlsx';
 
 // Utility to get visible fields (not hidden)
@@ -423,8 +424,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       {/* Main table content */}
       <div className="search-results-dropdown">
         {isEmpty ? (
-          <div className="search-results-empty">
-            {results.length === 0 ? 'No parts found.' : 'No parts match the current filters.'}
+          <div className="search-results-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 220, color: '#64748b', fontSize: 18 }}>
+            <img src={personIcon} alt="Person" style={{ width: 180, height: 180, marginBottom: 22, opacity: 0.7 }} />
+            {results.length === 0 && localSearch.trim() === ''
+              ? 'Input a search to get started.'
+              : 'No parts match the current filters.'}
           </div>
         ) : (
           <>

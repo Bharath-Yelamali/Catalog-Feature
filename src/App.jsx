@@ -311,20 +311,20 @@ function App() {
   };
 
   // Auto-trigger search fetch if redirected to search page, even if search is blank
-  useEffect(() => {
-    if (page === 'search' && !loading && accessToken) {
-      if ((!search || search.trim() === '') && !defaultSearchTriggered) {
-        setDefaultSearchTriggered(true);
-        handleSearch({ 
-          key: 'Enter',
-          searchMode: 'searchAll',
-          searchData: ''
-        });
-      }
-    } else if (page !== 'search' && defaultSearchTriggered) {
-      setDefaultSearchTriggered(false); // Reset when leaving search page
-    }
-  }, [page, loading, accessToken, search, defaultSearchTriggered]);
+  // useEffect(() => {
+  //   if (page === 'search' && !loading && accessToken) {
+  //     if ((!search || search.trim() === '') && !defaultSearchTriggered) {
+  //       setDefaultSearchTriggered(true);
+  //       handleSearch({ 
+  //         key: 'Enter',
+  //         searchMode: 'searchAll',
+  //         searchData: ''
+  //       });
+  //     }
+  //   } else if (page !== 'search' && defaultSearchTriggered) {
+  //     setDefaultSearchTriggered(false); // Reset when leaving search page
+  //   }
+  // }, [page, loading, accessToken, search, defaultSearchTriggered]);
 
   // Reset defaultSearchTriggered if user types in the search bar
   useEffect(() => {
@@ -596,7 +596,8 @@ function App() {
             );
             return null;
           })()}
-          {accessToken && showResults && (
+          {/* Always render PartsTable if logged in and on search page, even if no results yet */}
+          {accessToken && (
             <>
               {loading && <div>Loading parts...</div>}
               {error && <div style={{color: 'red'}}>{error}</div>}
