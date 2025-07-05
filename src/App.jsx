@@ -540,7 +540,7 @@ function App() {
           {accessToken && (
             <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
           )}
-          <li><a href="#" onClick={() => setPage('about')}>About</a></li>
+          {/* About page removed */}
           {!accessToken ? (
             <li><a href="#" onClick={handleNavLogin}>Login</a></li>
           ) : (
@@ -620,7 +620,7 @@ function App() {
           )}
         </div>
       )}
-      <main className="main-content">        {page === 'about' && <div>About Page</div>}
+      <main className="main-content">        {/* About page removed */}
         {page === 'orders' && (
           <>
             {/* Redirect to home page if not logged in and somehow navigated to orders page */}
