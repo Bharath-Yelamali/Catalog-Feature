@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 /**
  * GlobalSearchBar - a text input for global search, styled to align with other search bar controls.
- * Now triggers a fetch to the /parts-client-side endpoint for client-side filtering.
+ * Now triggers a fetch to the /parts endpoint for server-side filtering.
  */
 export function GlobalSearchBar({ value, setResults, accessToken, placeholder = 'Global search...' }) {
   const [inputValue, setInputValue] = useState(value);
@@ -21,22 +21,22 @@ export function GlobalSearchBar({ value, setResults, accessToken, placeholder = 
     // Debounce API calls
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
-      fetchPartsClientSide(newValue);
+      fetchPartsServerSide(newValue);
     }, 350);
   };
 
-  // Fetch from /parts-client-side endpoint
-  const fetchPartsClientSide = async (searchText) => {
+  // Fetch from /parts endpoint (server-side filtering)
+  const fetchPartsServerSide = async (searchText) => {
     try {
       const params = [];
       if (searchText && searchText.trim() !== '') {
         params.push(`search=${encodeURIComponent(searchText.trim())}`);
       }
-      const url = `/parts-client-side${params.length ? '?' + params.join('&') : ''}`;
+      const url = `/parts${params.length ? '?' + params.join('&') : ''}`;
       const response = await fetch(url, {
         headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
       });
-      if (!response.ok) throw new Error('Failed to fetch parts (client-side global search)');
+      if (!response.ok) throw new Error('Failed to fetch parts (server-side global search)');
       const data = await response.json();
       setResults(data.value || []);
     } catch (err) {
