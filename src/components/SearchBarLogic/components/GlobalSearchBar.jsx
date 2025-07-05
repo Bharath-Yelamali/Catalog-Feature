@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import { searchableFields } from '../constants';
 
 /**
  * GlobalSearchBar - a text input for global search, styled to align with other search bar controls.
- * Now triggers a fetch to the /parts endpoint for server-side filtering.
+ * Triggers a filter search with 8 OR'ed conditions for server-side filtering.
  */
-export function GlobalSearchBar({ value, setResults, accessToken, placeholder = 'Global search...' }) {
+export function GlobalSearchBar({ value, onGlobalSearchConditionsChange, placeholder = 'Global search...' }) {
   const [inputValue, setInputValue] = useState(value);
   const debounceTimeout = useRef(null);
 
@@ -18,30 +19,26 @@ export function GlobalSearchBar({ value, setResults, accessToken, placeholder = 
   const handleChange = (e) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-    // Debounce API calls
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
-      fetchPartsServerSide(newValue);
+      handleGlobalSearch(newValue);
     }, 350);
   };
 
-  // Fetch from /parts endpoint (server-side filtering)
-  const fetchPartsServerSide = async (searchText) => {
-    try {
-      const params = [];
-      if (searchText && searchText.trim() !== '') {
-        params.push(`search=${encodeURIComponent(searchText.trim())}`);
-      }
-      const url = `/parts${params.length ? '?' + params.join('&') : ''}`;
-      const response = await fetch(url, {
-        headers: accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}
-      });
-      if (!response.ok) throw new Error('Failed to fetch parts (server-side global search)');
-      const data = await response.json();
-      setResults(data.value || []);
-    } catch (err) {
-      setResults([]);
+  // Build 8 OR'ed conditions and trigger the filter search
+  const handleGlobalSearch = (searchText) => {
+    if (!onGlobalSearchConditionsChange) return;
+    if (!searchText || searchText.trim() === '') {
+      onGlobalSearchConditionsChange({ conditions: [], logicalOperator: 'or' });
+      return;
     }
+    // Build 8 conditions (one per field)
+    const conditions = searchableFields.map(field => ({
+      field: field.key, // UI key
+      operator: 'contains',
+      value: searchText.trim()
+    }));
+    onGlobalSearchConditionsChange({ conditions, logicalOperator: 'or' });
   };
 
   return (
@@ -66,7 +63,6 @@ export function GlobalSearchBar({ value, setResults, accessToken, placeholder = 
 
 GlobalSearchBar.propTypes = {
   value: PropTypes.string.isRequired,
-  setResults: PropTypes.func.isRequired,
-  accessToken: PropTypes.string,
+  onGlobalSearchConditionsChange: PropTypes.func.isRequired,
   placeholder: PropTypes.string
 };

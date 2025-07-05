@@ -308,6 +308,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <GlobalSearchBar
                 value={localSearch}
+                onGlobalSearchConditionsChange={({ conditions, logicalOperator }) => {
+                  setFilterConditions(conditions || []);
+                  setLogicalOperator(logicalOperator || 'or');
+                  setHasUnprocessedChanges(true); // trigger filter search in useFilterManagement
+                }}
                 setResults={results => {
                   setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
                 }}

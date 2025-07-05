@@ -325,6 +325,28 @@ export function useFilterManagement(results = [], onFilterSearch) {
     }
   }, [onFilterSearch, convertFilterConditionsToChips, applyFilters, results, setFilteredResults]);
 
+  /**
+   * Apply global search conditions by replacing all existing global search fields with the new OR'ed conditions.
+   * This ensures only one set of global search conditions is present, sets logicalOperator to 'or',
+   * and triggers the search by setting hasUnprocessedChanges.
+   * @param {Array} newGlobalConditions - Array of new global search filter conditions
+   */
+  const applyGlobalSearchConditions = useCallback((newGlobalConditions) => {
+    if (!Array.isArray(newGlobalConditions)) {
+      console.warn('applyGlobalSearchConditions: newGlobalConditions is not an array');
+      return;
+    }
+    // Remove any existing global search conditions (fields in searchableFields)
+    const globalFields = searchableFields.map(f => f.key);
+    const nonGlobalConditions = filterConditions.filter(
+      cond => cond && !globalFields.includes(cond.field)
+    );
+    // Add new global search conditions (OR'ed)
+    setFilterConditions([...nonGlobalConditions, ...newGlobalConditions]);
+    setLogicalOperator('or');
+    setHasUnprocessedChanges(true);
+  }, [filterConditions, searchableFields]);
+
   // Close filter dropdown when clicking outside
   useEffect(() => {
     if (!filterDropdownOpen) {
@@ -499,7 +521,7 @@ export function useFilterManagement(results = [], onFilterSearch) {
     matchesCondition,
     convertFilterConditionsToChips,
     triggerFilterSearch,
-    
+    applyGlobalSearchConditions,
     // Drag handlers
     handleDragStart,
     handleDragOver,

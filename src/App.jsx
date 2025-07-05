@@ -16,6 +16,8 @@ import hideIcon from './assets/hide.svg';
 import filterIcon from './assets/filter.svg';
 import garbageIcon from './assets/garbage.svg';
 import plusIcon from './assets/plus.svg';
+import { searchableFields } from './components/SearchBarLogic/constants';
+import { GlobalSearchBar } from './components/SearchBarLogic/components/GlobalSearchBar';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -85,6 +87,9 @@ function App() {
   // Track if default search has been triggered to avoid infinite loop
   const [defaultSearchTriggered, setDefaultSearchTriggered] = useState(false);
   const [requestPopup, setRequestPopup] = useState({ open: false, custodians: [], group: null });
+  // Add filter state for advanced/global search UI sync
+  const [filterConditions, setFilterConditions] = useState([]);
+  const [logicalOperator, setLogicalOperator] = useState('and');
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
@@ -423,6 +428,13 @@ function App() {
     }
   };
 
+  // Handler for global search bar
+  const handleGlobalSearchConditionsChange = ({ conditions, logicalOperator }) => {
+    setFilterConditions(conditions || []);
+    setLogicalOperator(logicalOperator || 'or');
+    handleFilterSearch({ conditions, logicalOperator });
+  };
+
   return (
     <div>
       {showSessionPopup && (
@@ -574,6 +586,12 @@ function App() {
           {!accessToken ? (
             <>{setPage('home')}</>
           ) : null}
+          {/* Global Search Bar */}
+          <GlobalSearchBar
+            value={search}
+            onGlobalSearchConditionsChange={handleGlobalSearchConditionsChange}
+            placeholder="Global search..."
+          />
           {(() => {
             window.renderExportButton = () => (
               <button
@@ -622,6 +640,11 @@ function App() {
                 setRequestPopup={setRequestPopup}
                 onFilterSearch={handleFilterSearch}
                 loading={loading} // Pass loading state to PartsTable
+                // Pass filter state to PartsTable for advanced/global search UI sync
+                filterConditions={filterConditions}
+                setFilterConditions={setFilterConditions}
+                logicalOperator={logicalOperator}
+                setLogicalOperator={setLogicalOperator}
               />
             </>
           )}
