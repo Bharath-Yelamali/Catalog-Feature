@@ -312,6 +312,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   setFilterConditions(conditions || []);
                   setLogicalOperator(logicalOperator || 'or');
                   setHasUnprocessedChanges(true); // trigger filter search in useFilterManagement
+                  // --- Sync inputValues with new global search conditions ---
+                  const newInputValues = {};
+                  (conditions || []).forEach((cond, idx) => {
+                    newInputValues[idx] = cond.value;
+                  });
+                  setInputValues(newInputValues);
                 }}
                 setResults={results => {
                   setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
