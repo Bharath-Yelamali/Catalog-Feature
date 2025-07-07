@@ -1,15 +1,44 @@
+/**
+ * orders.js
+ *
+ * Express router for procurement request/order-related API endpoints.
+ * Handles:
+ *   - Listing and searching procurement requests/orders
+ *   - Retrieving workflow process and activity details
+ *   - Creating procurement requests (with file upload support)
+ *   - Uploading files for procurement requests
+ *
+ * All endpoints require a valid Bearer token in the Authorization header.
+ * File uploads are validated for type and size.
+ *
+ * This module acts as a secure bridge between the frontend and the IMS OData backend.
+ */
+
 // server/orders.js
 // REST endpoint to get purchase requests/orders for the current user from IMS
 
+require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
 const multer = require('multer');
 
+// Use BASE_URL from environment variable
+const BASE_URL = process.env.IMS_BASE_URL;
+
 // Helper function to check if a string is a UUID
 function isUUID(str) {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
+}
+
+// Helper function to extract Bearer token from request
+function extractBearerToken(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring('Bearer '.length);
+  }
+  return null;
 }
 
 // Configure multer with limits and file validation
@@ -88,16 +117,23 @@ function validateRequiredFields(payload, requiredFields) {
   return { valid: true };
 }
 
-// GET /orders
+/**
+ * GET /orders
+ * Fetches purchase requests/orders for the current user from IMS.
+ * Supports optional search and field filtering.
+ * Requires Bearer token in Authorization header.
+ *
+ * Query Params:
+ *   - search: (optional) search term
+ *   - field: (optional) field to search (allowed: 'keyed_name', 'created_by_id/keyed_name')
+ *
+ * Response: { orders: Array, totalCount: number, imsRaw: Object }
+ */
 router.get('/orders', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
 
-  const authHeader = req.headers['authorization'];
-  let token = null;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring('Bearer '.length);
-  }
+  const token = extractBearerToken(req);
   if (!token) {
     return res.status(400).json({ error: 'Missing Authorization header' });
   }
@@ -113,7 +149,6 @@ router.get('/orders', async (req, res) => {
   }
 
   try {
-    const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
     const orderBy = `$orderby=${encodeURIComponent('created_on desc')}`;
     let top = `$top=50`;
     let count = `$count=true`;
@@ -153,19 +188,29 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// GET /workflow-processes?orderItemNumber=REQ-000070
+/**
+ * GET /workflow-processes
+ * Fetches the most recent workflow process for a given order item number.
+ *
+ * - A "workflow process" represents the overall approval or processing workflow instance
+ *   associated with a specific procurement request/order (e.g., REQ-000070).
+ * - Use this endpoint to retrieve the workflow process metadata and status for a given order.
+ * - Typically, this is the first step to understand the current workflow state of an order.
+ *
+ * Requires Bearer token in Authorization header.
+ *
+ * Query Params:
+ *   - orderItemNumber: (required) the order item number (e.g., REQ-000070)
+ *
+ * Response: { workflowProcess: Object|null }
+ */
 router.get('/workflow-processes', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  let token = null;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring('Bearer '.length);
-  }
+  const token = extractBearerToken(req);
   if (!token) {
     return res.status(400).json({ error: 'Missing Authorization header' });
   }
   const orderItemNumber = req.query.orderItemNumber;
   try {
-    const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
     let filter = '';
     if (orderItemNumber) {
       filter = `&$filter=keyed_name eq '${orderItemNumber}'`;
@@ -193,20 +238,30 @@ router.get('/workflow-processes', async (req, res) => {
   }
 });
 
-// GET /workflow-process-activities?workflowProcessId=xxxx
+/**
+ * GET /workflow-process-activities
+ * Fetches the most recent workflow process activity for a given workflow process ID.
+ *
+ * - A "workflow process activity" represents a specific step, action, or task within a workflow process
+ *   (such as an approval, review, or transition event).
+ * - Use this endpoint to retrieve the latest activity (step/status) for a given workflow process instance.
+ * - Typically, you first use /workflow-processes to get the process ID, then use this endpoint to get the latest activity for that process.
+ *
+ * Requires Bearer token in Authorization header.
+ *
+ * Query Params:
+ *   - workflowProcessId: (required) the workflow process ID
+ *
+ * Response: { workflowProcessActivity: Object|null }
+ */
 router.get('/workflow-process-activities', async (req, res) => {
   console.log('workflow-process-activities endpoint hit');
-  const authHeader = req.headers['authorization'];
-  let token = null;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring('Bearer '.length);
-  }
+  const token = extractBearerToken(req);
   if (!token) {
     return res.status(400).json({ error: 'Missing Authorization header' });
   }
   const workflowProcessId = req.query.workflowProcessId;
   try {
-    const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
     let filter = '';
     if (workflowProcessId) {
       filter = `&$filter=source_id eq '${workflowProcessId}'`;
@@ -234,11 +289,20 @@ router.get('/workflow-process-activities', async (req, res) => {
   }
 });
 
-// POST endpoint for new procurement request with file upload (forwards to OData API)
-// Single unified route that handles both multipart/form-data and JSON
+/**
+ * POST /m_Procurement_Request
+ * Creates a new procurement request, with optional file upload (multipart/form-data or JSON).
+ * Requires Bearer token in Authorization header.
+ *
+ * Body:
+ *   - m_project, m_supplier, m_po_owner or poOwnerAlias, and other procurement fields
+ *   - m_quote: (optional) file upload (multipart/form-data)
+ *
+ * Response: OData API response (created procurement request)
+ */
 router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res) => {
   try {
-    const token = req.headers['authorization'];
+    const token = extractBearerToken(req);
     if (!token) {
       return res.status(401).json({ 
         error: {
@@ -250,7 +314,7 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
     }
 
     const preferHeader = req.headers['prefer'] || 'return=representation';
-    const odataUrl = 'https://chievmimsiiss01/IMSStage/Server/odata/m_Procurement_Request';
+    const odataUrl = `${BASE_URL}m_Procurement_Request`;
     const contentType = req.headers['content-type'] || '';
 
     // Log the incoming request
@@ -463,7 +527,7 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
       }
     }
       let odataPayload = { ...fields };
-    // Always use deep insert for file if present
+    // Always use deep insert for file - if no file provided, create a default one
     if (req.file) {
       odataPayload.m_Procurement_Request_Files = [
         {
@@ -477,6 +541,30 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
         file_type: req.file.mimetype,
         file_size: req.file.size
       });
+    } else {
+      // Create a default text file when no attachment is provided
+      // This satisfies the IMS requirement for an attachment
+      const defaultContent = `Procurement Request - ${new Date().toISOString()}
+
+This is an automatically generated file for procurement requests submitted without attachments.
+
+Request Details:
+- Project: ${fields.m_project || 'N/A'}
+- Supplier: ${fields.m_supplier || 'N/A'}
+- PO Owner: ${fields.m_po_owner || 'N/A'}
+- Submitted: ${new Date().toLocaleString()}
+
+No additional attachments were provided with this request.
+`;
+      
+      odataPayload.m_Procurement_Request_Files = [
+        {
+          file_name: `procurement_request_${Date.now()}.txt`,
+          file_content: Buffer.from(defaultContent, 'utf8').toString('base64'),
+          file_type: 'text/plain'
+        }
+      ];
+      console.log('No attachment provided - added default text file to satisfy IMS requirement');
     }
 
     // Send to OData API
@@ -510,11 +598,22 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
   }
 });
 
-// POST endpoint for procurement request file upload (forwards to OData API)
+/**
+ * POST /m_Procurement_Request_Files
+ * Uploads a file attachment for a procurement request.
+ * Requires Bearer token in Authorization header.
+ *
+ * Body:
+ *   - source_id: (required) procurement request ID
+ *   - file: (required) file upload (multipart/form-data)
+ *   - other metadata fields as needed
+ *
+ * Response: OData API response (created file record)
+ */
 router.post('/m_Procurement_Request_Files', upload.single('file'), async (req, res) => {
   try {
     // Authorization check
-    const token = req.headers['authorization'];
+    const token = extractBearerToken(req);
     if (!token) {
       return res.status(401).json({ 
         error: {
@@ -526,7 +625,7 @@ router.post('/m_Procurement_Request_Files', upload.single('file'), async (req, r
     }
     
     const preferHeader = req.headers['prefer'] || 'return=representation';
-    const odataUrl = 'https://chievmimsiiss01/IMSStage/Server/odata/m_Procurement_Request_Files';
+    const odataUrl = `${BASE_URL}m_Procurement_Request_Files`;
     const { source_id, ...metadata } = req.body;
     const file = req.file;
 

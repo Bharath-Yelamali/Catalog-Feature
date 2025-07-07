@@ -1,15 +1,23 @@
 import { useEffect, useState, useRef } from 'react'
 import * as XLSX from 'xlsx';
-import SearchBar from './components/SearchBar';
 import PartsTable from './components/PartsTable';
 import RequiredFields from './components/RequiredFields';
 import ConfirmationSummary from './components/ConfirmationSummary';
 import { fetchParts } from './api/parts';
+import { executeSearch, processSearchResults } from './controllers/searchController';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { fetchUserFirstName } from './api/userInfo';
 import OrdersPage from './components/OrdersPage';
 import ReactDOM from 'react-dom';
+// Update SVG imports to use assets folder
+import wizardIcon from './assets/wizard.svg';
+import hideIcon from './assets/hide.svg';
+import filterIcon from './assets/filter.svg';
+import garbageIcon from './assets/garbage.svg';
+import plusIcon from './assets/plus.svg';
+import { searchableFields } from './components/SearchBarLogic/constants';
+import { GlobalSearchBar } from './components/SearchBarLogic/components/GlobalSearchBar';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -79,6 +87,9 @@ function App() {
   // Track if default search has been triggered to avoid infinite loop
   const [defaultSearchTriggered, setDefaultSearchTriggered] = useState(false);
   const [requestPopup, setRequestPopup] = useState({ open: false, custodians: [], group: null });
+  // Add filter state for advanced/global search UI sync
+  const [filterConditions, setFilterConditions] = useState([]);
+  const [logicalOperator, setLogicalOperator] = useState('and');
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
@@ -95,30 +106,37 @@ function App() {
       const controller = new AbortController();
       abortControllerRef.current = controller;
       try {
-        let data;
-        if (search.trim() === '') {
-          data = await fetchParts({ classification: 'Inventoried', signal: controller.signal, accessToken });
-        } else {
-          data = await fetchParts({ classification: 'Inventoried', search, filterType, signal: controller.signal, accessToken });
-        }
+        // Extract search parameters
+        const searchMode = e.searchMode || 'searchAll';
+        const searchData = e.searchData || search;
+        
+        // Execute search using the search controller
+        const data = await executeSearch(searchMode, searchData, {
+          filterType,
+          classification: 'Inventoried',
+          accessToken,
+          signal: controller.signal
+        });
+        
         // Only update state if this is the latest search
         if (window.__currentSearchId !== searchId) return;
-        const fetchedParts = data.value || [];
-        // Group parts by inventory item number
-        const grouped = {};
-        for (const part of fetchedParts) {
-          const itemNumber = part.m_inventory_item?.item_number || 'Unknown';
-          if (!grouped[itemNumber]) grouped[itemNumber] = [];
-          grouped[itemNumber].push(part);
-        }
-        // Convert grouped object to array for easier rendering
-        const groupedResults = Object.entries(grouped).map(([itemNumber, instances]) => ({
-          itemNumber,
-          instances
-        }));
+        
+        // Process results uniformly
+        const groupedResults = processSearchResults(data);
+        
         setResults(groupedResults);
         setShowResults(true);
-        setLastSearch(search); // Save the search string used for this fetch
+        
+        // Update lastSearch based on search mode
+        if (searchMode === 'searchAll') {
+          setLastSearch(searchData || '');
+        } else {
+          // For specify search, create a readable summary
+          const searchSummary = searchData.map(chip => 
+            `${chip.field}:${chip.value}`
+          ).join(', ');
+          setLastSearch(searchSummary);
+        } // Save the search string used for this fetch
       } catch (err) {
         if (window.__currentSearchId !== searchId) return;
         if (err.name === 'AbortError') {
@@ -148,7 +166,11 @@ function App() {
         setPage('search');
         setTimeout(() => {
           // Simulate Enter key for search page's search bar
-          const event = { key: 'Enter' };
+          const event = { 
+            key: 'Enter',
+            searchMode: 'searchAll',
+            searchData: searchValue
+          };
           handleSearch(event);
         }, 0);
       }
@@ -281,7 +303,11 @@ function App() {
       setLoginFromSearch(false);
       setPage('search');
       setTimeout(() => {
-        const event = { key: 'Enter' };
+        const event = { 
+          key: 'Enter',
+          searchMode: 'searchAll',
+          searchData: pendingSearch ?? ''
+        };
         handleSearch(event);
       }, 0);
     } else {
@@ -290,16 +316,20 @@ function App() {
   };
 
   // Auto-trigger search fetch if redirected to search page, even if search is blank
-  useEffect(() => {
-    if (page === 'search' && !loading && accessToken) {
-      if ((!search || search.trim() === '') && !defaultSearchTriggered) {
-        setDefaultSearchTriggered(true);
-        handleSearch({ key: 'Enter' });
-      }
-    } else if (page !== 'search' && defaultSearchTriggered) {
-      setDefaultSearchTriggered(false); // Reset when leaving search page
-    }
-  }, [page, loading, accessToken, search, defaultSearchTriggered]);
+  // useEffect(() => {
+  //   if (page === 'search' && !loading && accessToken) {
+  //     if ((!search || search.trim() === '') && !defaultSearchTriggered) {
+  //       setDefaultSearchTriggered(true);
+  //       handleSearch({ 
+  //         key: 'Enter',
+  //         searchMode: 'searchAll',
+  //         searchData: ''
+  //       });
+  //     }
+  //   } else if (page !== 'search' && defaultSearchTriggered) {
+  //     setDefaultSearchTriggered(false); // Reset when leaving search page
+  //   }
+  // }, [page, loading, accessToken, search, defaultSearchTriggered]);
 
   // Reset defaultSearchTriggered if user types in the search bar
   useEffect(() => {
@@ -307,6 +337,103 @@ function App() {
       setDefaultSearchTriggered(false);
     }
   }, [search]);
+
+  // Handler for filter-based searches from PartsTable
+  const handleFilterSearch = async (chips, signal) => {
+    // Track a unique search id for each fetch
+    const searchId = Date.now() + Math.random();
+    window.__currentSearchId = searchId;
+    
+    // Cancel previous fetch if still running and no external signal provided
+    if (!signal && abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    window.__showSpinner = true;
+    setLoading(true);
+    setError(null);
+    
+    // Use the provided signal or create a new controller
+    let controller;
+    if (signal) {
+      controller = { signal };
+    } else {
+      controller = new AbortController();
+      abortControllerRef.current = controller;
+    }
+    
+    try {
+      let data;
+      // If chips is empty or has no conditions, and search is also empty, show empty state
+      if ((!chips || chips.length === 0 || (chips.conditions && chips.conditions.length === 0)) && (!search || search.trim() === '')) {
+        setResults([]);
+        setShowResults(false);
+        setLastSearch('');
+        setLoading(false);
+        return;
+      }
+      // If chips is empty or has no conditions, we want to go back to the original search
+      if (!chips || chips.length === 0 || (chips.conditions && chips.conditions.length === 0)) {
+        // Execute the original search (searchAll with the current search term)
+        data = await executeSearch('searchAll', search, {
+          filterType,
+          classification: 'Inventoried',
+          accessToken,
+          signal: controller.signal
+        });
+      } else {
+        // Execute search using the search controller with field-specific parameters
+        data = await executeSearch('specifySearch', chips, {
+          filterType,
+          classification: 'Inventoried',
+          accessToken,
+          signal: controller.signal
+        });
+      }
+
+      // Only update state if this is the latest search and not aborted
+      if (window.__currentSearchId !== searchId || controller.signal?.aborted) return;
+      
+      // Process results uniformly
+      const groupedResults = processSearchResults(data);
+      
+      setResults(groupedResults);
+      setShowResults(true);
+      
+      // Update lastSearch based on whether we're filtering or clearing
+      if (!chips || chips.length === 0 || (chips.conditions && chips.conditions.length === 0)) {
+        // Cleared filters - show original search
+        setLastSearch(search || '');
+      } else {
+        // Applied filters - show filter summary
+        const searchSummary = chips.map(chip => 
+          `${chip.field}:${chip.value}`
+        ).join(', ');
+        setLastSearch(`Filtered by: ${searchSummary}`);
+      }
+      
+    } catch (err) {
+      if (window.__currentSearchId !== searchId) return;
+      if (err.name === 'AbortError') {
+        // Spinner should stay on for new search, so do not hide it here
+        return;
+      }
+      setError('Failed to apply filters: ' + err.message);
+      // Don't re-throw the error - let PartsTable handle fallback gracefully
+    } finally {
+      if (window.__currentSearchId === searchId) {
+        setLoading(false);
+        window.__showSpinner = false;
+      }
+    }
+  };
+
+  // Handler for global search bar
+  const handleGlobalSearchConditionsChange = ({ conditions, logicalOperator }) => {
+    setFilterConditions(conditions || []);
+    setLogicalOperator(logicalOperator || 'or');
+    handleFilterSearch({ conditions, logicalOperator });
+  };
 
   return (
     <div>
@@ -371,9 +498,10 @@ function App() {
                   `Inventory Description:    ${shared.m_inventory_description || shared.m_description || 'N/A'}`
                 ].join('\n');
                 // Instance-specific lines (each instance on its own line, using capped_quantity)
-                const instanceLines = cappedInstances.map(inst =>
-                  `Quantity: ${inst.capped_quantity}    Parent Path: ${inst.m_parent_ref_path || 'N/A'}`
-                ).join('\n');
+                const instanceLines = cappedInstances.map(inst => {
+                  const imsLink = inst.id ? `https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${inst.id}` : '';
+                  return `Quantity: ${inst.capped_quantity}    Instance ID: ${inst.m_id || inst.id || 'N/A'}${imsLink ? ` (Link: ${imsLink})` : ''}    Parent Path: ${inst.m_parent_ref_path || 'N/A'}`;
+                }).join('\n');
                 const subject = encodeURIComponent('Request for Inventory Parts');
                 const body = encodeURIComponent(
                   `Hello${custodian ? ' ' + custodian : ''},\n\n` +
@@ -420,8 +548,9 @@ function App() {
       )}
       <nav className="taskbar">
         <div className="taskbar-title clickable" onClick={() => setPage('home')}>
-          <img src="/wizard.svg" alt="Wizard Logo" className="taskbar-logo" />
-        </div>        <ul className="taskbar-links">
+          <img src={wizardIcon} alt="Wizard Logo" className="taskbar-logo" />
+        </div>
+        <ul className="taskbar-links">
           {/* Only show Search link if user is logged in */}
           {accessToken && (
             <li><a href="#" onClick={() => setPage('search')}>Search</a></li>
@@ -430,7 +559,7 @@ function App() {
           {accessToken && (
             <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
           )}
-          <li><a href="#" onClick={() => setPage('about')}>About</a></li>
+          {/* About page removed */}
           {!accessToken ? (
             <li><a href="#" onClick={handleNavLogin}>Login</a></li>
           ) : (
@@ -452,34 +581,48 @@ function App() {
         <LoginPage setPage={setPage} handleLoginSuccess={handleLoginSuccess} />
       )}
       {page === 'search' && (
-        <>
+        <div style={{ paddingTop: '120px', minHeight: '50vh', background: '#f7fafd' }}>
           {/* Redirect to home page if not logged in and somehow navigated to search page */}
           {!accessToken ? (
             <>{setPage('home')}</>
-          ) : (
-            <SearchBar
-              search={search}
-              setSearch={setSearch}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              handleSearch={handleSearch}
-              resultCount={showResults ? results.length : undefined}
-            />
-          )}
+          ) : null}
+          {/* Global Search Bar */}
+          <GlobalSearchBar
+            value={search}
+            onGlobalSearchConditionsChange={handleGlobalSearchConditionsChange}
+            placeholder="Global search..."
+          />
           {(() => {
             window.renderExportButton = () => (
               <button
-                className={
-                  'export-btn' + (Object.keys(selected).length === 0 ? ' export-btn-disabled' : '')
-                }
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                  border: '1px solid #bcd6f7',
+                  background: Object.keys(selected).length === 0 ? '#f8fafc' : '#2563eb',
+                  color: Object.keys(selected).length === 0 ? '#334155' : '#fff',
+                  cursor: Object.keys(selected).length === 0 ? 'not-allowed' : 'pointer',
+                  fontWeight: 500,
+                  fontSize: 15,
+                  width: 80,
+                  minWidth: 80,
+                  maxWidth: 80,
+                  height: '42px',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
                 onClick={Object.keys(selected).length === 0 ? undefined : handleExport}
                 disabled={Object.keys(selected).length === 0}
               >
                 Export
               </button>
             );
-            return null;          })()}
-          {accessToken && showResults && (
+            return null;
+          })()}
+          {/* Always render PartsTable if logged in and on search page, even if no results yet */}
+          {accessToken && (
             <>
               {loading && <div>Loading parts...</div>}
               {error && <div style={{color: 'red'}}>{error}</div>}
@@ -495,12 +638,19 @@ function App() {
                 accessToken={accessToken}
                 requestPopup={requestPopup}
                 setRequestPopup={setRequestPopup}
+                onFilterSearch={handleFilterSearch}
+                loading={loading} // Pass loading state to PartsTable
+                // Pass filter state to PartsTable for advanced/global search UI sync
+                filterConditions={filterConditions}
+                setFilterConditions={setFilterConditions}
+                logicalOperator={logicalOperator}
+                setLogicalOperator={setLogicalOperator}
               />
             </>
           )}
-        </>
+        </div>
       )}
-      <main className="main-content">        {page === 'about' && <div>About Page</div>}
+      <main className="main-content">        {/* About page removed */}
         {page === 'orders' && (
           <>
             {/* Redirect to home page if not logged in and somehow navigated to orders page */}

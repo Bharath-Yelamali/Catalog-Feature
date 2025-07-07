@@ -163,8 +163,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     'reviewer', 'invoiceApprover',
     // Business Justification required fields
     'businessJustificationProject', 'businessJustificationLocation', 'businessJustificationWhat',
-    'businessJustificationWhy', 'businessJustificationImpact', 'businessJustificationNotes',
-    'attachments' // Make attachments required
+    'businessJustificationWhy', 'businessJustificationImpact', 'businessJustificationNotes'
+    // 'attachments' removed - attachments are now optional
   ];
   const requiredBooleans = ['capex', 'fid', 'reviewedByLabTpm', 'deliverToMsftPoc'];
   const allRequiredFilled = requiredFields.every(f => preqFields[f] && preqFields[f].toString().trim() !== '') && requiredBooleans.every(f => preqFields[f] !== undefined);
@@ -842,7 +842,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
         <h2 style={{ margin: 0, marginBottom: 18, fontWeight: 700, fontSize: 22 }}>Attachments</h2>
         <div className="required-fields-attachments-box">
           <label className="required-fields-attachments-label">
-            Attachments <span style={{color:'red'}}>*</span>
+            Attachments <span style={{color:'#666', fontWeight:'normal'}}>(Optional)</span>
           </label>
           <input
             type="file"

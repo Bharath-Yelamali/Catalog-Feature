@@ -25,8 +25,10 @@ const HomePage = ({ setPage, setSearch, handleSearch, accessToken, setJustSearch
       <div className="homepage-banner">
         <form className="homepage-banner-searchbar" onSubmit={handleHomeSubmit}>
           {greeting && <div className="homepage-greeting">{greeting}</div>}
-          <div className="homepage-banner-title">The hardware part search catalog</div>
-          <div className="homepage-banner-subtitle">Find hardware parts, models, suppliers, or procurement orders instantly.</div>
+          <div className="homepage-title-box">
+            <div className="homepage-banner-title">The hardware part search catalog</div>
+            <div className="homepage-banner-subtitle">Find hardware parts, models, suppliers, or procurement orders instantly.</div>
+          </div>
           <div className="homepage-banner-searchbar-row">
             <div className="homepage-search-input-wrapper">
               <span className="homepage-search-icon" aria-hidden="true">🔍</span>

@@ -1,0 +1,92 @@
+/* Universal filter item styles */
+
+/* Main container for filter item list */
+.filter-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Container for individual filter item */
+.filter-item {
+  display: flex;
+  width: 100%;
+}
+
+/* Placeholder space for items that don't need a left column label */
+.filter-left-placeholder {
+  width: 46px;
+  min-width: 46px;
+  height: 30px;
+}
+
+/* Style for first item's "Where" label */
+.filter-where-label {
+  color: #666;
+  min-width: 46px;
+  font-size: 12px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Style for the AND/OR dropdown on second and subsequent items */
+.filter-logical-operator {
+  min-width: 46px;
+  text-align: center;
+}
+
+.filter-logical-operator-select {
+  padding: 2px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 10px;
+  width: 46px;
+  height: 30px;
+  text-transform: uppercase;
+}
+
+/* Content area for the filter item (condition or group) */
+.filter-item-content {
+  flex: 1;
+  width: 100%;
+}
+
+/* Style for root drop zone when dragging a group condition out */
+.filter-dropdown__root-drop-active {
+  border: 2.5px dashed #38c172 !important; /* green dashed border */
+  box-shadow: 0 0 0 3px #b6f5d8 !important;
+  border-radius: 8px;
+  transition: border 0.2s, box-shadow 0.2s;
+  padding-top: 0.5em; /* add space so border doesn't overlap header */
+  position: relative;
+}
+
+/* Prevent border from overlapping the header text */
+.filter-dropdown__root-drop-active .filter-dropdown__header {
+  background: #fff;
+  position: relative;
+  z-index: 1;
+  padding-left: 10px;
+  padding-right: 10px;
+  display: inline-block;
+  margin-top: -0.5em;
+}
+
+/* Style for group drop zone when dragging a root condition in */
+.filter-group {
+  width: 100%;
+  min-width: 720px; /* Match the min width of a root condition row, adjust as needed */
+  min-height: 48px; /* Match the min height of a root condition row (adjust as needed) */
+  box-sizing: border-box;
+}
+
+.filter-group__root-drop-active {
+  border: 2.5px dashed #38c172 !important;
+  box-shadow: 0 0 0 3px #b6f5d8 !important;
+  border-radius: 8px;
+  transition: border 0.2s, box-shadow 0.2s;
+  position: relative;
+}

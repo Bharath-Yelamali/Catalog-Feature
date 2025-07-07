@@ -5,13 +5,17 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  position: fixed;
-  top: 72px;
-  left: 0;
-  right: 0;
-  z-index: 999;
+  /* Remove fixed positioning for Orders style */
+  position: static;
+  top: unset;
+  left: unset;
+  right: unset;
+  z-index: unset;
   padding: 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: none;
+  background: none;
+  margin-top: 20px; /* Reduced from 39px */
+  margin-bottom: 12px; /* Reduced from 24px */
 }
 
 .searchbar-row {
@@ -32,19 +36,46 @@
   position: relative;
   display: flex;
   align-items: center;
+  background: #f1f5f9;
+  border-radius: 8px;
+  padding: 8px 24px; /* Reduced from 10px 32px */
+  box-shadow: 0 2px 8px #e2e8f0;
+  border: 1px solid #cbd5e1;
+  margin: 0 auto 8px auto; /* Reduced from 18px */
+  width: 100%;
+  max-width: 1200px;
+  gap: 8px; /* Reduced from 10px */
+  min-height: 50px; /* Set specific height */
+  height: 50px; /* Set specific height */
+}
+
+/* Ensure the order: dropdown, input, spinner/result */
+.searchbar-select {
+  order: 1;
+}
+
+.searchbar-input {
+  order: 2;
+}
+
+.searchbar-spinner-fixedwidth,
+.searchbar-result-count {
+  order: 3;
 }
 
 .searchbar-result-count {
-  margin-left: 8px;
-  min-width: 90px;
-  color: #444;
+  margin-left: 12px;
+  min-width: 110px;
+  max-width: 140px;
+  color: #334155;
   font-size: 15px;
   text-align: left;
   display: inline-block;
+  font-weight: 500;
 }
 
 .searchbar-spinner {
-  margin-left: 8px;
+  margin-left: 12px;
   display: inline-block;
   width: 22px;
   height: 22px;
@@ -60,37 +91,43 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 110px; /* Enough for '999 results' or spinner */
+  min-width: 110px;
   max-width: 140px;
   height: 22px;
   box-sizing: border-box;
 }
 
 .searchbar-export-btn-container {
-  width: 120px; /* Reserve space for export button */
+  width: 120px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
 }
 
 .searchbar-input {
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  border-radius: 4px 0 0 4px;
-  border: none;
-  border-right: none;
-  width: 700px; /* Increased from 320px to 600px */
+  padding: 6px 14px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1.5px solid #94a3b8;
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  color: #222;
+  min-width: 500px;
+  width: 100%;
+  max-width: 900px;
+  outline: none;
+  box-shadow: 0 1px 2px #e2e8f0;
+  flex: 1;
 }
 
 .searchbar-select {
-  padding: 0.5rem;
-  font-size: 1rem;
-  border-radius: 0 4px 4px 0;
-  border: none;
-  border-left: none;
-  min-width: 100px; /* Decreased from 180px to 100px */
+  padding: 6px 14px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1.5px solid #94a3b8;
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  color: #222;
+  font-weight: 500;
+  outline: none;
+  box-shadow: 0 1px 2px #e2e8f0;
+  min-width: 100px;
 }

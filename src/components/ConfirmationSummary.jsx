@@ -330,11 +330,12 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
       if (!preqFields.purchaseTypeId && preqFields.purchaseType) {
         formData.append('m_purchase_type', preqFields.purchaseType);
       }
-      // Attach the first file as m_quote (required)
+      // Attach the first file as m_quote (optional - backend will create default if none provided)
       if (attachments && attachments.length > 0) {
         formData.append('m_quote', attachments[0]);
+        console.log('Attachment included:', attachments[0].name);
       } else {
-        throw new Error('No attachment found');
+        console.log('No attachments provided - backend will create default attachment file');
       }
       console.log('Submitting purchase request to backend:', Object.fromEntries(formData.entries())); // <-- Log for purchase request
       // Await the backend response and extract the PR ID

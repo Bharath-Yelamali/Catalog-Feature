@@ -10,6 +10,7 @@
   left: 0;
   top: 0; /* Removed top spacing completely */
   z-index: 900;
+  margin-top: 72px; /* Add top margin to offset fixed navbar (adjust as needed) */
 }
 
 .orders-dropdown {

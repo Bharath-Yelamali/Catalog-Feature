@@ -1,7 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { updateSpareValue } from '../api/parts';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { updateSpareValue, fetchPartsByFields } from '../api/parts';
+import { searchableFields } from './SearchBarLogic/constants';
+import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton, useSearchUtilities } from './SearchBarLogic';
+import { GlobalSearchBar } from './SearchBarLogic/components/GlobalSearchBar';
+import downloadIcon from "../assets/download.svg";
+import nextIcon from "../assets/next.svg";
+import personIcon from '../assets/person.svg';
+import * as XLSX from 'xlsx';
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setPage, isAdmin, accessToken, requestPopup, setRequestPopup }) {
+// Utility to get visible fields (not hidden)
+function getVisibleFields(allFields, hiddenFields) {
+  // allFields: array of field objects or strings
+  // hiddenFields: object with field keys as keys and true/false as values
+  // If allFields is array of objects, use .key
+  if (allFields.length > 0 && typeof allFields[0] === 'object') {
+    return allFields.filter(field => !hiddenFields[field.key]).map(field => field.key);
+  }
+  // If allFields is array of strings
+  return allFields.filter(field => !hiddenFields[field]);
+}
+
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch, loading, spinner }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -26,11 +45,58 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // 1. Add state to track the order in which instances are checked
   const [instanceSelectionOrder, setInstanceSelectionOrder] = useState([]); // array of instance ids in order of selection
 
-  // Helper to truncate from the right (show left side, hide right side)
-  const truncate = (str, max = 20) => {
-    if (!str || str.length <= max) return str;
-    return str.slice(0, max) + '...';
-  };
+  // Use field management hook
+  const {
+    hideFieldsDropdownOpen,
+    setHideFieldsDropdownOpen,
+    hiddenFields,
+    setHiddenFields,
+    fieldSearchQuery,
+    setFieldSearchQuery,
+    filteredFields,
+    hiddenFieldCount,
+    toggleFieldVisibility,
+    getMainTableGridColumns,
+    getInstanceTableGridColumns,
+    allFields
+  } = useFieldManagement();
+
+  // Use filter management hook
+  const {
+    filterDropdownOpen,
+    setFilterDropdownOpen,
+    filterConditions,
+    setFilterConditions,
+    conditionGroups,
+    setConditionGroups,
+    filteredResults,
+    setFilteredResults,
+    inputValues,
+    setInputValues,
+    hasUnprocessedChanges,
+    setHasUnprocessedChanges,
+    logicalOperator,
+    setLogicalOperator,
+    draggedCondition,
+    setDraggedCondition,
+    dragHoverTarget,
+    setDragHoverTarget,
+    activeFilterCount,
+    applyFilters,
+    matchesCondition,
+    convertFilterConditionsToChips,
+    triggerFilterSearch,
+    handleDragStart,
+    handleDragOver,
+    handleDragEnter,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    searchableFields
+  } = useFilterManagement(results, onFilterSearch);
+
+  // Use search utilities hook
+  const { highlightFieldWithMatches, truncateText } = useSearchUtilities();
 
   // Handler for clicking a cell
   const handleCellClick = (label, value) => {
@@ -46,14 +112,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     setExpandedLabel('');
   };
 
-  // Combine selected items and current results, deduplicating by id
+  // Combine selected items and current filtered results, deduplicating by id
   const selectedIds = Object.keys(selected).filter(id => selected[id]);
-  // Find the group for each selected id (itemNumber)
+  // Find the group for each selected id (itemNumber) from original results
   const selectedGroups = selectedIds
     .map(id => results.find(group => group.itemNumber === id))
-    .filter(Boolean);
-  // Non-selected groups
-  const nonSelectedGroups = results.filter(group => !selectedIds.includes(group.itemNumber));
+    .filter(Boolean)
+    // Only include selected groups that are also in filtered results
+    .filter(group => filteredResults.some(filteredGroup => filteredGroup.itemNumber === group.itemNumber));
+  // Non-selected groups from filtered results
+  const nonSelectedGroups = filteredResults.filter(group => !selectedIds.includes(group.itemNumber));
   // Display selected groups at the top
   const displayGroups = [...selectedGroups, ...nonSelectedGroups];
 
@@ -84,51 +152,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       }
       return newSelected;
     });
-  };
-
-  // Helper to highlight all backend-matched keywords in a field
-  const highlightFieldWithMatches = (text, matches) => {
-    if (!matches || !text) return text;
-    // matches is an array of keywords to highlight
-    let result = [];
-    let lowerText = text.toLowerCase();
-    let ranges = [];
-    for (const kw of matches) {
-      if (!kw) continue;
-      let idx = lowerText.indexOf(kw.toLowerCase());
-      while (idx !== -1) {
-        ranges.push({ start: idx, end: idx + kw.length });
-        idx = lowerText.indexOf(kw.toLowerCase(), idx + kw.length);
-      }
-    }
-    if (ranges.length === 0) return text;
-    // Sort and merge overlapping ranges
-    ranges.sort((a, b) => a.start - b.start);
-    let merged = [];
-    for (const r of ranges) {
-      if (!merged.length || merged[merged.length - 1].end < r.start) {
-        merged.push({ ...r });
-      } else {
-        merged[merged.length - 1].end = Math.max(merged[merged.length - 1].end, r.end);
-      }
-    }
-    // Build highlighted output
-    let cursor = 0;
-    for (const m of merged) {
-      if (cursor < m.start) {
-        result.push(text.slice(cursor, m.start));
-      }
-      result.push(
-        <span style={{ background: '#ffe066', color: '#222', fontWeight: 600 }} key={m.start}>
-          {text.slice(m.start, m.end)}
-        </span>
-      );
-      cursor = m.end;
-    }
-    if (cursor < text.length) {
-      result.push(text.slice(cursor));
-    }
-    return result;
   };
 
   const handleExpandToggle = (itemNumber) => {
@@ -192,33 +215,235 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     };
   }, [requestPopup.open]);
 
+  // Add local state for global search if not provided
+  const [localSearch, setLocalSearch] = useState(typeof search === 'string' ? search : '');
+  // Add state for global search results (overrides filteredResults when searching)
+  const [globalSearchResults, setGlobalSearchResults] = useState(null);
+
+  // Helper: which results to display
+  const resultsToDisplay = globalSearchResults !== null ? globalSearchResults : displayGroups;
+  const isEmpty = (globalSearchResults !== null ? globalSearchResults.length : filteredResults.length) === 0;
+
+  // Get currently visible fields (not hidden)
+  const visibleFields = getVisibleFields(allFields, hiddenFields);
+
+  // Export handler for checked items
+  const handleExport = () => {
+    const checkedGroups = Object.entries(selected);
+    if (!checkedGroups.length) return;
+    const exportRows = checkedGroups.flatMap(([itemNumber, group]) => {
+      const qty = quantities[itemNumber] || '';
+      if (Array.isArray(group.instances)) {
+        return group.instances.map(instance => ({ ...instance, __exportQty: qty }));
+      } else {
+        return [{ ...group, __exportQty: qty }];
+      }
+    });
+    const data = exportRows.map(row => ({
+      'Qty': row.__exportQty ?? '',
+      'Total': row.total ?? 'N/A',
+      'In Use': row.inUse ?? 'N/A',
+      'Spare': row.spare ?? 'N/A',
+      'Inventory Item Number': row.m_inventory_item?.item_number ?? 'N/A',
+      'Serial Number/Name': row.m_serial_number ?? row.m_name ?? 'N/A',
+      'Inventory Maturity': row.m_inventory_maturity ?? 'N/A',
+      'Manufacturer Part #': row.m_mfg_part_number ?? 'N/A',
+      'Manufacturer Name': row.m_mfg_name ?? 'N/A',
+      'Hardware Custodian': row.m_hardware_custodian?.keyed_name ?? row.m_hardware_custodian?.id ?? 'N/A',
+      'Parent Path': row.m_parent_path ?? 'N/A',
+      'Inventory Description': row.m_inventory_description ?? row.m_description ?? 'N/A',
+    }));
+    const ws = XLSX.utils.json_to_sheet(data, { header: [
+      'Qty', 'Total', 'In Use', 'Spare', 'Inventory Item Number', 'Serial Number/Name', 'Inventory Maturity',
+      'Manufacturer Part #', 'Manufacturer Name', 'Hardware Custodian', 'Parent Path', 'Inventory Description'] });
+    ws['!cols'] = [
+      { wch: 6 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 18 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 28 }, { wch: 32 },
+    ];
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Selected Parts');
+    XLSX.writeFile(wb, `selected_parts_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
   return (
-    <div className="search-results-dropdown">
-      {results.length === 0 ? (
-        <div className="search-results-empty">No parts found.</div>
-      ) : (
-        <>
-          <div className="search-result-item search-result-header" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
-            <div className="search-result-field">
-              <input
-                type="checkbox"
-                aria-label="Select all"
-                checked={displayGroups.length > 0 && displayGroups.every(group => selected[group.itemNumber])}
-                onChange={handleSelectAll}
+    <>
+      {/* Button/Action header positioned against taskbar */}
+      <div className="search-result-button-header">
+        <div className="flex-start">
+            <HideFieldsButton
+              hiddenFieldCount={hiddenFieldCount}
+              hideFieldsDropdownOpen={hideFieldsDropdownOpen}
+              setHideFieldsDropdownOpen={setHideFieldsDropdownOpen}
+              filteredFields={filteredFields}
+              hiddenFields={hiddenFields}
+              toggleFieldVisibility={toggleFieldVisibility}
+              fieldSearchQuery={fieldSearchQuery}
+              setFieldSearchQuery={setFieldSearchQuery}
+              setHiddenFields={setHiddenFields}
+              allFields={allFields}
+            />
+            <FilterButton
+              activeFilterCount={activeFilterCount}
+              filterDropdownOpen={filterDropdownOpen}
+              setFilterDropdownOpen={setFilterDropdownOpen}
+              filterConditions={filterConditions}
+              setFilterConditions={setFilterConditions}
+              inputValues={inputValues}
+              setInputValues={setInputValues}
+              hasUnprocessedChanges={hasUnprocessedChanges}
+              setHasUnprocessedChanges={setHasUnprocessedChanges}
+              logicalOperator={logicalOperator}
+              setLogicalOperator={setLogicalOperator}
+              draggedCondition={draggedCondition}
+              dragHoverTarget={dragHoverTarget}
+              handleDragStart={handleDragStart}
+              handleDragOver={handleDragOver}
+              handleDragEnter={handleDragEnter}
+              handleDragLeave={handleDragLeave}
+              handleDrop={handleDrop}
+              handleDragEnd={handleDragEnd}
+              searchableFields={searchableFields}
+            />
+            {/* Global Search Bar and item count */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <GlobalSearchBar
+                value={localSearch}
+                onGlobalSearchConditionsChange={({ conditions, logicalOperator }) => {
+                  setFilterConditions(conditions || []);
+                  setLogicalOperator(logicalOperator || 'or');
+                  setHasUnprocessedChanges(true); // trigger filter search in useFilterManagement
+                  // --- Sync inputValues with new global search conditions ---
+                  const newInputValues = {};
+                  (conditions || []).forEach((cond, idx) => {
+                    newInputValues[idx] = cond.value;
+                  });
+                  setInputValues(newInputValues);
+                }}
+                setResults={results => {
+                  setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
+                }}
+                accessToken={accessToken}
+                setInputValue={setLocalSearch}
               />
+              <span className="item-count-text" style={{ marginLeft: 8 }}>
+                {loading ? (
+                  <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 50 50"
+                      style={{ display: 'block' }}
+                    >
+                      <circle
+                        cx="25"
+                        cy="25"
+                        r="20"
+                        fill="none"
+                        stroke="#2563eb"
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        strokeDasharray="31.415, 31.415"
+                        transform="rotate(0 25 25)"
+                      >
+                        <animateTransform
+                          attributeName="transform"
+                          type="rotate"
+                          from="0 25 25"
+                          to="360 25 25"
+                          dur="0.8s"
+                          repeatCount="indefinite"
+                        />
+                      </circle>
+                    </svg>
+                  </span>
+                ) : (
+                  `${resultsToDisplay.length} items`
+                )}
+              </span>
             </div>
-            <div className="search-result-field">Qty</div>
-            <div className="search-result-field"></div>
-            <div className="search-result-field">Total</div>
-            <div className="search-result-field">In Use</div>
-            <div className="search-result-field">Essential Reserve</div>
-            <div className="search-result-field">Usable Surplus</div>
-            <div className="search-result-field">Inventory Item Number</div>
-            <div className="search-result-field">Manufactur Part #</div>
-            <div className="search-result-field">Manufacturer Name</div>
-            <div className="search-result-field">Inventory Description</div>
+        </div>
+        <div className="flex-end">
+            {/* Download/Export Button */}
+            <button
+              className="download-export-btn"
+              style={{
+                marginLeft: 12,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: Object.keys(selected).length === 0 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                opacity: Object.keys(selected).length === 0 ? 0.5 : 1
+              }}
+              onClick={Object.keys(selected).length === 0 ? undefined : handleExport}
+              disabled={Object.keys(selected).length === 0}
+              title="Export selected parts"
+              aria-label="Export selected parts"
+            >
+              <img src={downloadIcon} alt="Download" style={{ width: 28, height: 28 }} />
+            </button>
+            {/* Next/Checkout Button */}
+            <button
+              className="next-btn"
+              style={{
+                marginLeft: 12,
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                opacity: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 0.5 : 1
+              }}
+              onClick={
+                (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== ''))
+                  ? undefined
+                  : () => setPage('requiredFields')
+              }
+              disabled={Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')}
+              title="Proceed to required fields"
+              aria-label="Proceed to required fields"
+            >
+              <img src={nextIcon} alt="Next" style={{ width: 28, height: 28 }} />
+            </button>
+        </div>
+      </div>
+      
+      {/* Column header positioned below button header */}
+      <div className="search-result-item search-result-header main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
+          <div className="search-result-field">
+            <input
+              type="checkbox"
+              aria-label="Select all"
+              checked={displayGroups.length > 0 && displayGroups.every(group => selected[group.itemNumber])}
+              onChange={handleSelectAll}
+            />
           </div>
-          {displayGroups.map(group => {
+          {!hiddenFields.qty && <div className="search-result-field">Qty</div>}
+          <div className="search-result-field"></div>
+          {!hiddenFields.total && <div className="search-result-field">Total</div>}
+          {!hiddenFields.inUse && <div className="search-result-field">In Use</div>}
+          {!hiddenFields.essentialReserve && <div className="search-result-field">Essential Reserve</div>}
+          {!hiddenFields.usableSurplus && <div className="search-result-field">Usable Surplus</div>}
+          {!hiddenFields.inventoryItemNumber && <div className="search-result-field">Inventory Item Number</div>}
+          {!hiddenFields.manufacturerPartNumber && <div className="search-result-field">Manufactur Part #</div>}
+          {!hiddenFields.manufacturerName && <div className="search-result-field">Manufacturer Name</div>}
+          {!hiddenFields.inventoryDescription && <div className="search-result-field">Inventory Description</div>}
+        </div>
+      
+      {/* Main table content */}
+      <div className="search-results-dropdown">
+        {isEmpty ? (
+          <div className="search-results-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 220, color: '#64748b', fontSize: 18 }}>
+            <img src={personIcon} alt="Person" style={{ width: 180, height: 180, marginBottom: 22, opacity: 0.7 }} />
+            {results.length === 0 && localSearch.trim() === ''
+              ? 'Input a search to get started.'
+              : 'No parts match the current filters.'}
+          </div>
+        ) : (
+          <>
+          {resultsToDisplay.map(group => {
             const part = group.instances[0];
             // If spare_value is null, treat it as 0
             const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
@@ -232,7 +457,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             const usableSurplus = generalInventoryAmount - essentialReserve;
             return (
               <div key={group.itemNumber}>
-                <div className="search-result-item" style={{ display: 'grid', gridTemplateColumns: '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr', minWidth: 0 }}>
+                <div className="search-result-item main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
                   <div className="search-result-field">
                     <input
                       type="checkbox"
@@ -241,51 +466,51 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       aria-label="Select part"
                     />
                   </div>
+                  {!hiddenFields.qty && (
+                    <div className="search-result-field">
+                      <input
+                        type="text"
+                        className="quantity-input quantity-input-table"
+                        value={quantities[group.itemNumber] || ''}
+                        onChange={e => handleQuantityChange(group.itemNumber, e.target.value)}
+                        onBlur={e => {
+                          // If quantity is not empty, check the box on blur
+                          if ((e.target.value || '').trim() !== '') {
+                            setSelected(prev => ({ ...prev, [group.itemNumber]: part }));
+                          }
+                        }}
+                        onKeyDown={e => handleQuantityChange(group.itemNumber, quantities[group.itemNumber] || e.target.value, e)}
+                        placeholder="0"
+                        min="0"
+                        aria-label="Quantity"
+                      />
+                    </div>
+                  )}
                   <div className="search-result-field">
-                    <input
-                      type="text"
-                      className="quantity-input"
-                      value={quantities[group.itemNumber] || ''}
-                      onChange={e => handleQuantityChange(group.itemNumber, e.target.value)}
-                      onBlur={e => {
-                        // If quantity is not empty, check the box on blur
-                        if ((e.target.value || '').trim() !== '') {
-                          setSelected(prev => ({ ...prev, [group.itemNumber]: part }));
-                        }
-                      }}
-                      onKeyDown={e => handleQuantityChange(group.itemNumber, quantities[group.itemNumber] || e.target.value, e)}
-                      placeholder="0"
-                      min="0"
-                      style={{ width: 60, textAlign: 'center' }}
-                      aria-label="Quantity"
-                    />
-                  </div>
-                  <div className="search-result-field">
-                    <button onClick={() => handleExpandToggle(group.itemNumber)} aria-label="Expand details" style={{ padding: 0, background: 'none', border: 'none', fontSize: 18, cursor: 'pointer' }}>
+                    <button onClick={() => handleExpandToggle(group.itemNumber)} aria-label="Expand details" className="expand-button">
                       {expandedRows[group.itemNumber] ? '▲' : '▼'}
                     </button>
                   </div>
-                  <div className="search-result-field">{truncate(part.total?.toString()) ?? 'N/A'}</div>
-                  <div className="search-result-field">{truncate(part.inUse?.toString()) ?? 'N/A'}</div>
-                  <div className="search-result-field">{truncate(essentialReserve.toString())}</div>
-                  <div className="search-result-field" style={{
-                    color: usableSurplus > 0 ? '#228B22' : undefined,
-                    fontWeight: usableSurplus > 0 ? 700 : undefined,
-                  }}>
-                    {truncate(usableSurplus.toString())}
-                  </div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)} style={{ cursor: part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)} style={{ cursor: part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)} style={{ cursor: part.m_mfg_name && part.m_mfg_name.length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>
-                  <div className="search-result-field" onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)} style={{ cursor: (part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'pointer' : 'default' }}>{highlightFieldWithMatches(truncate((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>
+                  {!hiddenFields.total && <div className="search-result-field">{truncateText(part.total?.toString()) ?? 'N/A'}</div>}
+                  {!hiddenFields.inUse && <div className="search-result-field">{truncateText(part.inUse?.toString()) ?? 'N/A'}</div>}
+                  {!hiddenFields.essentialReserve && <div className="search-result-field">{truncateText(essentialReserve.toString())}</div>}
+                  {!hiddenFields.usableSurplus && (
+                    <div className={`search-result-field ${usableSurplus > 0 ? 'usable-surplus-positive' : ''}`}>
+                      {truncateText(usableSurplus.toString())}
+                    </div>
+                  )}
+                  {!hiddenFields.inventoryItemNumber && <div className={`search-result-field ${part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)}>{highlightFieldWithMatches(truncateText(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>}
+                  {!hiddenFields.manufacturerPartNumber && <div className={`search-result-field ${part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)}>{highlightFieldWithMatches(truncateText(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>}
+                  {!hiddenFields.manufacturerName && <div className={`search-result-field ${part.m_mfg_name && part.m_mfg_name.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)}>{highlightFieldWithMatches(truncateText(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>}
+                  {!hiddenFields.inventoryDescription && <div className={`search-result-field ${(part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)}>{highlightFieldWithMatches(truncateText((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>}
                 </div>
                 {expandedRows[group.itemNumber] && (
-                  <div style={{ background: '#f9f9f9', padding: '0 16px 12px 16px', borderBottom: '1px solid #eee' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', margin: '8px 0 4px 0', gap: 0 }}>
-                      <span style={{ fontSize: 20, marginBottom: 2 }}>Instances:</span>
+                  <div className="instance-section">
+                    <div className="instance-header">
+                      <span className="instance-header-title">Instances:</span>
                     </div>
                     {isAdmin && (
-                      <div style={{ margin: '0 0 8px 0', fontWeight: 400, fontSize: 16, color: '#2d6a4f', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                      <div className="spare-threshold-section">
                         Spare Threshold for this item:
                         <input
                           type="number"
@@ -325,33 +550,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               console.error('Failed to update spare threshold:', err);
                             }
                           }}
-                          style={{ width: 60, marginLeft: 6, fontWeight: 600, color: '#2d6a4f', border: '1px solid #bcd6f7', borderRadius: 4, padding: '2px 6px', background: '#f8fafc' }}
+                          className="spare-threshold-input"
                           aria-label="Edit spare threshold for this item"
                         />
                       </div>
                     )}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, fontWeight: 'bold', marginBottom: 4, alignItems: 'center', minHeight: 40 }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <div className="instance-grid-header" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
+                      <div className="request-button-container">
                         <button
                           type="button"
-                          style={{
-                            background: 'none',
-                            color: '#222',
-                            border: '1px solid #ccc',
-                            borderRadius: 4,
-                            padding: '0px 10px',
-                            fontWeight: 600,
-                            fontSize: 15,
-                            cursor: 'pointer',
-                            marginBottom: 0,
-                            width: 'auto',
-                            minWidth: 80,
-                            transition: 'background 0.15s',
-                          }}
-                          onMouseOver={e => (e.currentTarget.style.background = '#ffe066')}
-                          onFocus={e => (e.currentTarget.style.background = '#ffe066')}
-                          onMouseOut={e => (e.currentTarget.style.background = 'none')}
-                          onBlur={e => (e.currentTarget.style.background = 'none')}
+                          className="request-button"
                           onClick={() => {
                             // Find all checked instances for this group
                             const checkedInstances = (generalInventoryFilter[group.itemNumber]
@@ -396,7 +604,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         >
                           Request
                         </button>
-                        <span style={{ display: 'block', fontWeight: 400, fontSize: 13, color: '#2d6a4f', marginTop: 4 }}>
+                        <span className="checked-quantity-display">
                           {/* Calculate total quantity of checked instances for this group, capped at usableSurplus */}
                           {(() => {
                             const checkedInstances = (generalInventoryFilter[group.itemNumber]
@@ -409,168 +617,125 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           })()}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Instance ID</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Serial Number/Name</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Quantity</div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Inventory Maturity</div>
-                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            fontSize: 15,
-                            color: '#222',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            padding: 0,
-                            margin: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            height: '100%'
-                          }}
-                          aria-label="Filter by associated project"
-                          tabIndex={0}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
-                          }}
-                          onBlur={e => {
-                            // Optionally close dropdown on blur
-                          }}
-                        >
-                          Associated Project
-                          <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
-                        </span>
-                        {openProjectDropdown[group.itemNumber] && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              background: '#fff',
-                              border: '1px solid #ccc',
-                              borderRadius: 4,
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                              zIndex: 10,
-                              minWidth: 120,
-                              marginTop: 2,
-                            }}
+                      {!hiddenFields.instanceId && <div className="table-cell">Instance ID</div>}
+                      {!hiddenFields.serialNumber && <div className="table-cell">Serial Number/Name</div>}
+                      {!hiddenFields.quantity && <div className="table-cell">Quantity</div>}
+                      {!hiddenFields.inventoryMaturity && <div className="table-cell">Inventory Maturity</div>}
+                      {!hiddenFields.associatedProject && (
+                        <div className="column-header-dropdown">
+                          <span
+                            className="column-header-dropdown-trigger"
+                            aria-label="Filter by associated project"
                             tabIndex={0}
-                            onBlur={() => setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
-                          >
-                            <div
-                              style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !projectFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
-                              onClick={() => {
-                                setProjectFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
-                                setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                              }}
-                            >
-                              All Projects
-                            </div>
-                            {Array.from(new Set((group.instances || []).map(inst => inst.m_project?.keyed_name || inst.associated_project).filter(Boolean)))
-                              .map(project => (
-                                <div
-                                  key={project}
-                                  style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: projectFilter[group.itemNumber] === project ? '#f0f0f0' : 'transparent' }}
-                                  onClick={() => {
-                                    setProjectFilter(prev => ({ ...prev, [group.itemNumber]: project }));
-                                    setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                  }}
-                                >
-                                  {project}
-                                </div>
-                              ))}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40 }}>Hardware Custodian</div>
-                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', minHeight: 40, position: 'relative', width: '100%' }}>
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            fontSize: 15,
-                            color: '#222',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            padding: 0,
-                            margin: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            height: '100%'
-                          }}
-                          aria-label="Filter by parent path section"
-                          tabIndex={0}
-                          onClick={e => {
-                            e.stopPropagation();
-                            setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
-                          }}
-                          onBlur={e => {
-                            // Optionally close dropdown on blur
-                          }}
-                        >
-                          Parent Path
-                          <span style={{ marginLeft: 4, fontSize: 12 }}>▼</span>
-                        </span>
-                        {openParentPathDropdown[group.itemNumber] && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: '50%',
-                              transform: 'translateX(-50%)',
-                              background: '#fff',
-                              border: '1px solid #ccc',
-                              borderRadius: 4,
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                              zIndex: 10,
-                              minWidth: 120,
-                              marginTop: 2,
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
                             }}
-                            tabIndex={0}
-                            onBlur={() => setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
-                          >
+                            onBlur={e => {
+                              // Optionally close dropdown on blur
+                            }}                            >
+                            Associated Project
+                            <span className="column-header-dropdown-arrow">▼</span>
+                          </span>
+                          {openProjectDropdown[group.itemNumber] && (
                             <div
-                              style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: !parentPathFilter[group.itemNumber] ? '#f0f0f0' : 'transparent' }}
-                              onClick={() => {
-                                setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
-                                setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                              }}
+                              className="filter-dropdown-container"
+                              tabIndex={0}
+                              onBlur={() => setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
                             >
-                              All Parent Paths
+                              <div
+                                className={`filter-dropdown-item ${!projectFilter[group.itemNumber] ? 'filter-dropdown-item--selected' : ''}`}
+                                onClick={() => {
+                                  setProjectFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
+                                  setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                }}
+                              >
+                                All Projects
+                              </div>
+                              {Array.from(new Set((group.instances || []).map(inst => inst.m_project?.keyed_name || inst.associated_project).filter(Boolean)))
+                                .map(project => (
+                                  <div
+                                    key={project}
+                                    className={`filter-dropdown-item ${projectFilter[group.itemNumber] === project ? 'filter-dropdown-item--selected' : ''}`}
+                                    onClick={() => {
+                                      setProjectFilter(prev => ({ ...prev, [group.itemNumber]: project }));
+                                      setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                    }}
+                                  >
+                                    {project}
+                                  </div>
+                                ))}
                             </div>
-                            {Array.from(new Set((
-                              // Only use instances matching the selected project (if any)
-                              projectFilter[group.itemNumber]
-                                ? (group.instances || []).filter(inst => (inst.m_project?.keyed_name || inst.associated_project) === projectFilter[group.itemNumber])
-                                : (group.instances || [])
-                            ).map(inst => {
-                              const match = (inst.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
-                              return match ? match[1] : null;
-                            }).filter(Boolean)))
-                              .map(section => (
-                                <div
-                                  key={section}
-                                  style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13, background: parentPathFilter[group.itemNumber] === section ? '#f0f0f0' : 'transparent' }}
-                                  onClick={() => {
-                                    setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: section }));
-                                    setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                  }}
-                                >
-                                  {section}
-                                </div>
-                              ))}
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
+                      {!hiddenFields.hardwareCustodian && <div className="table-cell">Hardware Custodian</div>}
+                      {!hiddenFields.parentPath && (
+                        <div className="column-header-dropdown">
+                          <span
+                            className="column-header-dropdown-trigger"
+                            aria-label="Filter by parent path section"
+                            tabIndex={0}
+                            onClick={e => {
+                              e.stopPropagation();
+                              setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
+                            }}
+                            onBlur={e => {
+                              // Optionally close dropdown on blur
+                            }}                            >
+                            Parent Path
+                            <span className="column-header-dropdown-arrow">▼</span>
+                          </span>
+                          {openParentPathDropdown[group.itemNumber] && (
+                            <div
+                              className="filter-dropdown-container"
+                              tabIndex={0}
+                              onBlur={() => setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
+                            >
+                              <div
+                                className={`filter-dropdown-item ${!parentPathFilter[group.itemNumber] ? 'filter-dropdown-item--selected' : ''}`}
+                                onClick={() => {
+                                  setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
+                                  setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                }}
+                              >
+                                All Parent Paths
+                              </div>
+                              {Array.from(new Set((
+                                // Only use instances matching the selected project (if any)
+                                projectFilter[group.itemNumber]
+                                  ? (group.instances || []).filter(inst => (inst.m_project?.keyed_name || inst.associated_project) === projectFilter[group.itemNumber])
+                                  : (group.instances || [])
+                              ).map(inst => {
+                                const match = (inst.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
+                                return match ? match[1] : null;
+                              }).filter(Boolean)))
+                                .map(section => (
+                                  <div
+                                    key={section}
+                                    className={`filter-dropdown-item ${parentPathFilter[group.itemNumber] === section ? 'filter-dropdown-item--selected' : ''}`}
+                                    onClick={() => {
+                                      setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: section }));
+                                      setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
+                                    }}
+                                  >
+                                    {section}
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, marginBottom: 8 }}>
+                    <div className="instance-grid-spacer" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
                       <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
-                      <div></div>
+                      {!hiddenFields.instanceId && <div></div>}
+                      {!hiddenFields.serialNumber && <div></div>}
+                      {!hiddenFields.quantity && <div></div>}
+                      {!hiddenFields.inventoryMaturity && <div></div>}
+                      {!hiddenFields.associatedProject && <div></div>}
+                      {!hiddenFields.hardwareCustodian && <div></div>}
+                      {!hiddenFields.parentPath && <div></div>}
                     </div>
                     {(projectFilter[group.itemNumber]
                       ? (generalInventoryFilter[group.itemNumber]
@@ -619,8 +784,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       // - OR this is the first instance to push over the cap (overflowId === instance.id)
                       const disableCheckbox = !checked && runningTotal >= usableSurplus && overflowId !== instance.id;
                       return (
-                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr 2fr 1fr 2fr 2fr 2fr', gap: 8, borderBottom: '1px solid #eee', padding: '2px 0' }}>
-                          <div style={{textAlign: 'center'}}>
+                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} className="instance-table-row" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
+                          <div className="instance-checkbox">
                             {instance.generalInventory ? (
                               <input
                                 type="checkbox"
@@ -642,26 +807,28 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                               />
                             ) : null}
                           </div>
-                          <div>
-                            {instance.id && instance.m_id ? (
-                              <a
-                                href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ color: '#1976d2', textDecoration: 'underline', wordBreak: 'break-all' }}
-                              >
-                                {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
-                              </a>
-                            ) : (
-                              highlightFieldWithMatches('N/A', part._matches?.m_id)
-                            )}
-                          </div>
-                          <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>
-                          <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>
-                          <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>
-                          <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>
-                          <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>
-                          <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>
+                          {!hiddenFields.instanceId && (
+                            <div>
+                              {instance.id && instance.m_id ? (
+                                <a
+                                  href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="instance-link"
+                                >
+                                  {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
+                                </a>
+                              ) : (
+                                highlightFieldWithMatches('N/A', part._matches?.m_id)
+                              )}
+                            </div>
+                          )}
+                          {!hiddenFields.serialNumber && <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>}
+                          {!hiddenFields.quantity && <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>}
+                          {!hiddenFields.inventoryMaturity && <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>}
+                          {!hiddenFields.associatedProject && <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>}
+                          {!hiddenFields.hardwareCustodian && <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>}
+                          {!hiddenFields.parentPath && <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>}
                         </div>
                       );
                     })}
@@ -671,64 +838,23 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             );
           })}
           {expandedValue && (
-            <div style={{
-              position: 'fixed',
-              top: 0, left: 0,
-              width: '100vw',
-              height: '100vh',
-              background: 'rgba(0,0,0,0.2)',
-              zIndex: 2000,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }} onClick={handleClose}>
-              <div style={{
-                background: '#fff',
-                padding: '24px 32px',
-                borderRadius: 8,
-                boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
-                minWidth: 320,
-                maxWidth: '80vw',
-                wordBreak: 'break-all',
-                position: 'relative',
-                cursor: 'auto'
-              }} onClick={e => e.stopPropagation()}>
-                <div style={{ fontWeight: 'bold', marginBottom: 8 }}>{expandedLabel}</div>
+            <div className="expanded-modal-overlay" onClick={handleClose}>
+              <div className="expanded-modal-content" onClick={e => e.stopPropagation()}>
+                <div className="expanded-modal-header">{expandedLabel}</div>
                 <textarea
                   value={expandedValue}
                   readOnly
-                  style={{ width: '100%', minHeight: 60, fontSize: 15, padding: 8, borderRadius: 4, border: '1px solid #ccc', resize: 'vertical' }}
+                  className="expanded-modal-textarea"
                   onFocus={e => e.target.select()}
                 />
-                <button style={{ marginTop: 12, float: 'right' }} onClick={handleClose}>Close</button>
+                <button className="expanded-modal-close-btn" onClick={handleClose}>Close</button>
               </div>
             </div>
           )}
         </>
       )}
-      {/* Next button fixed to the very bottom right, always visible */}
-      <div className="confirmation-summary-buttons" style={{ position: 'fixed', bottom: 0, right: 15, zIndex: 100, display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-        <button
-          className="confirmation-summary-button-submit"
-          style={{ fontSize: 22, padding: '6px 48px', minWidth: 90, borderRadius: 10 }}
-          disabled={!(selectedIds.length > 0 && selectedIds.every(id => quantities[id] && quantities[id].trim() !== ''))}
-          onClick={() => {
-            // Cap the requested instances per group at usable surplus (simplified)
-            let cappedRequestedInstances = {};
-            displayGroups.forEach(group => {
-              cappedRequestedInstances = {
-                ...cappedRequestedInstances,
-                ...getCappedRequestedInstances(group, requestedInstances, generalInventoryFilter)
-              };
-            });
-            // setRequestedInstances(cappedRequestedInstances); // if you want to update state
-            setPage('requiredFields');
-          }}
-        >
-          Next
-        </button>
-      </div>
     </div>
+    </>
   );
 }
 

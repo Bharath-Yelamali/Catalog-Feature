@@ -3,20 +3,22 @@
    ========================================================================== */
 .search-results-dropdown {
   position: fixed;
-  top: 120px; /* 72px (searchbar top) + ~48px (searchbar height) = 120px; adjust if needed */
+  top: 180px; /* Start below both headers (60px taskbar + 60px button header + 60px column header) */
   left: 0;
   right: 0;
+  bottom: 0; /* Extend to bottom of viewport */
   width: 100vw;
   background: #fff;
-  border: 1px solid #ccc;
-  border-top: none;
-  border-radius: 0 0 8px 8px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-  margin: 0 auto 16px auto;
-  padding: 0 16px 16px 16px;
-  max-height: calc(100vh - 180px);
+  border: none; /* Remove borders for cleaner full-screen look */
+  border-radius: 0; /* Remove border radius for full-screen look */
+  box-shadow: none; /* Remove shadow for cleaner look */
+  margin: 0; /* Remove margins to use full space */
+  padding: 16px; /* Keep some padding for content readability */
+  height: calc(100vh - 180px); /* Full height minus taskbar and both headers */
+  max-height: none; /* Remove max-height restriction */
   overflow-y: auto;
   z-index: 800;
+  box-sizing: border-box; /* Include padding in height calculation */
 }
 
 .search-results-empty {
@@ -40,17 +42,46 @@
   align-items: stretch;
 }
 
+/* Button/Action header row - positioned right below taskbar */
+.search-result-button-header {
+  background: #fff;
+  font-weight: bold;
+  border-bottom: 1px solid #bbb;
+  border-top: none; /* Ensure no gap with taskbar */
+  border-radius: 0; /* Remove border radius for seamless look */
+  position: fixed; /* Fixed positioning to stay at top */
+  top: 60px; /* Adjusted to touch taskbar more closely */
+  left: 0;
+  right: 0;
+  width: 100vw;
+  z-index: 950; /* Higher than column header */
+  min-height: 60px; /* Extended height for buttons */
+  height: 60px; /* Fixed height for consistency */
+  margin-top: 0;
+  padding: 0 16px; /* Match container padding */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Column header row - positioned below button header */
 .search-result-header {
   background: #e9ecef;
   font-weight: bold;
   border-bottom: 2px solid #bbb;
-  border-radius: 4px 4px 0 0;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  min-height: 48px;
-  height: 48px;
+  border-radius: 0; /* Remove border radius for seamless look */
+  position: fixed; /* Fixed positioning to stay at top */
+  top: 120px; /* Below taskbar and button header (60px + 60px) */
+  left: 0;
+  right: 0;
+  width: 100vw;
+  z-index: 900; /* Higher than table content but lower than button header */
+  min-height: 60px; /* Extended height for better prominence */
+  height: 60px; /* Fixed height for consistency */
   margin-top: 0;
+  padding: 0 16px; /* Match container padding */
+  box-sizing: border-box;
 }
 
 .search-result-grid {
@@ -113,4 +144,1100 @@
   cursor: not-allowed;
   box-shadow: none;
   opacity: 0.7;
+}
+
+/* ==========================================================================
+   Hide Fields Component
+   ========================================================================== */
+
+/* Hide fields button */
+.hide-fields-button {
+  padding: 8px 16px;
+  background: transparent;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hide-fields-button:hover {
+  background: #f8f9fa;
+}
+
+.hide-fields-button.active {
+  background: #007bff;
+  color: #fff;
+}
+
+.hide-fields-button.active:hover {
+  background: #007bff;
+}
+
+.hide-fields-button-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  filter: none;
+}
+
+.hide-fields-button.active .hide-fields-button-icon {
+  filter: brightness(0) invert(1);
+}
+
+/* Hide fields dropdown */
+.hide-fields-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 320px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Search input section */
+.hide-fields-search-section {
+  padding: 12px 16px 8px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.hide-fields-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+}
+
+/* Field list container */
+.hide-fields-list {
+  padding: 8px 0;
+  max-height: 280px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+/* Field sections */
+.hide-fields-section {
+  padding: 0 16px 8px 16px;
+}
+
+.hide-fields-section:last-child {
+  padding-bottom: 0;
+}
+
+.hide-fields-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+/* Field checkbox items */
+.hide-fields-checkbox-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.hide-fields-checkbox {
+  margin-right: 8px;
+}
+
+/* Action buttons section */
+.hide-fields-actions {
+  padding: 12px 16px;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.hide-fields-action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.hide-fields-action-btn.hide-all {
+  background: #dc3545;
+  color: #fff;
+}
+
+.hide-fields-action-btn.show-all {
+  background: #28a745;
+  color: #fff;
+}
+
+/* Hide fields container */
+.hide-fields-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* ==========================================================================
+   Filter Components
+   ========================================================================== */
+
+/* Filter Button */
+.filter-button {
+  padding: 8px 16px;
+  background: transparent;
+  color: #333;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-button:hover {
+  background: #e9ecef;
+}
+
+.filter-button--active {
+  background: #007bff;
+  color: #fff;
+}
+
+.filter-button--active:hover {
+  background: #007bff;
+}
+
+.filter-button__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  filter: none;
+}
+
+.filter-button--active .filter-button__icon {
+  filter: brightness(0) invert(1);
+}
+
+/* Filter Dropdown */
+.filter-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 500px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-dropdown--empty {
+  min-height: auto;
+  padding: 12px;
+}
+
+.filter-dropdown__header {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.filter-dropdown__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 14px;
+  font-style: italic;
+  margin-bottom: 12px;
+}
+
+.filter-dropdown__conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  margin-bottom: 16px;
+}
+
+.filter-dropdown__actions {
+  border-top: 1px solid #eee;
+  padding-top: 12px;
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* Filter Items Container - for both conditions and groups */
+.filter-items-container {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+/* Filter items list and left column styles */
+.filter-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.filter-left-column {
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 9px; /* Align with the top of the filter condition/group content */
+}
+
+.filter-item-content {
+  flex: 1;
+  min-width: 0; /* Prevent overflow */
+}
+
+/* Universal left column for Where/AND/OR */
+.filter-left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* Filter Conditions */
+.filter-condition {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 0;
+}
+
+/* Universal operator styles for the left column */
+.filter-universal-operator {
+  color: #666;
+  min-width: 46px;
+  text-transform: uppercase;
+  font-size: 12px;
+  display: inline-block;
+  text-align: center;
+  line-height: 30px; /* Match the height of the dropdown for alignment */
+}
+
+.filter-universal-operator--select {
+  padding: 2px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 10px;
+  width: 46px;
+  height: 30px;
+  text-transform: uppercase;
+}
+
+/* Text-only operator for items after the second one */
+.filter-universal-operator--text {
+  color: #666;
+  min-width: 46px;
+  text-transform: uppercase;
+  font-size: 12px;
+  text-align: center;
+  line-height: 30px; /* Align with dropdown and Where text */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+}
+
+.filter-universal-where {
+  color: #666;
+  min-width: 46px;
+  text-align: center;
+  line-height: 30px; /* Consistent alignment with other elements */
+}
+
+/* Legacy operator styles - will be deprecated */
+.filter-condition__operator {
+  color: #666;
+  min-width: 46px;
+  text-transform: uppercase;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.filter-condition__operator--select {
+  padding: 2px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 10px;
+  width: 46px;
+  height: 30px;
+  text-transform: uppercase;
+}
+
+.filter-condition__where {
+  color: #666;
+  min-width: 46px;
+}
+
+.filter-condition__box {
+  display: flex;
+  align-items: center;
+  gap: 12px;  /* Increased gap between elements for better spacing */
+  padding: 6px 16px;
+  border-radius: 4px;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  transition: all 0.2s ease;
+  cursor: move;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  flex: 1;
+  min-width: 0;
+  max-width: 700px;
+  overflow: hidden; /* Prevent content overflow */
+}
+
+/* Add styling for the elements inside the condition box */
+.filter-condition__box > select,
+.filter-condition__box > input {
+  position: relative;
+  padding-right: 28px;
+  margin-right: 12px;
+  border-right: 1px solid #eaeaea;
+}
+
+/* Remove the right border from the last input element */
+.filter-condition__box > input {
+  border-right: none;
+}
+
+.filter-condition__box:hover {
+  border-color: #bbbbbb;
+}
+
+.filter-condition__box--dragging {
+  background-color: #e3f2fd;
+  opacity: 0.8;
+  border: 2px dashed #2196f3;
+}
+
+.filter-condition__box--drag-hover {
+  background-color: #e8f4fd;
+  border: 2px dashed #4caf50;
+}
+
+/* Form Controls */
+.filter-form-select {
+  padding: 4px 8px;
+  border: none;
+  background-color: transparent;
+  font-size: 14px;
+  min-width: 120px;
+  max-width: 100%;
+  outline: none;
+  /* Text handling */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Add larger black triangle indicator for dropdown */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23000000' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 32px; /* Increased padding to prevent text overlap with triangle */
+  transition: background-color 0.2s;
+}
+
+.filter-form-select:hover, .filter-form-select:focus {
+  background-color: #f5f5f5;
+}
+
+/* Hide default dropdown arrow in all browsers */
+.filter-form-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Hide default dropdown arrow in Chrome/Safari */
+.filter-form-select::-ms-expand {
+  display: none;
+}
+.filter-form-select::-webkit-inner-spin-button,
+.filter-form-select::-webkit-outer-spin-button,
+.filter-form-select::-webkit-calendar-picker-indicator {
+  display: none;
+  -webkit-appearance: none;
+}
+
+/* Ensure dropdown options don't overflow or get cut off */
+.filter-form-select option {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+
+/* Special handling for known longer field options */
+.filter-form-select option[value="inventoryItemNumber"] {
+  font-size: 13px; /* Slightly smaller font for long text */
+}
+
+.filter-form-input {
+  padding: 4px 8px;
+  border: none;
+  background-color: transparent;
+  font-size: 14px;
+  min-width: 120px;
+  flex: 1;
+  outline: none;
+  transition: background-color 0.2s;
+  /* Add placeholder styling */
+  color: #333;
+}
+
+.filter-form-input::placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.filter-form-input:hover, .filter-form-input:focus {
+  background-color: #f5f5f5;
+}
+
+.filter-form-button--remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  margin-left: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.filter-form-button--remove:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.filter-form-button--remove-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Drag Handle */
+.filter-drag-handle {
+  cursor: grab;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+  opacity: 0.5;
+  margin-left: auto;  /* Push to the right edge */
+}
+
+.filter-condition__box:hover .filter-drag-handle {
+  opacity: 0.8;
+}
+
+.filter-drag-handle__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Filter Groups */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: #e9ecef;
+  border: 2px dashed #adb5bd;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-bottom: 0;
+  min-height: 28px;
+  width: 100%; /* Ensure full width */
+}
+
+.filter-group--drag-hover {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+}
+
+.filter-group__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group__header--empty {
+  justify-content: center;
+}
+
+.filter-group__header--filled {
+  justify-content: flex-end;
+}
+
+.filter-group__header-btn-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.filter-group__add-btn,
+.filter-group__remove-btn,
+.filter-group__drag-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-group__add-icon,
+.filter-group__remove-icon,
+.filter-group__drag-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.filter-group__empty-text {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.filter-group__remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.filter-group__remove-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  filter: opacity(0.6);
+}
+
+.filter-group__condition {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-left: 12px;
+  padding: 3px 12px;
+  border-radius: 4px;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  transition: all 0.2s ease;
+  cursor: move;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.filter-group__condition--drag-hover {
+  background-color: #e8f4fd;
+}
+
+.filter-group__condition--dragging {
+  opacity: 0.5;
+}
+
+.filter-group__condition-operator--select {
+  padding: 4px 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  width: 48px;
+  height: 28px;
+  text-transform: uppercase;
+  margin-left: -8px;
+}
+
+.filter-group__condition-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.filter-group__condition-remove-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.filter-group__drag-handle {
+  cursor: grab;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.filter-group__drag-handle-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Action Buttons */
+.filter-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #495057;
+  transition: background 0.2s;
+  height: 28px;
+  white-space: nowrap;
+}
+
+.filter-action-btn:hover {
+  background: #e9ecef;
+}
+
+.filter-action-btn__icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Parts Table Modal and Instance Styles
+   ========================================================================== */
+
+/* Expanded Value Modal */
+.expanded-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expanded-modal-content {
+  background: #fff;
+  padding: 24px 32px;
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  min-width: 320px;
+  max-width: 80vw;
+  word-break: break-all;
+  position: relative;
+  cursor: auto;
+}
+
+.expanded-modal-header {
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.expanded-modal-textarea {
+  width: 100%;
+  min-height: 60px;
+  font-size: 15px;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  resize: vertical;
+}
+
+.expanded-modal-close-btn {
+  margin-top: 12px;
+  float: right;
+}
+
+/* Instance Section Styles */
+.instance-section {
+  background: #f9f9f9;
+  padding: 0 16px 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.instance-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin: 8px 0 4px 0;
+  gap: 0;
+}
+
+.instance-header-title {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.spare-threshold-section {
+  margin: 0 0 8px 0;
+  font-weight: 400;
+  font-size: 16px;
+  color: #2d6a4f;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.spare-threshold-input {
+  width: 60px;
+  margin-left: 6px;
+  font-weight: 600;
+  color: #2d6a4f;
+  border: 1px solid #bcd6f7;
+  border-radius: 4px;
+  padding: 2px 6px;
+  background: #f8fafc;
+}
+
+.instance-grid-header {
+  display: grid;
+  gap: 8px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  align-items: center;
+  min-height: 40px;
+}
+
+.instance-grid-spacer {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* Request Button Styles */
+.request-button-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.request-button {
+  background: none;
+  color: #222;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 0;
+  width: auto;
+  min-width: 60px;
+  transition: background 0.15s;
+}
+
+.request-button:hover,
+.request-button:focus {
+  background: #ffe066;
+}
+
+.checked-quantity-display {
+  display: block;
+  font-weight: 400;
+  font-size: 13px;
+  color: #2d6a4f;
+  margin-top: 4px;
+}
+
+/* Dropdown Styles */
+.filter-dropdown-container {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+  min-width: 120px;
+  margin-top: 2px;
+}
+
+.filter-dropdown-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  background: transparent;
+}
+
+.filter-dropdown-item:hover {
+  background: #f0f0f0;
+}
+
+.filter-dropdown-item--selected {
+  background: #f0f0f0;
+}
+
+/* Table Layout Styles */
+.main-table-row {
+  display: grid;
+  min-width: 0;
+}
+
+.instance-table-row {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid #eee;
+  padding: 2px 0;
+}
+
+.table-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 40px;
+}
+
+.table-cell--clickable {
+  cursor: pointer;
+}
+
+.table-cell--default-cursor {
+  cursor: default;
+}
+
+/* Text Highlighting */
+.search-highlight {
+  background: #ffe066;
+  color: #222;
+  font-weight: 600;
+}
+
+/* Layout Utilities */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-start {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.flex-end {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+/* Usable Surplus Styling */
+.usable-surplus-positive {
+  color: #228B22;
+  font-weight: 700;
+}
+
+/* Expand Button */
+.expand-button {
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+/* Quantity Input */
+.quantity-input-table {
+  width: 60px;
+  text-align: center;
+}
+
+/* Header Text Styles */
+.header-text {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.item-count-text {
+  font-size: 14px;
+  color: #666;
+}
+
+/* Column Header Dropdown Styles */
+.column-header-dropdown {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 40px;
+  position: relative;
+  width: 100%;
+}
+
+.column-header-dropdown-trigger {
+  font-weight: 600;
+  font-size: 15px;
+  color: #222;
+  cursor: pointer;
+  user-select: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.column-header-dropdown-arrow {
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+/* Instance Row Text Alignment */
+.instance-cell-center {
+  text-align: center;
+}
+
+/* Checkbox Input Styling */
+.instance-checkbox {
+  text-align: center;
+}
+
+/* Instance Link Styling */
+.instance-link {
+  color: #1976d2;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+/* Filter container */
+.filter-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Combined filter item - used for both conditions and groups in the universal layout */
+.filter-item-combined {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 8px;
+  align-items: start;
+  width: 100%;
+}
+
+/* Drag and drop states for filter group */
+.filter-group--drag-over {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.filter-group--drag-enter {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+}
+
+/* Drag and drop states for filter condition */
+.filter-group__condition--dragging {
+  opacity: 0.5;
+}
+
+.filter-group__condition--drag-over {
+  background-color: #e8f4fd;
+}
+
+/* Add styles for the filter-group__add-popup and its buttons for proper appearance and interaction */
+.filter-group__add-popup {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 160px;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.filter-group__add-popup-btn {
+  text-align: left;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+  color: #222;
+  transition: background 0.15s;
+}
+
+.filter-group__add-popup-btn:hover {
+  background: #f5f5f5;
 }
