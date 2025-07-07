@@ -11,7 +11,6 @@
  * This module acts as a secure bridge between the frontend and the IMS OData backend.
  */
 
-require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 
@@ -113,7 +112,6 @@ router.get('/parts', async (req, res) => {
     
     // Build and execute OData query
     const odataUrl = buildODataUrl({ fieldParams, search, logicalOperator });
-    console.log('Final OData URL:', odataUrl);
     
     const fetchStart = Date.now();
     const response = await fetch(odataUrl, {
@@ -322,15 +320,11 @@ function buildSingleFilterClause(odataField, operator, value, field) {
     
     switch (operator) {
       case 'is':
-        console.log(`Building numeric IS filter: ${odataField} eq ${numValue}`);
         return `${odataField} eq ${numValue}`;
       case 'is not':
-        console.log(`Building numeric IS NOT filter: ${odataField} ne ${numValue}`);
         return `${odataField} ne ${numValue}`;
       case 'contains':
       case 'does not contain':
-        // For numeric fields, treat contains/does not contain as equals/not equals
-        console.log(`Building numeric ${operator} filter (treating as ${operator === 'contains' ? 'equals' : 'not equals'}): ${odataField} ${operator === 'contains' ? 'eq' : 'ne'} ${numValue}`);
         return operator === 'contains' 
           ? `${odataField} eq ${numValue}`
           : `${odataField} ne ${numValue}`;
@@ -341,16 +335,12 @@ function buildSingleFilterClause(odataField, operator, value, field) {
     // Text fields
     switch (operator) {
       case 'contains':
-        console.log(`Building CONTAINS filter: contains(${odataField}, '${escapedValue}')`);
         return `contains(${odataField}, '${escapedValue}')`;
       case 'does not contain':
-        console.log(`Building DOES NOT CONTAIN filter: not contains(${odataField}, '${escapedValue}')`);
         return `not contains(${odataField}, '${escapedValue}')`;
       case 'is':
-        console.log(`Building IS (exact match) filter: ${odataField} eq '${escapedValue}'`);
         return `${odataField} eq '${escapedValue}'`;
       case 'is not':
-        console.log(`Building IS NOT (exact not match) filter: ${odataField} ne '${escapedValue}'`);
         return `${odataField} ne '${escapedValue}'`;
       default:
         return `contains(${odataField}, '${escapedValue}')`;
@@ -384,7 +374,6 @@ function buildFieldFilters(fieldParams, logicalOperator = 'and') {
     // (Old: if (field.includes('@')) { ... })
     // Now, only skip if not m_custodian@aras.keyed_name
     if (field.includes('@') && field !== 'm_custodian@aras.keyed_name') {
-      console.log(`Skipping field with @ symbol for OData filtering: ${field}`);
       return;
     }
     

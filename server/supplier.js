@@ -1,9 +1,43 @@
+/**
+ * supplier.js
+ *
+ * Express router for supplier-related API endpoints.
+ *
+ * Responsibilities:
+ *   - Securely fetches supplier data from the IMS OData backend (m_Supplier entity)
+ *   - Maps and returns a simplified supplier list for frontend consumption
+ *
+ * All endpoints require a valid Bearer token in the Authorization header.
+ *
+ * Environment Variables:
+ *   - IMS_ODATA_URL: Base URL for the IMS OData API (defaults to on-prem URL if not set)
+ *
+ * Exports:
+ *   - Express router with /suppliers endpoint
+ */
+
 const express = require('express');
 const router = express.Router();
+const BASE_URL = process.env.IMS_BASE_URL;
 
-const BASE_URL = process.env.IMS_ODATA_URL || 'https://chievmimsiiss01/IMSStage/Server/odata/';
-
-// GET /api/suppliers - fetch all suppliers from m_Supplier entity
+/**
+ * @route   GET /suppliers
+ * @desc    Fetch all suppliers from the IMS OData backend (m_Supplier entity).
+ * @access  Protected (requires Bearer token)
+ *
+ * Request Headers:
+ *   - Authorization: Bearer <access_token>
+ *
+ * Query Parameters:
+ *   - None (optionally, $top or $filter could be added for pagination/filtering)
+ *
+ * Response:
+ *   - 200 OK: { value: [ { id: string, name: string } ] }
+ *     - id: Supplier's unique identifier
+ *     - name: User-friendly supplier name (prefers keyed_name, then m_name, else 'Unnamed Supplier')
+ *   - 401 Unauthorized: { error: string }
+ *   - 500 Internal Server Error: { error: string }
+ */
 router.get('/suppliers', async (req, res) => {
   try {
     const authHeader = req.headers['authorization'];

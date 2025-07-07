@@ -16,8 +16,6 @@
 
 // server/orders.js
 // REST endpoint to get purchase requests/orders for the current user from IMS
-
-require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
@@ -572,7 +570,7 @@ No additional attachments were provided with this request.
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': token,
+        'Authorization': `Bearer ${token}`,
         'Prefer': preferHeader,
       },
       body: JSON.stringify(odataPayload),
@@ -681,7 +679,7 @@ router.post('/m_Procurement_Request_Files', upload.single('file'), async (req, r
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': token,
+        'Authorization': `Bearer ${token}`,
         'Prefer': preferHeader,
       },
       body: JSON.stringify(odataPayload),

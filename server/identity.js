@@ -21,7 +21,7 @@
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
-const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
+const BASE_URL = process.env.IMS_BASE_URL;
 
 function extractBearerToken(req) {
   const authHeader = req.headers['authorization'];
