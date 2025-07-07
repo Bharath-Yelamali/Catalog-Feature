@@ -1,22 +1,61 @@
-// server/identity.js
-// REST endpoint to get all administrator members from Aras Innovator
+/**
+ * identity.js
+ * Express router for identity-related endpoints.
+ * 
+ * Provides REST API endpoints to fetch:
+ *   - All administrator members from Aras Innovator ("Administrators" group)
+ *   - All user identities (id, alias, name) from Aras Innovator
+ * 
+ * Used for user management, permissions, and populating user dropdowns in the frontend.
+ * 
+ * Requires a Bearer token in the Authorization header for all endpoints.
+ * 
+ * Fields used:
+ *   - For /api/identities: id, related_id (expanded user/member info)
+ *   - For /api/all-identities: id, login_name, first_name, last_name
+ * 
+ * Return values:
+ *   - { value: [ ... ] } where ... is an array of user/member objects
+ */
 
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
+const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
 
-// GET /api/identities
-router.get('/identities', async (req, res) => {
+function extractBearerToken(req) {
   const authHeader = req.headers['authorization'];
-  let token = null;
   if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring('Bearer '.length);
+    return authHeader.substring('Bearer '.length);
   }
+  return null;
+}
+
+/**
+ * GET /api/identities
+ *
+ * Returns all members of the "Administrators" group from Aras Innovator.
+ *
+ * Requires:
+ *   - Bearer token in Authorization header
+ *
+ * Process:
+ *   1. Fetches the "Administrators" identity to get its id.
+ *   2. Fetches all members (users) related to that group via the Member relationship.
+ *   3. Returns the expanded related_id (the actual user/member info).
+ *
+ * Fields used: id, related_id
+ *
+ * Return value:
+ *   - { value: [ {id, ...user fields} ] }
+ *   - 400 if missing token, 404 if not found, 500 on error
+ */
+router.get('/identities', async (req, res) => {
+  const token = extractBearerToken(req);
   if (!token) {
     return res.status(400).json({ error: 'Missing Authorization header' });
   }
   try {
-    const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
     // Step 1: Get the 'Administrators' identity to find its id
     const identityUrl = `${BASE_URL}Identity?$filter=name eq 'Administrators'`;
     const identityResp = await fetch(identityUrl, {
@@ -59,18 +98,26 @@ router.get('/identities', async (req, res) => {
   }
 });
 
-// GET /api/all-identities - fetch all user aliases and IDs from User entity
+/**
+ * GET /api/all-identities
+ *
+ * Returns all user identities (id, alias, name) from Aras Innovator.
+ *
+ * Requires:
+ *   - Bearer token in Authorization header
+ *
+ * Fields used: id, login_name, first_name, last_name
+ *
+ * Return value:
+ *   - { value: [ {id, alias, name} ] }
+ *   - 400 if missing token, 500 on error
+ */
 router.get('/all-identities', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  let token = null;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring('Bearer '.length);
-  }
+  const token = extractBearerToken(req);
   if (!token) {
     return res.status(400).json({ error: 'Missing Authorization header' });
   }
   try {
-    const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
     let odataUrl = `${BASE_URL}User?$select=id,login_name,first_name,last_name`;
     const response = await fetch(odataUrl, {
       headers: {
@@ -87,9 +134,9 @@ router.get('/all-identities', async (req, res) => {
       alias: u.login_name,
       name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.login_name
     }));
-    res.json({ value: identities });
+    return res.json({ value: identities });
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error: ' + err.message });
+    return res.status(500).json({ error: 'Internal server error: ' + err.message });
   }
 });
 

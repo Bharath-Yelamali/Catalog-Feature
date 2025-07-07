@@ -1,9 +1,22 @@
+/**
+ * parts.js
+ *
+ * Express router for inventory parts-related API endpoints.
+ * Handles:
+ *   - Listing, searching, and grouping inventory parts
+ *   - Creating new inventory item parts
+ *   - Updating spare_value for inventory instances
+ *
+ * All endpoints require a valid Bearer token in the Authorization header.
+ * This module acts as a secure bridge between the frontend and the IMS OData backend.
+ */
+
+require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 
-// Move these constants here since they're only used for parts
-const BASE_URL = "https://chievmimsiiss01/IMSStage/Server/odata/";
-const IMS_ODATA_URL = process.env.IMS_ODATA_URL || 'https://chievmimsiiss01/IMSStage/Server/odata';
+// Use BASE_URL from environment variable
+const BASE_URL = process.env.IMS_BASE_URL;
 
 // Centralized field configuration
 const FIELD_CONFIG = {
@@ -37,10 +50,241 @@ const FIELD_CONFIG = {
   ]
 };
 
-// Helper function to check if a field parameter has values
+// --- ROUTE HANDLERS ---
+
+/**
+ * Helper to extract Bearer token from Authorization header
+ * @param {Object} req - Express request object
+ * @returns {string|null} Bearer token or null if not present
+ */
+function extractBearerToken(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring('Bearer '.length);
+  }
+  return null;
+}
+
+// /parts endpoint (not /api/parts)
+router.get('/parts', async (req, res) => {
+  const startTime = Date.now();
+  
+  try {
+    // Validate authorization
+    const token = extractBearerToken(req);
+    if (!token) {
+      return res.status(401).json({ error: 'Missing or invalid access token. Please log in.' });
+    }
+
+    // Parse query parameters
+    const { search, classification, $top, filterType, logicalOperator, ...fieldParams } = req.query;
+    
+    // Parse JSON-encoded operator-value objects in field parameters
+    Object.keys(fieldParams).forEach(field => {
+      const value = fieldParams[field];
+      
+      if (Array.isArray(value)) {
+        // Handle array of values
+        fieldParams[field] = value.map(val => {
+          try {
+            // Try to parse as JSON (new format)
+            const parsed = JSON.parse(val);
+            if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
+              return parsed;
+            }
+            return val; // Fallback to original if not valid JSON
+          } catch (e) {
+            return val; // Fallback to original string if not JSON
+          }
+        });
+      } else if (typeof value === 'string') {
+        try {
+          // Try to parse as JSON (new format)
+          const parsed = JSON.parse(value);
+          if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
+            fieldParams[field] = parsed;
+          }
+          // If not valid operator-value object, keep original string
+        } catch (e) {
+          // If not JSON, keep original string (legacy format)
+        }
+      }
+    });
+    
+    // Build and execute OData query
+    const odataUrl = buildODataUrl({ fieldParams, search, logicalOperator });
+    console.log('Final OData URL:', odataUrl);
+    
+    const fetchStart = Date.now();
+    const response = await fetch(odataUrl, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const fetchTime = Date.now() - fetchStart;
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OData API error (${response.status}):`, errorText);
+      return res.status(response.status).json({ 
+        error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` 
+      });
+    }
+
+    // Process results
+    const data = await response.json();
+    let results = data.value || [];
+    
+    // Group and calculate totals
+    const groupStart = Date.now();
+    results = groupAndProcessParts(results);
+    const groupTime = Date.now() - groupStart;
+    
+    // Apply search filtering if needed
+    let searchTime = 0;
+    if (search?.trim()) {
+      const searchStart = Date.now();
+      results = applySearchFilter(results, search.trim());
+      searchTime = Date.now() - searchStart;
+    }
+    
+    // REMOVE: Apply client-side filtering for @ fields (deprecated)
+    // results = applyClientSideFilters(results, fieldParams);
+    // Client-side filtering for @ fields has been removed after confirming it is not needed.
+    // If future requirements change, restore logic from git history
+    
+    // Add highlighting for field-specific searches if we have field parameters and not a general search
+    const hasFieldParams = Object.keys(fieldParams).some(field => hasFieldValues(fieldParams[field]));
+    if (!search?.trim() && hasFieldParams) {
+      results = applyFieldHighlighting(results, fieldParams);
+    }
+    
+    // Apply result limit for default queries
+    const hasFieldFilters = Object.keys(fieldParams).some(field => 
+      !field.includes('@') && hasFieldValues(fieldParams[field])
+    );
+    if (!search?.trim() && !hasFieldFilters) {
+      results = results.slice(0, 500);
+    }
+
+    // Log performance metrics
+    const totalTime = Date.now() - startTime;
+    console.log('--- Performance Metrics ---');
+    console.log(`OData fetch: ${fetchTime}ms`);
+    console.log(`Grouping: ${groupTime}ms`);
+    if (searchTime > 0) console.log(`Search filtering: ${searchTime}ms`);
+    console.log(`Total: ${totalTime}ms`);
+    
+    res.json({ value: results });
+
+  } catch (err) {
+    console.error('Internal server error:', err);
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
+  }
+});
+
+// POST endpoint for new inventory item part (forwards to OData API)
+router.post('/m_Inventory', async (req, res) => {
+  try {
+    const newPart = req.body;
+    const token = extractBearerToken(req);
+    const preferHeader = req.headers['prefer'] || 'return=representation';
+    const odataUrl = `${BASE_URL}m_Inventory`;
+
+    // Log the incoming request
+    console.log('POST /api/m_Inventory called');
+    console.log('Request body:', newPart);
+    console.log('Authorization header:', token);
+    console.log('Prefer header:', preferHeader);
+    console.log('Forwarding to OData URL:', odataUrl);
+
+    const response = await fetch(odataUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token,
+        'Prefer': preferHeader,
+      },
+      body: JSON.stringify(newPart),
+    });
+
+    // Log OData response status and headers
+    console.log('OData response status:', response.status);
+    console.log('OData response headers:', response.headers.raw ? response.headers.raw() : response.headers);
+
+    if (preferHeader === 'return=minimal' && response.status === 204) {
+      res.status(204);
+      if (response.headers.get('Location')) {
+        res.set('Location', response.headers.get('Location'));
+      }
+      return res.send();
+    } else if (response.status === 201) {
+      const data = await response.json();
+      res.status(201);
+      if (response.headers.get('Location')) {
+        res.set('Location', response.headers.get('Location'));
+      }
+      return res.json(data);
+    } else {
+      const errorText = await response.text();
+      console.error('OData error response:', errorText);
+      return res.status(response.status).send(errorText);
+    }
+  } catch (err) {
+    console.error('Error adding new inventory part:', err);
+    res.status(500).json({ error: 'Failed to add new inventory part: ' + err.message, stack: err.stack });
+  }
+});
+
+// PATCH endpoint to update spare_value for a specific instance
+router.patch('/m_Instance/:id/spare-value', async (req, res) => {
+  const { id } = req.params;
+  const { spare_value } = req.body;
+  if (typeof spare_value !== 'number') {
+    return res.status(400).json({ error: 'spare_value must be a number' });
+  }
+  // Accept Authorization and Prefer headers from the request
+  const token = extractBearerToken(req);
+  const preferHeader = req.headers['prefer'] || 'return=representation';
+  try {
+    // Forward PATCH to IMS OData backend (m_Instance)
+    const odataUrl = `${BASE_URL}m_Instance('${id}')`;
+    // No debug logging for production
+    const response = await fetch(odataUrl, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'If-Match': '*',
+        ...(token ? { 'Authorization': token } : {}),
+        'Prefer': preferHeader,
+      },
+      body: JSON.stringify({ spare_value }),
+    });    if (!response.ok) {
+      const text = await response.text();
+      // Only log errors in case of failure
+      return res.status(response.status).json({ error: text });
+    }
+    // Handle Location header if present
+    if (response.headers.get('Location')) {
+      res.set('Location', response.headers.get('Location'));
+    }
+    // Return the IMS response (could be 204 or 200)
+    if (response.status === 204) return res.status(204).end();
+    const data = await response.json();
+    res.json(data);  } catch (err) {
+    // Keep error logging in case of exceptions, but make it more concise
+    res.status(500).json({ error: 'Failed to update spare_value in IMS: ' + err.message });
+  }
+});
+
+// --- HELPER FUNCTIONS ---
+
+/**
+ * Checks if a field value (string, object, or array) contains any non-empty value.
+ * Used to determine if a filter should be applied for a given field.
+ * @param {string|object|Array} fieldValue - The value(s) to check
+ * @returns {boolean} True if any value is non-empty, false otherwise
+ */
 function hasFieldValues(fieldValue) {
   if (!fieldValue) return false;
-  
   if (Array.isArray(fieldValue)) {
     return fieldValue.some(v => {
       if (typeof v === 'object' && v.operator && v.value) {
@@ -49,27 +293,25 @@ function hasFieldValues(fieldValue) {
       return v && v.trim() !== '';
     });
   }
-  
   if (typeof fieldValue === 'object' && fieldValue.operator && fieldValue.value) {
     return fieldValue.value.trim() !== '';
   }
-  
   return typeof fieldValue === 'string' && fieldValue.trim() !== '';
 }
 
 /**
- * Build OData filter clause for a single condition
- * This function generates efficient OData queries that filter at the database level:
+ * Build OData filter clause for a single condition.
+ * Generates efficient OData queries that filter at the database level:
  * - "contains": uses OData contains() function for partial text matching
- * - "is": uses OData eq operator for exact matching  
+ * - "is": uses OData eq operator for exact matching
  * - "does not contain": uses OData not contains() for partial exclusion
  * - "is not": uses OData ne operator for exact exclusion
- * 
+ * Handles numeric and text fields appropriately.
  * @param {string} odataField - The OData field name
  * @param {string} operator - The filter operator ('contains', 'does not contain', 'is', 'is not')
  * @param {string} value - The value to filter by
  * @param {string} field - The original field name for special handling
- * @returns {string} OData filter clause
+ * @returns {string|null} OData filter clause or null if invalid
  */
 function buildSingleFilterClause(odataField, operator, value, field) {
   const escapedValue = value.replace(/'/g, "''");
@@ -117,10 +359,12 @@ function buildSingleFilterClause(odataField, operator, value, field) {
 }
 
 /**
- * Build OData filter clauses from field-specific query parameters
+ * Build OData filter clauses from field-specific query parameters.
+ * Handles both new format ({operator, value}) and legacy format (string/array of strings).
+ * Skips fields with @ except for m_custodian@aras.keyed_name.
  * @param {Object} fieldParams - Object containing field/value pairs from query string
  * @param {string} logicalOperator - 'and' or 'or' for combining different field filters
- * @returns {Array} Array of OData filter strings
+ * @returns {Array<string>} Array of OData filter strings
  */
 function buildFieldFilters(fieldParams, logicalOperator = 'and') {
   const filters = [];
@@ -205,12 +449,15 @@ function buildFieldFilters(fieldParams, logicalOperator = 'and') {
 }
 
 /**
- * Build OData query URL with filters, select, and expand clauses
+ * Build OData query URL with filters, select, and expand clauses.
  * @param {Object} params - Query parameters
+ * @param {Object} params.fieldParams - Field/value pairs from query string
+ * @param {string} params.search - Search string
+ * @param {string} params.logicalOperator - Logical operator for combining filters
  * @returns {string} Complete OData URL
  */
 function buildODataUrl(params) {
-  const { fieldParams, search, hasClientSideFilters, logicalOperator } = params;
+  const { fieldParams, search, logicalOperator } = params;
   
   let filterClauses = ["classification eq 'Inventoried'"];
   const fieldFilters = buildFieldFilters(fieldParams, logicalOperator);
@@ -241,7 +488,7 @@ function buildODataUrl(params) {
   
   // Add $top limit if no specific filtering is applied
   const hasFieldFilters = fieldFilters.length > 0;
-  if ((!search || search.trim() === '') && !hasFieldFilters && !hasClientSideFilters) {
+  if ((!search || search.trim() === '') && !hasFieldFilters) {
     queryParts.push('$top=500');
   }
   
@@ -249,9 +496,9 @@ function buildODataUrl(params) {
 }
 
 /**
- * Group parts by inventory item number and calculate totals
- * @param {Array} parts - Raw parts data
- * @returns {Array} Grouped and processed parts
+ * Group parts by inventory item number and calculate totals (total, spare, inUse).
+ * @param {Array<Object>} parts - Raw parts data
+ * @returns {Array<Object>} Grouped and processed parts with computed totals
  */
 function groupAndProcessParts(parts) {
   const grouped = {};
@@ -295,9 +542,9 @@ function groupAndProcessParts(parts) {
 }
 
 /**
- * Check if a project represents general inventory
- * @param {*} proj - Project data
- * @returns {boolean} True if general inventory
+ * Check if a project represents general inventory.
+ * @param {*} proj - Project data (object, string, or array)
+ * @returns {boolean} True if general inventory, false otherwise
  */
 function isGeneralInventory(proj) {
   if (!proj) return false;
@@ -321,10 +568,11 @@ function isGeneralInventory(proj) {
 }
 
 /**
- * Apply backend search filtering with keyword logic
- * @param {Array} results - Parts to filter
+ * Apply backend search filtering with keyword logic (supports include/exclude keywords).
+ * Adds match highlighting for each field.
+ * @param {Array<Object>} results - Parts to filter
  * @param {string} search - Search string
- * @returns {Array} Filtered results with match highlighting
+ * @returns {Array<Object>} Filtered results with match highlighting
  */
 function applySearchFilter(results, search) {
   const terms = search.split(',').map(s => s.trim()).filter(Boolean);
@@ -348,7 +596,7 @@ function applySearchFilter(results, search) {
       part.m_mfg_name,
       part.m_parent_ref_path,
       part.m_inventory_description,
-      part["m_custodian@aras.keyed_name"],
+      part["m_custodian@aras$keyed_name"],
       part.m_custodian,
       part.m_id,
       part.item_number,
@@ -391,10 +639,11 @@ function applySearchFilter(results, search) {
 }
 
 /**
- * Apply highlighting for field-specific searches
- * @param {Array} results - Results to add highlighting to
+ * Apply highlighting for field-specific searches.
+ * Adds a _matches property to each result for frontend highlighting.
+ * @param {Array<Object>} results - Results to add highlighting to
  * @param {Object} fieldParams - Field parameters with search values
- * @returns {Array} Results with _matches property added
+ * @returns {Array<Object>} Results with _matches property added
  */
 function applyFieldHighlighting(results, fieldParams) {
   return results.map(part => {
@@ -441,8 +690,8 @@ function applyFieldHighlighting(results, fieldParams) {
       if (field === 'm_inventory_item') {
         value = part.m_inventory_item?.item_number;
         matchFieldName = 'm_inventory_item'; // Frontend expects this key
-      } else if (field === 'm_custodian@aras.keyed_name') {
-        value = part["m_custodian@aras.keyed_name"];
+      } else if (field === 'm_custodian@aras$keyed_name') {
+        value = part["m_custodian@aras$keyed_name"];
         matchFieldName = 'm_custodian'; // Frontend expects 'm_custodian' for highlighting
       } else if (field === 'item_number') {
         value = part.item_number;
@@ -476,298 +725,5 @@ function applyFieldHighlighting(results, fieldParams) {
     return { ...part, _matches: matches };
   });
 }
-
-/**
- * Apply client-side filtering for fields that can't be handled in OData
- * @param {Array} results - Results to filter
- * @param {Object} fieldParams - Field parameters
- * @returns {Array} Filtered results
- */
-function applyClientSideFilters(results, fieldParams) {
-  // Only apply client-side filters for @ fields EXCEPT m_custodian@aras.keyed_name
-  const clientSideFilters = Object.entries(fieldParams).filter(([field]) => field.includes('@') && field !== 'm_custodian@aras.keyed_name');
-  if (clientSideFilters.length === 0) return results;
-  
-  console.log('Applying client-side filters for @ fields:', clientSideFilters);
-  
-  return results.filter(part => {
-    return clientSideFilters.every(([field, fieldValue]) => {
-      if (!fieldValue) return true;
-      
-      // Handle both new format {operator, value} and legacy format
-      let conditions = [];
-      
-      if (Array.isArray(fieldValue)) {
-        conditions = fieldValue.map(item => {
-          if (typeof item === 'object' && item.operator && item.value) {
-            return { operator: item.operator, value: item.value };
-          } else {
-            const value = typeof item === 'string' ? item : item.value || '';
-            const isNot = value.startsWith('!');
-            const actualValue = isNot ? value.substring(1) : value;
-            return { operator: isNot ? 'does not contain' : 'contains', value: actualValue };
-          }
-        });
-      } else if (typeof fieldValue === 'object' && fieldValue.operator && fieldValue.value) {
-        conditions = [{ operator: fieldValue.operator, value: fieldValue.value }];
-      } else {
-        // Legacy format
-        const value = typeof fieldValue === 'string' ? fieldValue : fieldValue.value || '';
-        const isNot = value.startsWith('!');
-        const actualValue = isNot ? value.substring(1) : value;
-        conditions = [{ operator: isNot ? 'does not contain' : 'contains', value: actualValue }];
-      }
-      
-      // Filter out empty conditions
-      conditions = conditions.filter(condition => 
-        condition.value && condition.value.trim() !== ''
-      );
-      
-      if (conditions.length === 0) return true;
-      
-      const partFieldValue = field === 'm_custodian@aras.keyed_name' 
-        ? part["m_custodian@aras.keyed_name"] 
-        : part[field];
-      
-      // Apply each condition and combine results
-      return conditions.every(condition => {
-        const actualValue = condition.value.trim();
-        
-        if (!partFieldValue) {
-          // If no field value, "does not contain" and "is not" should pass, others should fail
-          return condition.operator === 'does not contain' || condition.operator === 'is not';
-        }
-        
-        const fieldStr = String(partFieldValue).toLowerCase();
-        const searchStr = actualValue.toLowerCase();
-        
-        switch (condition.operator) {
-          case 'contains':
-            return fieldStr.includes(searchStr);
-          case 'does not contain':
-            return !fieldStr.includes(searchStr);
-          case 'is':
-            return fieldStr === searchStr;
-          case 'is not':
-            return fieldStr !== searchStr;
-          default:
-            return fieldStr.includes(searchStr); // Default to contains
-        }
-      });
-    });
-  });
-}
-
-// /parts endpoint (not /api/parts)
-router.get('/parts', async (req, res) => {
-  const startTime = Date.now();
-  
-  try {
-    // Validate authorization
-    const authHeader = req.headers['authorization'];
-    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
-    if (!token) {
-      return res.status(401).json({ error: 'Missing or invalid access token. Please log in.' });
-    }
-
-    // Parse query parameters
-    const { search, classification, $top, filterType, logicalOperator, ...fieldParams } = req.query;
-    
-    // Parse JSON-encoded operator-value objects in field parameters
-    Object.keys(fieldParams).forEach(field => {
-      const value = fieldParams[field];
-      
-      if (Array.isArray(value)) {
-        // Handle array of values
-        fieldParams[field] = value.map(val => {
-          try {
-            // Try to parse as JSON (new format)
-            const parsed = JSON.parse(val);
-            if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
-              return parsed;
-            }
-            return val; // Fallback to original if not valid JSON
-          } catch (e) {
-            return val; // Fallback to original string if not JSON
-          }
-        });
-      } else if (typeof value === 'string') {
-        try {
-          // Try to parse as JSON (new format)
-          const parsed = JSON.parse(value);
-          if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
-            fieldParams[field] = parsed;
-          }
-          // If not valid operator-value object, keep original string
-        } catch (e) {
-          // If not JSON, keep original string (legacy format)
-        }
-      }
-    });
-    
-    const hasClientSideFilters = Object.keys(fieldParams).some(field => 
-      field.includes('@') && hasFieldValues(fieldParams[field])
-    );
-    
-    // Build and execute OData query
-    const odataUrl = buildODataUrl({ fieldParams, search, hasClientSideFilters, logicalOperator });
-    console.log('Final OData URL:', odataUrl);
-    
-    const fetchStart = Date.now();
-    const response = await fetch(odataUrl, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const fetchTime = Date.now() - fetchStart;
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`OData API error (${response.status}):`, errorText);
-      return res.status(response.status).json({ 
-        error: `Failed to fetch parts from external API (status ${response.status}): ${errorText}` 
-      });
-    }
-
-    // Process results
-    const data = await response.json();
-    let results = data.value || [];
-    
-    // Group and calculate totals
-    const groupStart = Date.now();
-    results = groupAndProcessParts(results);
-    const groupTime = Date.now() - groupStart;
-    
-    // Apply search filtering if needed
-    let searchTime = 0;
-    if (search?.trim()) {
-      const searchStart = Date.now();
-      results = applySearchFilter(results, search.trim());
-      searchTime = Date.now() - searchStart;
-    }
-    
-    // Apply client-side filtering for @ fields
-    results = applyClientSideFilters(results, fieldParams);
-    
-    // Add highlighting for field-specific searches if we have field parameters and not a general search
-    const hasFieldParams = Object.keys(fieldParams).some(field => hasFieldValues(fieldParams[field]));
-    if (!search?.trim() && hasFieldParams) {
-      results = applyFieldHighlighting(results, fieldParams);
-    }
-    
-    // Apply result limit for default queries
-    const hasFieldFilters = Object.keys(fieldParams).some(field => 
-      !field.includes('@') && hasFieldValues(fieldParams[field])
-    );
-    if (!search?.trim() && !hasFieldFilters && !hasClientSideFilters) {
-      results = results.slice(0, 500);
-    }
-
-    // Log performance metrics
-    const totalTime = Date.now() - startTime;
-    console.log('--- Performance Metrics ---');
-    console.log(`OData fetch: ${fetchTime}ms`);
-    console.log(`Grouping: ${groupTime}ms`);
-    if (searchTime > 0) console.log(`Search filtering: ${searchTime}ms`);
-    console.log(`Total: ${totalTime}ms`);
-    
-    res.json({ value: results });
-
-  } catch (err) {
-    console.error('Internal server error:', err);
-    res.status(500).json({ error: 'Internal server error: ' + err.message });
-  }
-});
-
-// POST endpoint for new inventory item part (forwards to OData API)
-router.post('/m_Inventory', async (req, res) => {
-  try {
-    const newPart = req.body;
-    const token = req.headers['authorization']; // Bearer <token>
-    const preferHeader = req.headers['prefer'] || 'return=representation';
-    const odataUrl = 'https://chievmimsiiss01/IMSStage/Server/odata/m_Inventory';
-
-    // Log the incoming request
-    console.log('POST /api/m_Inventory called');
-    console.log('Request body:', newPart);
-    console.log('Authorization header:', token);
-    console.log('Prefer header:', preferHeader);
-    console.log('Forwarding to OData URL:', odataUrl);
-
-    const response = await fetch(odataUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': token,
-        'Prefer': preferHeader,
-      },
-      body: JSON.stringify(newPart),
-    });
-
-    // Log OData response status and headers
-    console.log('OData response status:', response.status);
-    console.log('OData response headers:', response.headers.raw ? response.headers.raw() : response.headers);
-
-    if (preferHeader === 'return=minimal' && response.status === 204) {
-      res.status(204);
-      if (response.headers.get('Location')) {
-        res.set('Location', response.headers.get('Location'));
-      }
-      return res.send();
-    } else if (response.status === 201) {
-      const data = await response.json();
-      res.status(201);
-      if (response.headers.get('Location')) {
-        res.set('Location', response.headers.get('Location'));
-      }
-      return res.json(data);
-    } else {
-      const errorText = await response.text();
-      console.error('OData error response:', errorText);
-      return res.status(response.status).send(errorText);
-    }
-  } catch (err) {
-    console.error('Error adding new inventory part:', err);
-    res.status(500).json({ error: 'Failed to add new inventory part: ' + err.message, stack: err.stack });
-  }
-});
-
-// PATCH endpoint to update spare_value for a specific instance
-router.patch('/m_Instance/:id/spare-value', async (req, res) => {
-  const { id } = req.params;
-  const { spare_value } = req.body;
-  if (typeof spare_value !== 'number') {
-    return res.status(400).json({ error: 'spare_value must be a number' });
-  }
-  // Accept Authorization and Prefer headers from the request
-  const token = req.headers['authorization']; // Bearer <token>
-  const preferHeader = req.headers['prefer'] || 'return=representation';
-  try {    // Forward PATCH to IMS OData backend (m_Instance)
-    const odataUrl = `${IMS_ODATA_URL}/m_Instance('${id}')`;
-    // No debug logging for production
-    const response = await fetch(odataUrl, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'If-Match': '*',
-        ...(token ? { 'Authorization': token } : {}),
-        'Prefer': preferHeader,
-      },
-      body: JSON.stringify({ spare_value }),
-    });    if (!response.ok) {
-      const text = await response.text();
-      // Only log errors in case of failure
-      return res.status(response.status).json({ error: text });
-    }
-    // Handle Location header if present
-    if (response.headers.get('Location')) {
-      res.set('Location', response.headers.get('Location'));
-    }
-    // Return the IMS response (could be 204 or 200)
-    if (response.status === 204) return res.status(204).end();
-    const data = await response.json();
-    res.json(data);  } catch (err) {
-    // Keep error logging in case of exceptions, but make it more concise
-    res.status(500).json({ error: 'Failed to update spare_value in IMS: ' + err.message });
-  }
-});
 
 module.exports = router;

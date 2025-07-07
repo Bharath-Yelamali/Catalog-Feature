@@ -1,3 +1,12 @@
+/**
+ * index.js
+ * Main entry point for the Express backend server.
+ * - Handles OAuth authentication with Aras Innovator
+ * - Registers all API routers (orders, userInfo, identity, parts, project, supplier)
+ * - Configures CORS and JSON parsing
+ * - Provides login and health check endpoints
+ */
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -5,16 +14,21 @@ const crypto = require('crypto');
 const app = express();
 const PORT = 3001;
 
-// === OAuth Configuration (hardcoded) ===
-const TOKEN_URL = "https://chievmimsiiss01/IMSStage/OAuthServer/connect/token";
-const DATABASE = "IMSStageBharath";
-const CLIENT_ID = "IOMApp";
-const SCOPE = "Innovator";
+const API_PREFIX = '/api';
+
+// === OAuth Configuration (from environment variables) ===
+const TOKEN_URL = process.env.TOKEN_URL;
+const DATABASE = process.env.DATABASE;
+const CLIENT_ID = process.env.CLIENT_ID;
+const SCOPE = process.env.SCOPE;
+const USERNAME = process.env.USERNAME;
+const PASSWORD = process.env.PASSWORD;
 
 // Token cache
 let accessToken = null;
 let tokenExpiry = null;
 
+// --- OAuth Token Helper ---
 async function getToken() {
   // If token is valid, return it
   if (accessToken && tokenExpiry && Date.now() < tokenExpiry) {
@@ -51,22 +65,27 @@ async function getToken() {
   return accessToken;
 }
 
-// Restrict CORS to only allow requests from your frontend
+// --- CORS Configuration ---
 const allowedOrigin = 'http://localhost:5173';
 app.use(cors({ origin: allowedOrigin }));
-// Register orders route (with file upload) BEFORE express.json()
-const ordersRouter = require('./orders');
-app.use('/api', ordersRouter);
 
-// Now apply express.json() for all other routes
+// --- Register orders route (with file upload) BEFORE express.json() ---
+const ordersRouter = require('./orders');
+app.use(API_PREFIX, ordersRouter);
+
+// --- JSON Middleware ---
 app.use(express.json());
 
+// --- Root and Health Endpoints ---
 app.get('/', (req, res) => {
   res.send('Backend proxy server is running.');
 });
+app.get(`${API_PREFIX}/health`, (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
 
-// === Login Endpoint for User Authentication ===
-app.post('/api/login', async (req, res) => {
+// --- Login Endpoint ---
+app.post(`${API_PREFIX}/login`, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required.' });
@@ -100,26 +119,23 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Register userInfo route
+// === API Routers Registration ===
 const userInfoRouter = require('./userInfo');
-app.use('/api', userInfoRouter);
+app.use(API_PREFIX, userInfoRouter);
 
-// Register identity route
 const identityRouter = require('./identity');
-app.use('/api', identityRouter);
+app.use(API_PREFIX, identityRouter);
 
-// Register parts route
 const partsRouter = require('./parts');
-app.use('/api', partsRouter);
+app.use(API_PREFIX, partsRouter);
 
-// Register generic API route (for projects, etc)
 const projectRouter = require('./project');
-app.use('/api', projectRouter);
+app.use(API_PREFIX, projectRouter);
 
-// Register supplier route
 const supplierRouter = require('./supplier');
-app.use('/api', supplierRouter);
+app.use(API_PREFIX, supplierRouter);
 
+// --- Start Server ---
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
