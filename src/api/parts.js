@@ -1,7 +1,24 @@
-// Constants
-const BASE_URL = 'http://localhost:3001/api';
+/**
+ * parts.js
+ *
+ * API utility functions for interacting with inventory parts via the backend API.
+ *
+ * - Uses the VITE_API_BASE_URL environment variable for all requests (set in the project root .env file).
+ * - Provides functions to fetch all parts, fetch parts by specific fields, add new inventory parts, and update spare values.
+ * - All requests support Bearer token authentication.
+ * - Designed for use in the React frontend with Vite.
+ */
 
-// Helper function to build headers
+// Constants
+// Use the VITE_API_BASE_URL environment variable for the backend API base URL (set in the project root .env file)
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+/**
+ * Builds headers for API requests, including Authorization if an access token is provided.
+ * @param {string} accessToken - Optional Bearer token for authentication.
+ * @param {Object} additionalHeaders - Additional headers to include.
+ * @returns {Object} Headers object for fetch.
+ */
 function buildHeaders(accessToken, additionalHeaders = {}) {
   const headers = { ...additionalHeaders };
   if (accessToken) {
@@ -10,7 +27,12 @@ function buildHeaders(accessToken, additionalHeaders = {}) {
   return headers;
 }
 
-// Helper function to build URL with parameters
+/**
+ * Builds a URL with query parameters for API requests.
+ * @param {string} endpoint - API endpoint (e.g., '/parts').
+ * @param {Array} params - Array of query parameter strings.
+ * @returns {string} Full URL with parameters.
+ */
 function buildURL(endpoint, params) {
   let url = `${BASE_URL}${endpoint}`;
   if (params.length > 0) {
@@ -19,7 +41,18 @@ function buildURL(endpoint, params) {
   return url;
 }
 
-// Fetch all parts from the backend API
+/**
+ * Fetches all parts from the backend API.
+ * @param {Object} options - Options for the request.
+ * @param {string} [options.classification] - Optional classification filter.
+ * @param {number} [options.top] - Optional limit for number of results.
+ * @param {string} [options.search] - Optional search term.
+ * @param {string} [options.filterType] - Optional filter type.
+ * @param {AbortSignal} [options.signal] - Optional abort signal for fetch cancellation.
+ * @param {string} [options.accessToken] - Optional Bearer token for authentication.
+ * @returns {Promise<Object>} The response JSON containing parts data.
+ * @throws {Error} If the request fails.
+ */
 export async function fetchParts({ classification, top, search, filterType, signal, accessToken } = {}) {
   const params = [];
   if (classification) {
@@ -46,7 +79,19 @@ export async function fetchParts({ classification, top, search, filterType, sign
   return data;
 }
 
-// Fetch parts by specific fields for "Specify Search" mode
+/**
+ * Fetches parts by specific fields for "Specify Search" mode.
+ * @param {Object} options - Options for the request.
+ * @param {string} [options.classification] - Optional classification filter.
+ * @param {number} [options.top] - Optional limit for number of results.
+ * @param {Object} [options.searchParams] - Field-specific search parameters.
+ * @param {string} [options.filterType] - Optional filter type.
+ * @param {string} [options.logicalOperator] - Optional logical operator (e.g., 'and', 'or').
+ * @param {AbortSignal} [options.signal] - Optional abort signal for fetch cancellation.
+ * @param {string} [options.accessToken] - Optional Bearer token for authentication.
+ * @returns {Promise<Object>} The response JSON containing parts data.
+ * @throws {Error} If the request fails.
+ */
 export async function fetchPartsByFields({ classification, top, searchParams, filterType, logicalOperator, signal, accessToken } = {}) {
   const params = [];
   
@@ -97,7 +142,13 @@ export async function fetchPartsByFields({ classification, top, searchParams, fi
   return data;
 }
 
-// Post a new inventory part to the backend
+/**
+ * Posts a new inventory part to the backend API.
+ * @param {Object} part - The part object to add.
+ * @param {string} accessToken - Bearer token for authentication.
+ * @returns {Promise<Object>} The created part object from the backend.
+ * @throws {Error} If the request fails or the part already exists.
+ */
 export async function postNewInventoryPart(part, accessToken) {
   const url = `${BASE_URL}/m_Inventory`;
   const headers = buildHeaders(accessToken, { 'Content-Type': 'application/json' });
@@ -136,7 +187,14 @@ export async function postNewInventoryPart(part, accessToken) {
   return await response.json();
 }
 
-// Update spare_value for a specific instance
+/**
+ * Updates the spare_value for a specific inventory instance.
+ * @param {string} instanceId - The ID of the inventory instance to update.
+ * @param {number|string} spareValue - The new spare value to set.
+ * @param {string} accessToken - Bearer token for authentication.
+ * @returns {Promise<Object|null>} The updated instance object, or null if no content returned.
+ * @throws {Error} If the request fails.
+ */
 export async function updateSpareValue(instanceId, spareValue, accessToken) {
   const url = `${BASE_URL}/m_Instance/${instanceId}/spare-value`;
   const headers = buildHeaders(accessToken, { 'Content-Type': 'application/json' });

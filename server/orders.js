@@ -16,8 +16,6 @@
 
 // server/orders.js
 // REST endpoint to get purchase requests/orders for the current user from IMS
-
-require('dotenv').config();
 const express = require('express');
 const router = express.Router();
 const fetch = require('node-fetch');
