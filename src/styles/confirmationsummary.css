@@ -141,7 +141,49 @@
   margin-top: 32px;
 }
 
+.confirmation-summary-status-success {
+  color: green;
+  margin-top: 8px;
+}
+
+.confirmation-summary-status-none {
+  color: orange;
+  margin-top: 8px;
+}
+
+.confirmation-summary-status-error {
+  color: red;
+  margin-top: 8px;
+}
+
 .confirmation-summary-button-back,
+.confirmation-summary-button-submit,
+.export-btn {
+  padding: 8px 24px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+.confirmation-summary-button-back {
+  background: #e0e0e0;
+  color: #222;
+}
+
 .confirmation-summary-button-submit {
-  margin: 0;
+  background: #3182ce;
+  color: #fff;
+}
+
+.export-btn {
+  background: #fff;
+  color: #3182ce;
+  border: 1.5px solid #3182ce;
+  transition: background 0.2s, color 0.2s;
+}
+
+.export-btn:hover {
+  background: #3182ce;
+  color: #fff;
 }
