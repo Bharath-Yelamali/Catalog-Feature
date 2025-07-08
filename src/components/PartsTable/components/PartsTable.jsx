@@ -52,6 +52,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // 1. Add state to track the order in which instances are checked
   const [instanceSelectionOrder, setInstanceSelectionOrder] = useState([]); // array of instance ids in order of selection
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Use field management hook
   const {
@@ -275,6 +276,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   return (
     <>
+      <Chatbox open={chatOpen} onClose={() => setChatOpen(false)} />
       {/* Button/Action header positioned against taskbar */}
       <PartsTableHeader
         hiddenFieldCount={hiddenFieldCount}
@@ -329,6 +331,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           });
           setInputValues(newInputValues);
         }}
+        onOpenChat={() => setChatOpen(true)}
       />
       {/* Column header positioned below button header */}
       <div className="search-result-item search-result-header main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
