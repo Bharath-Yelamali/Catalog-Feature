@@ -8,6 +8,7 @@ import PartsTableHeader from './PartsTableHeader';
 import PartsTableMainRow from './PartsTableMainRow';
 import Chatbox from '../../chatbox/chatbox';
 import '../../../styles/ChatBox.css';
+import InstanceSection from './InstanceSection';
 
 // Utility to get visible fields (not hidden)
 function getVisibleFields(allFields, hiddenFields) {
@@ -39,6 +40,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [projectFilter, setProjectFilter] = useState({}); // { [itemNumber]: projectName }
   // Add state for open project dropdown
   const [openProjectDropdown, setOpenProjectDropdown] = useState({}); // { [itemNumber]: boolean }
+  // State for filtering instances by inventory maturity
+  const [maturityFilter, setMaturityFilter] = useState({}); // { [itemNumber]: maturityValue }
+  const [openMaturityDropdown, setOpenMaturityDropdown] = useState({}); // { [itemNumber]: boolean }
+  // State for filtering instances by hardware custodian
+  const [custodianFilter, setCustodianFilter] = useState({}); // { [itemNumber]: custodianValue }
+  const [openCustodianDropdown, setOpenCustodianDropdown] = useState({}); // { [itemNumber]: boolean }
   // Add state for open parent path dropdown
   const [openParentPathDropdown, setOpenParentPathDropdown] = useState({}); // { [itemNumber]: boolean }
   const [parentPathFilter, setParentPathFilter] = useState({}); // { [itemNumber]: parentPathSection }
@@ -389,321 +396,42 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                   setExpandedLabel={setExpandedLabel}
                 />
                 {expandedRows[group.itemNumber] && (
-                  <div className="instance-section">
-                    <div className="instance-header">
-                      <span className="instance-header-title">Instances:</span>
-                    </div>
-                    {isAdmin && (
-                      <div className="spare-threshold-section">
-                        Spare Threshold for this item:
-                        <input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value}
-                          onChange={e => {
-                            const newValue = parseFloat(e.target.value);
-                            group.instances.forEach(instance => {
-                              instance.spare_value = isNaN(newValue) ? 0 : newValue;
-                            });
-                            setSelected(selected => ({ ...selected }));
-                          }}
-                          onBlur={async e => {
-                            const newValue = parseFloat(e.target.value);
-                            try {
-                              await Promise.all(
-                                group.instances.map(async instance => {
-                                  try {
-                                    await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken);
-                                    setSpareFeedback(prev => ({ ...prev, [instance.id]: 'success' }));
-                                    setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 1500);
-                                  } catch (err) {
-                                    setSpareFeedback(prev => ({ ...prev, [instance.id]: 'error' }));
-                                    setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 2500);
-                                    throw err;
-                                  }
-                                })
-                              );
-                              console.log(`Spare threshold successfully updated to ${isNaN(newValue) ? 0 : newValue} for ${group.instances.length} instances of ${group.itemNumber}.`);
-                            } catch (err) {
-                              console.error('Failed to update spare threshold:', err);
-                            }
-                          }}
-                          className="spare-threshold-input"
-                          aria-label="Edit spare threshold for this item"
-                        />
-                      </div>
-                    )}
-                    <div className="instance-grid-header" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-                      <div className="request-button-container">
-                        <button
-                          type="button"
-                          className="request-button"
-                          onClick={() => {
-                            const checkedInstances = (generalInventoryFilter[group.itemNumber]
-                              ? group.instances.filter(instance => instance.generalInventory)
-                              : group.instances
-                            ).filter(instance => instance.generalInventory && requestedInstances[instance.id]);
-                            const custodians = Array.from(new Set(
-                              checkedInstances.map(inst => inst["m_custodian@aras.keyed_name"] || inst.m_custodian).filter(Boolean)
-                            ));
-                            let runningTotal = 0;
-                            const usableSurplusQty = usableSurplus;
-                            const checkedInstanceIds = checkedInstances.map(inst => inst.id);
-                            const orderedIds = instanceSelectionOrder.filter(id => checkedInstanceIds.includes(id));
-                            const orderedCheckedInstances = orderedIds.map(id => checkedInstances.find(inst => inst.id === id)).filter(Boolean);
-                            const cappedInstances = [];
-                            for (const inst of orderedCheckedInstances) {
-                              const qty = parseInt(inst.m_quantity, 10) || 0;
-                              if (runningTotal >= usableSurplusQty) break;
-                              let allowedQty = qty;
-                              if (runningTotal + qty > usableSurplusQty) {
-                                allowedQty = usableSurplusQty - runningTotal;
-                              }
-                              if (allowedQty > 0) {
-                                cappedInstances.push({ ...inst, capped_quantity: allowedQty });
-                                runningTotal += allowedQty;
-                              }
-                            }
-                            setRequestPopup({
-                              open: true,
-                              custodians,
-                              group: { ...group, generalInventoryFilter: generalInventoryFilter[group.itemNumber], requestedInstances },
-                              cappedInstances
-                            });
-                          }}
-                          aria-label="Request selected instances from hardware custodian"
-                        >
-                          Request
-                        </button>
-                        <span className="checked-quantity-display">
-                          {(() => {
-                            const checkedInstances = (generalInventoryFilter[group.itemNumber]
-                              ? group.instances.filter(instance => instance.generalInventory)
-                              : group.instances
-                            ).filter(instance => instance.generalInventory && requestedInstances[instance.id]);
-                            const totalQty = checkedInstances.reduce((sum, inst) => sum + (parseInt(inst.m_quantity, 10) || 0), 0);
-                            const cappedQty = Math.min(totalQty, usableSurplus);
-                            return `Checked Qty: ${cappedQty}`;
-                          })()}
-                        </span>
-                      </div>
-                      {!hiddenFields.instanceId && <div className="table-cell">Instance ID</div>}
-                      {!hiddenFields.serialNumber && <div className="table-cell">Serial Number/Name</div>}
-                      {!hiddenFields.quantity && <div className="table-cell">Quantity</div>}
-                      {!hiddenFields.inventoryMaturity && <div className="table-cell">Inventory Maturity</div>}
-                      {!hiddenFields.associatedProject && (
-                        <div className="column-header-dropdown">
-                          <span
-                            className="column-header-dropdown-trigger"
-                            aria-label="Filter by associated project"
-                            tabIndex={0}
-                            onClick={e => {
-                              e.stopPropagation();
-                              setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
-                            }}
-                            onBlur={e => {
-                              // Optionally close dropdown on blur
-                            }}                            >
-                            Associated Project
-                            <span className="column-header-dropdown-arrow">▼</span>
-                          </span>
-                          {openProjectDropdown[group.itemNumber] && (
-                            <div
-                              className="filter-dropdown-container"
-                              tabIndex={0}
-                              onBlur={() => setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
-                            >
-                              <div
-                                className={`filter-dropdown-item ${!projectFilter[group.itemNumber] ? 'filter-dropdown-item--selected' : ''}`}
-                                onClick={() => {
-                                  setProjectFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
-                                  setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                }}
-                              >
-                                All Projects
-                              </div>
-                              {Array.from(new Set((group.instances || []).map(inst => inst.m_project?.keyed_name || inst.associated_project).filter(Boolean)))
-                                .map(project => (
-                                  <div
-                                    key={project}
-                                    className={`filter-dropdown-item ${projectFilter[group.itemNumber] === project ? 'filter-dropdown-item--selected' : ''}`}
-                                    onClick={() => {
-                                      setProjectFilter(prev => ({ ...prev, [group.itemNumber]: project }));
-                                      setOpenProjectDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                    }}
-                                  >
-                                    {project}
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {!hiddenFields.hardwareCustodian && <div className="table-cell">Hardware Custodian</div>}
-                      {!hiddenFields.parentPath && (
-                        <div className="column-header-dropdown">
-                          <span
-                            className="column-header-dropdown-trigger"
-                            aria-label="Filter by parent path section"
-                            tabIndex={0}
-                            onClick={e => {
-                              e.stopPropagation();
-                              setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: !prev[group.itemNumber] }));
-                            }}
-                            onBlur={e => {
-                              // Optionally close dropdown on blur
-                            }}                            >
-                            Parent Path
-                            <span className="column-header-dropdown-arrow">▼</span>
-                          </span>
-                          {openParentPathDropdown[group.itemNumber] && (
-                            <div
-                              className="filter-dropdown-container"
-                              tabIndex={0}
-                              onBlur={() => setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }))}
-                            >
-                              <div
-                                className={`filter-dropdown-item ${!parentPathFilter[group.itemNumber] ? 'filter-dropdown-item--selected' : ''}`}
-                                onClick={() => {
-                                  setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: '' }));
-                                  setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                }}
-                              >
-                                All Parent Paths
-                              </div>
-                              {Array.from(new Set((
-                                projectFilter[group.itemNumber]
-                                  ? (group.instances || []).filter(inst => (inst.m_project?.keyed_name || inst.associated_project) === projectFilter[group.itemNumber])
-                                  : (group.instances || [])
-                              ).map(inst => {
-                                const match = (inst.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
-                                return match ? match[1] : null;
-                              }).filter(Boolean)))
-                                .map(section => (
-                                  <div
-                                    key={section}
-                                    className={`filter-dropdown-item ${parentPathFilter[group.itemNumber] === section ? 'filter-dropdown-item--selected' : ''}`}
-                                    onClick={() => {
-                                      setParentPathFilter(prev => ({ ...prev, [group.itemNumber]: section }));
-                                      setOpenParentPathDropdown(prev => ({ ...prev, [group.itemNumber]: false }));
-                                    }}
-                                  >
-                                    {section}
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="instance-grid-spacer" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-                      <div></div>
-                      {!hiddenFields.instanceId && <div></div>}
-                      {!hiddenFields.serialNumber && <div></div>}
-                      {!hiddenFields.quantity && <div></div>}
-                      {!hiddenFields.inventoryMaturity && <div></div>}
-                      {!hiddenFields.associatedProject && <div></div>}
-                      {!hiddenFields.hardwareCustodian && <div></div>}
-                      {!hiddenFields.parentPath && <div></div>}
-                    </div>
-                    {(projectFilter[group.itemNumber]
-                      ? (generalInventoryFilter[group.itemNumber]
-                          ? group.instances.filter(instance => instance.generalInventory && ((instance.m_project?.keyed_name || instance.associated_project) === projectFilter[group.itemNumber]))
-                          : group.instances.filter(instance => (instance.m_project?.keyed_name || instance.associated_project) === projectFilter[group.itemNumber])
-                        )
-                      : (generalInventoryFilter[group.itemNumber]
-                          ? group.instances.filter(instance => instance.generalInventory)
-                          : group.instances
-                        )
-                    ).filter(instance => {
-                      if (!parentPathFilter[group.itemNumber]) return true;
-                      const match = (instance.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
-                      return match && match[1] === parentPathFilter[group.itemNumber];
-                    }).map((instance, idx, filteredInstances) => {
-                      // Calculate running total of checked quantities up to this instance
-                      let runningTotal = 0;
-                      let checkedCount = 0;
-                      filteredInstances.forEach(inst => {
-                        if (requestedInstances[inst.id]) {
-                          runningTotal += parseInt(inst.m_quantity, 10) || 0;
-                          checkedCount++;
-                        }
-                      });
-                      const thisQty = parseInt(instance.m_quantity, 10) || 0;
-                      const checked = !!requestedInstances[instance.id];
-                      // Calculate what the total would be if this instance were checked
-                      const totalIfChecked = runningTotal + (checked ? 0 : thisQty);
-                      // Find if any instance is the 'overflow' (the one that pushes over the cap)
-                      let overflowFound = false;
-                      let tempTotal = 0;
-                      let overflowId = null;
-                      for (let i = 0; i < filteredInstances.length; i++) {
-                        const inst = filteredInstances[i];
-                        if (requestedInstances[inst.id] || inst.id === instance.id) {
-                          tempTotal += parseInt(inst.m_quantity, 10) || 0;
-                          if (!overflowFound && tempTotal > usableSurplus) {
-                            overflowFound = true;
-                            overflowId = inst.id;
-                          }
-                        }
-                      }
-                      // Allow checking if:
-                      // - already checked
-                      // - total checked qty < usableSurplus
-                      // - OR this is the first instance to push over the cap (overflowId === instance.id)
-                      const disableCheckbox = !checked && runningTotal >= usableSurplus && overflowId !== instance.id;
-                      return (
-                        <div key={instance.id + instance.m_id + instance.item_number + instance.m_maturity + (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) + instance.m_parent_ref_path} className="instance-table-row" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-                          <div className="instance-checkbox">
-                            {instance.generalInventory ? (
-                              <input
-                                type="checkbox"
-                                aria-label="Request this instance"
-                                checked={checked}
-                                disabled={disableCheckbox}
-                                onChange={e => {
-                                  if (e.target.checked) {
-                                    // Only allow checking if not exceeding the overflow rule
-                                    if (!disableCheckbox) {
-                                      setRequestedInstances(prev => ({ ...prev, [instance.id]: true }));
-                                      setInstanceSelectionOrder(order => [...order.filter(x => x !== instance.id), instance.id]); // move to end if re-checked
-                                    }
-                                  } else {
-                                    setRequestedInstances(prev => ({ ...prev, [instance.id]: false }));
-                                    setInstanceSelectionOrder(order => order.filter(x => x !== instance.id));
-                                  }
-                                }}
-                              />
-                            ) : null}
-                          </div>
-                          {!hiddenFields.instanceId && (
-                            <div>
-                              {instance.id && instance.m_id ? (
-                                <a
-                                  href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="instance-link"
-                                >
-                                  {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
-                                </a>
-                              ) : (
-                                highlightFieldWithMatches('N/A', part._matches?.m_id)
-                              )}
-                            </div>
-                          )}
-                          {!hiddenFields.serialNumber && <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>}
-                          {!hiddenFields.quantity && <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>}
-                          {!hiddenFields.inventoryMaturity && <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>}
-                          {!hiddenFields.associatedProject && <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>}
-                          {!hiddenFields.hardwareCustodian && <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>}
-                          {!hiddenFields.parentPath && <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <InstanceSection
+                    group={group}
+                    part={part}
+                    isAdmin={isAdmin}
+                    hiddenFields={hiddenFields}
+                    generalInventoryFilter={generalInventoryFilter}
+                    setGeneralInventoryFilter={setGeneralInventoryFilter}
+                    spareFeedback={spareFeedback}
+                    setSpareFeedback={setSpareFeedback}
+                    requestedInstances={requestedInstances}
+                    setRequestedInstances={setRequestedInstances}
+                    instanceSelectionOrder={instanceSelectionOrder}
+                    setInstanceSelectionOrder={setInstanceSelectionOrder}
+                    projectFilter={projectFilter}
+                    setProjectFilter={setProjectFilter}
+                    openProjectDropdown={openProjectDropdown}
+                    setOpenProjectDropdown={setOpenProjectDropdown}
+                    maturityFilter={maturityFilter}
+                    setMaturityFilter={setMaturityFilter}
+                    openMaturityDropdown={openMaturityDropdown}
+                    setOpenMaturityDropdown={setOpenMaturityDropdown}
+                    custodianFilter={custodianFilter}
+                    setCustodianFilter={setCustodianFilter}
+                    openCustodianDropdown={openCustodianDropdown}
+                    setOpenCustodianDropdown={setOpenCustodianDropdown}
+                    parentPathFilter={parentPathFilter}
+                    setParentPathFilter={setParentPathFilter}
+                    openParentPathDropdown={openParentPathDropdown}
+                    setOpenParentPathDropdown={setOpenParentPathDropdown}
+                    accessToken={accessToken}
+                    setRequestPopup={setRequestPopup}
+                    getInstanceTableGridColumns={getInstanceTableGridColumns}
+                    highlightFieldWithMatches={highlightFieldWithMatches}
+                    usableSurplus={usableSurplus}
+                    updateSpareValue={updateSpareValue}
+                  />
                 )}
               </div>
             );
