@@ -13,6 +13,7 @@ import ReactDOM from 'react-dom';
 // Update SVG imports to use assets folder
 import wizardIcon from './assets/wizard.svg';
 import Chatbox from './components/chatbox/chatbox';
+import chatIcon from './assets/chat.svg';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -703,7 +704,7 @@ function App() {
               style={{
                 position: 'fixed',
                 bottom: 32,
-                right: 32,
+                right: 15,
                 zIndex: 1000,
                 background: '#2563eb',
                 color: '#fff',
@@ -717,11 +718,12 @@ function App() {
                 display: chatOpen ? 'none' : 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                padding: 0
               }}
               aria-label="Open Chatbox"
               onClick={() => handleSetChatOpen(true)}
             >
-              💬
+              <img src={chatIcon} alt="Open Chat" style={{ width: 32, height: 32,}} />
             </button>
           )}
         </div>
