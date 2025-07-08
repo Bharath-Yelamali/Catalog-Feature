@@ -134,6 +134,9 @@ const PartsTableHeader = ({
         aria-label="Proceed to required fields"
       >
         <img src={nextIcon} alt="Next" style={{ width: 28, height: 28 }} />
+        <span style={{ marginLeft: 6, fontSize: 15, fontWeight: 500, color: '#222' }}>
+          Next Page
+        </span>
       </button>
       <button
         className="chat-btn"
@@ -151,6 +154,9 @@ const PartsTableHeader = ({
         aria-label="Open Copilot Chat"
       >
         <img src={chatIcon} alt="Chat" style={{ width: 28, height: 28 }} />
+        <span style={{ marginLeft: 6, fontSize: 15, fontWeight: 500, color: '#222' }}>
+          Chat
+        </span>
       </button>
     </div>
   </div>
