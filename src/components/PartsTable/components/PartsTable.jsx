@@ -9,6 +9,8 @@ import PartsTableMainRow from './PartsTableMainRow';
 import Chatbox from '../../chatbox/chatbox';
 import '../../../styles/ChatBox.css';
 import InstanceSection from './InstanceSection';
+import ExpandedModal from './ExpandedModal';
+import EmptyState from './EmptyState';
 
 // Utility to get visible fields (not hidden)
 function getVisibleFields(allFields, hiddenFields) {
@@ -358,12 +360,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       {/* Main table content */}
       <div className="search-results-dropdown">
         {isEmpty ? (
-          <div className="search-results-empty" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 220, color: '#64748b', fontSize: 18 }}>
-            <img src={personIcon} alt="Person" style={{ width: 180, height: 180, marginBottom: 22, opacity: 0.7 }} />
-            {results.length === 0 && localSearch.trim() === ''
-              ? 'Input a search to get started.'
-              : 'No parts match the current filters.'}
-          </div>
+          <EmptyState isInitial={results.length === 0 && localSearch.trim() === ''} />
         ) : (
           <>
           {resultsToDisplay.map(group => {
@@ -439,20 +436,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               </div>
             );
           })}
-          {expandedValue && (
-            <div className="expanded-modal-overlay" onClick={handleClose}>
-              <div className="expanded-modal-content" onClick={e => e.stopPropagation()}>
-                <div className="expanded-modal-header">{expandedLabel}</div>
-                <textarea
-                  value={expandedValue}
-                  readOnly
-                  className="expanded-modal-textarea"
-                  onFocus={e => e.target.select()}
-                />
-                <button className="expanded-modal-close-btn" onClick={handleClose}>Close</button>
-              </div>
-            </div>
-          )}
+          <ExpandedModal
+            open={!!expandedValue}
+            label={expandedLabel}
+            value={expandedValue}
+            onClose={handleClose}
+          />
         </>
       )}
     </div>
