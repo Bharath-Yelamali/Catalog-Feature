@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { updateSpareValue, fetchPartsByFields } from '../../../api/parts';
-import { searchableFields } from '../../SearchBarLogic/constants';
+import { updateSpareValue } from '../../../api/parts';
 import { useFieldManagement, useFilterManagement, useSearchUtilities } from '../../SearchBarLogic';
 import personIcon from '../../../assets/person.svg';
 import * as XLSX from 'xlsx';
@@ -24,7 +23,7 @@ function getVisibleFields(allFields, hiddenFields) {
   return allFields.filter(field => !hiddenFields[field]);
 }
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, requestPopup, setRequestPopup, onFilterSearch, loading, spinner }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -213,18 +212,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
       return acc;
     }, {});
   }
-
-  // Add a class to the body to disable pointer events when modal is open
-  useEffect(() => {
-    if (requestPopup.open) {
-      document.body.classList.add('modal-open');
-    } else {
-      document.body.classList.remove('modal-open');
-    }
-    return () => {
-      document.body.classList.remove('modal-open');
-    };
-  }, [requestPopup.open]);
 
   // Add local state for global search if not provided
   const [localSearch, setLocalSearch] = useState(typeof search === 'string' ? search : '');
@@ -426,7 +413,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                     openParentPathDropdown={openParentPathDropdown}
                     setOpenParentPathDropdown={setOpenParentPathDropdown}
                     accessToken={accessToken}
-                    setRequestPopup={setRequestPopup}
                     getInstanceTableGridColumns={getInstanceTableGridColumns}
                     highlightFieldWithMatches={highlightFieldWithMatches}
                     usableSurplus={usableSurplus}

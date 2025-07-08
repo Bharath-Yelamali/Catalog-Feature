@@ -30,7 +30,6 @@ const InstanceSection = ({
   openParentPathDropdown,
   setOpenParentPathDropdown,
   accessToken,
-  setRequestPopup,
   getInstanceTableGridColumns,
   highlightFieldWithMatches,
   usableSurplus,
@@ -155,21 +154,8 @@ const InstanceSection = ({
         </div>
       )}
       <div className="instance-grid-header" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-        <div className="request-button-container">
-          <button
-            type="button"
-            className="request-button"
-            onClick={() => {
-              setRequestPopup(group.itemNumber);
-            }}
-            aria-label="Request selected instances from hardware custodian"
-          >
-            Request
-          </button>
-          <span className="checked-quantity-display">
-            {/* Implement checked quantity display logic as needed */}
-          </span>
-        </div>
+        {/* Add Select header for General Inventory checkboxes */}
+        <div className="table-cell">Select</div>
         {/* Correct column order: ID, Serial, Quantity, Maturity, Project, Custodian, Path */}
         {!hiddenFields.instanceId && <div className="table-cell">Instance ID</div>}
         {!hiddenFields.serialNumber && <div className="table-cell">Serial Number/Name</div>}
@@ -245,48 +231,53 @@ const InstanceSection = ({
           if (!match || match[1] !== parentPathFilter[group.itemNumber]) return false;
         }
         return true;
-      }).map((instance, idx, filteredInstances) => (
-        <div key={instance.id} className="instance-table-row" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-          <div className="instance-checkbox">
-            <input
-              type="checkbox"
-              aria-label="Request this instance"
-              checked={!!requestedInstances[instance.id]}
-              onChange={e => {
-                if (e.target.checked) {
-                  setRequestedInstances(prev => ({ ...prev, [instance.id]: true }));
-                  setInstanceSelectionOrder(order => [...order.filter(x => x !== instance.id), instance.id]);
-                } else {
-                  setRequestedInstances(prev => ({ ...prev, [instance.id]: false }));
-                  setInstanceSelectionOrder(order => order.filter(x => x !== instance.id));
-                }
-              }}
-            />
-          </div>
-          {!hiddenFields.instanceId && (
-            <div>
-              {instance.id && instance.m_id ? (
-                <a
-                  href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="instance-link"
-                >
-                  {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
-                </a>
-              ) : (
-                highlightFieldWithMatches('N/A', part._matches?.m_id)
+      }).map((instance, idx, filteredInstances) => {
+        const isGeneralInventory = (instance.m_project?.keyed_name || instance.associated_project) === 'General Inventory';
+        return (
+          <div key={instance.id} className="instance-table-row" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
+            <div className="instance-checkbox">
+              {isGeneralInventory && (
+                <input
+                  type="checkbox"
+                  aria-label="Request this instance"
+                  checked={!!requestedInstances[instance.id]}
+                  onChange={e => {
+                    if (e.target.checked) {
+                      setRequestedInstances(prev => ({ ...prev, [instance.id]: true }));
+                      setInstanceSelectionOrder(order => [...order.filter(x => x !== instance.id), instance.id]);
+                    } else {
+                      setRequestedInstances(prev => ({ ...prev, [instance.id]: false }));
+                      setInstanceSelectionOrder(order => order.filter(x => x !== instance.id));
+                    }
+                  }}
+                />
               )}
             </div>
-          )}
-          {!hiddenFields.serialNumber && <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>}
-          {!hiddenFields.quantity && <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>}
-          {!hiddenFields.inventoryMaturity && <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>}
-          {!hiddenFields.associatedProject && <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>}
-          {!hiddenFields.hardwareCustodian && <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>}
-          {!hiddenFields.parentPath && <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>}
-        </div>
-      ))}
+            {!hiddenFields.instanceId && (
+              <div>
+                {instance.id && instance.m_id ? (
+                  <a
+                    href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="instance-link"
+                  >
+                    {highlightFieldWithMatches(instance.m_id, part._matches?.m_id)}
+                  </a>
+                ) : (
+                  highlightFieldWithMatches('N/A', part._matches?.m_id)
+                )}
+              </div>
+            )}
+            {!hiddenFields.serialNumber && <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>}
+            {!hiddenFields.quantity && <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>}
+            {!hiddenFields.inventoryMaturity && <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>}
+            {!hiddenFields.associatedProject && <div>{highlightFieldWithMatches((instance.m_project?.keyed_name || instance.associated_project || 'N/A').toString(), part._matches?.m_project)}</div>}
+            {!hiddenFields.hardwareCustodian && <div>{highlightFieldWithMatches(instance["m_custodian@aras.keyed_name"] || instance.m_custodian || 'N/A', part._matches?.m_custodian)}</div>}
+            {!hiddenFields.parentPath && <div>{highlightFieldWithMatches(instance.m_parent_ref_path || 'N/A', part._matches?.m_parent_ref_path)}</div>}
+          </div>
+        );
+      })}
     </div>
   );
 };
