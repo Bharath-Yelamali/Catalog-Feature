@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import * as XLSX from 'xlsx';
-import PartsTable from './components/PartsTable';
+import PartsTable from './components/PartsTable/components/PartsTable';
 import RequiredFields from './components/RequiredFields';
 import ConfirmationSummary from './components/ConfirmationSummary/components/ConfirmationSummary';
 import { fetchParts } from './api/parts';

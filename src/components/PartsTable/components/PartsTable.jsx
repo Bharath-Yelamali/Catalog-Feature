@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { updateSpareValue, fetchPartsByFields } from '../api/parts';
-import { searchableFields } from './SearchBarLogic/constants';
-import { useFieldManagement, useFilterManagement, HideFieldsButton, FilterButton, useSearchUtilities } from './SearchBarLogic';
-import { GlobalSearchBar } from './SearchBarLogic/components/GlobalSearchBar';
-import downloadIcon from "../assets/download.svg";
-import nextIcon from "../assets/next.svg";
-import personIcon from '../assets/person.svg';
+import { updateSpareValue, fetchPartsByFields } from '../../../api/parts';
+import { searchableFields } from '../../SearchBarLogic/constants';
+import { useFieldManagement, useFilterManagement, useSearchUtilities } from '../../SearchBarLogic';
+import personIcon from '../../../assets/person.svg';
 import * as XLSX from 'xlsx';
+import PartsTableHeader from './PartsTableHeader';
+import PartsTableMainRow from './PartsTableMainRow';
 
 // Utility to get visible fields (not hidden)
 function getVisibleFields(allFields, hiddenFields) {
@@ -268,148 +267,60 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   return (
     <>
       {/* Button/Action header positioned against taskbar */}
-      <div className="search-result-button-header">
-        <div className="flex-start">
-            <HideFieldsButton
-              hiddenFieldCount={hiddenFieldCount}
-              hideFieldsDropdownOpen={hideFieldsDropdownOpen}
-              setHideFieldsDropdownOpen={setHideFieldsDropdownOpen}
-              filteredFields={filteredFields}
-              hiddenFields={hiddenFields}
-              toggleFieldVisibility={toggleFieldVisibility}
-              fieldSearchQuery={fieldSearchQuery}
-              setFieldSearchQuery={setFieldSearchQuery}
-              setHiddenFields={setHiddenFields}
-              allFields={allFields}
-            />
-            <FilterButton
-              activeFilterCount={activeFilterCount}
-              filterDropdownOpen={filterDropdownOpen}
-              setFilterDropdownOpen={setFilterDropdownOpen}
-              filterConditions={filterConditions}
-              setFilterConditions={setFilterConditions}
-              inputValues={inputValues}
-              setInputValues={setInputValues}
-              hasUnprocessedChanges={hasUnprocessedChanges}
-              setHasUnprocessedChanges={setHasUnprocessedChanges}
-              logicalOperator={logicalOperator}
-              setLogicalOperator={setLogicalOperator}
-              draggedCondition={draggedCondition}
-              dragHoverTarget={dragHoverTarget}
-              handleDragStart={handleDragStart}
-              handleDragOver={handleDragOver}
-              handleDragEnter={handleDragEnter}
-              handleDragLeave={handleDragLeave}
-              handleDrop={handleDrop}
-              handleDragEnd={handleDragEnd}
-              searchableFields={searchableFields}
-            />
-            {/* Global Search Bar and item count */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <GlobalSearchBar
-                value={localSearch}
-                onGlobalSearchConditionsChange={({ conditions, logicalOperator }) => {
-                  setFilterConditions(conditions || []);
-                  setLogicalOperator(logicalOperator || 'or');
-                  setHasUnprocessedChanges(true); // trigger filter search in useFilterManagement
-                  // --- Sync inputValues with new global search conditions ---
-                  const newInputValues = {};
-                  (conditions || []).forEach((cond, idx) => {
-                    newInputValues[idx] = cond.value;
-                  });
-                  setInputValues(newInputValues);
-                }}
-                setResults={results => {
-                  setGlobalSearchResults(results === null || (Array.isArray(results) && results.length === 0 && localSearch.trim() === '') ? null : results);
-                }}
-                accessToken={accessToken}
-                setInputValue={setLocalSearch}
-              />
-              <span className="item-count-text" style={{ marginLeft: 8 }}>
-                {loading ? (
-                  <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 50 50"
-                      style={{ display: 'block' }}
-                    >
-                      <circle
-                        cx="25"
-                        cy="25"
-                        r="20"
-                        fill="none"
-                        stroke="#2563eb"
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                        strokeDasharray="31.415, 31.415"
-                        transform="rotate(0 25 25)"
-                      >
-                        <animateTransform
-                          attributeName="transform"
-                          type="rotate"
-                          from="0 25 25"
-                          to="360 25 25"
-                          dur="0.8s"
-                          repeatCount="indefinite"
-                        />
-                      </circle>
-                    </svg>
-                  </span>
-                ) : (
-                  `${resultsToDisplay.length} items`
-                )}
-              </span>
-            </div>
-        </div>
-        <div className="flex-end">
-            {/* Download/Export Button */}
-            <button
-              className="download-export-btn"
-              style={{
-                marginLeft: 12,
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: Object.keys(selected).length === 0 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                opacity: Object.keys(selected).length === 0 ? 0.5 : 1
-              }}
-              onClick={Object.keys(selected).length === 0 ? undefined : handleExport}
-              disabled={Object.keys(selected).length === 0}
-              title="Export selected parts"
-              aria-label="Export selected parts"
-            >
-              <img src={downloadIcon} alt="Download" style={{ width: 28, height: 28 }} />
-            </button>
-            {/* Next/Checkout Button */}
-            <button
-              className="next-btn"
-              style={{
-                marginLeft: 12,
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                opacity: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 0.5 : 1
-              }}
-              onClick={
-                (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== ''))
-                  ? undefined
-                  : () => setPage('requiredFields')
-              }
-              disabled={Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')}
-              title="Proceed to required fields"
-              aria-label="Proceed to required fields"
-            >
-              <img src={nextIcon} alt="Next" style={{ width: 28, height: 28 }} />
-            </button>
-        </div>
-      </div>
-      
+      <PartsTableHeader
+        hiddenFieldCount={hiddenFieldCount}
+        hideFieldsDropdownOpen={hideFieldsDropdownOpen}
+        setHideFieldsDropdownOpen={setHideFieldsDropdownOpen}
+        filteredFields={filteredFields}
+        hiddenFields={hiddenFields}
+        toggleFieldVisibility={toggleFieldVisibility}
+        fieldSearchQuery={fieldSearchQuery}
+        setFieldSearchQuery={setFieldSearchQuery}
+        setHiddenFields={setHiddenFields}
+        allFields={allFields}
+        activeFilterCount={activeFilterCount}
+        filterDropdownOpen={filterDropdownOpen}
+        setFilterDropdownOpen={setFilterDropdownOpen}
+        filterConditions={filterConditions}
+        setFilterConditions={setFilterConditions}
+        inputValues={inputValues}
+        setInputValues={setInputValues}
+        hasUnprocessedChanges={hasUnprocessedChanges}
+        setHasUnprocessedChanges={setHasUnprocessedChanges}
+        logicalOperator={logicalOperator}
+        setLogicalOperator={setLogicalOperator}
+        draggedCondition={draggedCondition}
+        setDraggedCondition={setDraggedCondition}
+        dragHoverTarget={dragHoverTarget}
+        handleDragStart={handleDragStart}
+        handleDragOver={handleDragOver}
+        handleDragEnter={handleDragEnter}
+        handleDragLeave={handleDragLeave}
+        handleDrop={handleDrop}
+        handleDragEnd={handleDragEnd}
+        searchableFields={searchableFields}
+        localSearch={localSearch}
+        setLocalSearch={setLocalSearch}
+        setGlobalSearchResults={setGlobalSearchResults}
+        accessToken={accessToken}
+        loading={loading}
+        resultsToDisplay={resultsToDisplay}
+        selected={selected}
+        quantities={quantities}
+        handleExport={handleExport}
+        setPage={setPage}
+        onGlobalSearchConditionsChange={({ conditions, logicalOperator }) => {
+          setFilterConditions(conditions || []);
+          setLogicalOperator(logicalOperator || 'or');
+          setHasUnprocessedChanges(true); // trigger filter search in useFilterManagement
+          // Sync inputValues with new global search conditions
+          const newInputValues = {};
+          (conditions || []).forEach((cond, idx) => {
+            newInputValues[idx] = cond.value;
+          });
+          setInputValues(newInputValues);
+        }}
+      />
       {/* Column header positioned below button header */}
       <div className="search-result-item search-result-header main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
           <div className="search-result-field">
@@ -445,65 +356,36 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           <>
           {resultsToDisplay.map(group => {
             const part = group.instances[0];
-            // If spare_value is null, treat it as 0
             const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
             const total = part.total == null ? 0 : part.total;
             const inUse = part.inUse == null ? 0 : part.inUse;
-            // General inventory amount
             const generalInventoryAmount = total - inUse;
-            // Essential Reserve is required spare
             const essentialReserve = Math.ceil(spareThreshold * inUse);
-            // Usable Surplus is general inventory minus essential reserve
             const usableSurplus = generalInventoryAmount - essentialReserve;
             return (
               <div key={group.itemNumber}>
-                <div className="search-result-item main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
-                  <div className="search-result-field">
-                    <input
-                      type="checkbox"
-                      checked={!!selected[group.itemNumber]}
-                      onChange={() => handleCheckboxChange(group.itemNumber, part)}
-                      aria-label="Select part"
-                    />
-                  </div>
-                  {!hiddenFields.qty && (
-                    <div className="search-result-field">
-                      <input
-                        type="text"
-                        className="quantity-input quantity-input-table"
-                        value={quantities[group.itemNumber] || ''}
-                        onChange={e => handleQuantityChange(group.itemNumber, e.target.value)}
-                        onBlur={e => {
-                          // If quantity is not empty, check the box on blur
-                          if ((e.target.value || '').trim() !== '') {
-                            setSelected(prev => ({ ...prev, [group.itemNumber]: part }));
-                          }
-                        }}
-                        onKeyDown={e => handleQuantityChange(group.itemNumber, quantities[group.itemNumber] || e.target.value, e)}
-                        placeholder="0"
-                        min="0"
-                        aria-label="Quantity"
-                      />
-                    </div>
-                  )}
-                  <div className="search-result-field">
-                    <button onClick={() => handleExpandToggle(group.itemNumber)} aria-label="Expand details" className="expand-button">
-                      {expandedRows[group.itemNumber] ? '▲' : '▼'}
-                    </button>
-                  </div>
-                  {!hiddenFields.total && <div className="search-result-field">{truncateText(part.total?.toString()) ?? 'N/A'}</div>}
-                  {!hiddenFields.inUse && <div className="search-result-field">{truncateText(part.inUse?.toString()) ?? 'N/A'}</div>}
-                  {!hiddenFields.essentialReserve && <div className="search-result-field">{truncateText(essentialReserve.toString())}</div>}
-                  {!hiddenFields.usableSurplus && (
-                    <div className={`search-result-field ${usableSurplus > 0 ? 'usable-surplus-positive' : ''}`}>
-                      {truncateText(usableSurplus.toString())}
-                    </div>
-                  )}
-                  {!hiddenFields.inventoryItemNumber && <div className={`search-result-field ${part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Inventory Item Number', part.m_inventory_item?.item_number)}>{highlightFieldWithMatches(truncateText(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>}
-                  {!hiddenFields.manufacturerPartNumber && <div className={`search-result-field ${part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Manufacturer Part #', part.m_mfg_part_number)}>{highlightFieldWithMatches(truncateText(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>}
-                  {!hiddenFields.manufacturerName && <div className={`search-result-field ${part.m_mfg_name && part.m_mfg_name.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Manufacturer Name', part.m_mfg_name)}>{highlightFieldWithMatches(truncateText(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>}
-                  {!hiddenFields.inventoryDescription && <div className={`search-result-field ${(part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => handleCellClick('Inventory Description', part.m_inventory_description || part.m_description)}>{highlightFieldWithMatches(truncateText((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>}
-                </div>
+                <PartsTableMainRow
+                  group={group}
+                  part={{
+                    ...part,
+                    essentialReserve,
+                    usableSurplus,
+                  }}
+                  hiddenFields={hiddenFields}
+                  selected={selected}
+                  setSelected={setSelected}
+                  quantities={quantities}
+                  setQuantities={setQuantities}
+                  handleCheckboxChange={handleCheckboxChange}
+                  handleQuantityChange={handleQuantityChange}
+                  handleExpandToggle={handleExpandToggle}
+                  expanded={!!expandedRows[group.itemNumber]}
+                  getMainTableGridColumns={getMainTableGridColumns}
+                  truncateText={truncateText}
+                  highlightFieldWithMatches={highlightFieldWithMatches}
+                  setExpandedValue={setExpandedValue}
+                  setExpandedLabel={setExpandedLabel}
+                />
                 {expandedRows[group.itemNumber] && (
                   <div className="instance-section">
                     <div className="instance-header">
@@ -520,17 +402,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           value={group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value}
                           onChange={e => {
                             const newValue = parseFloat(e.target.value);
-                            // Update spare_value for all instances in this group locally
                             group.instances.forEach(instance => {
                               instance.spare_value = isNaN(newValue) ? 0 : newValue;
                             });
-                            // Force re-render
                             setSelected(selected => ({ ...selected }));
                           }}
                           onBlur={async e => {
                             const newValue = parseFloat(e.target.value);
                             try {
-                              // For each instance, call backend to update spare_value
                               await Promise.all(
                                 group.instances.map(async instance => {
                                   try {
@@ -540,11 +419,10 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                   } catch (err) {
                                     setSpareFeedback(prev => ({ ...prev, [instance.id]: 'error' }));
                                     setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 2500);
-                                    throw err; // Rethrow to handle in the outer catch
+                                    throw err;
                                   }
                                 })
                               );
-                              // Log a single success message for the entire group
                               console.log(`Spare threshold successfully updated to ${isNaN(newValue) ? 0 : newValue} for ${group.instances.length} instances of ${group.itemNumber}.`);
                             } catch (err) {
                               console.error('Failed to update spare threshold:', err);
@@ -561,21 +439,15 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           type="button"
                           className="request-button"
                           onClick={() => {
-                            // Find all checked instances for this group
                             const checkedInstances = (generalInventoryFilter[group.itemNumber]
                               ? group.instances.filter(instance => instance.generalInventory)
                               : group.instances
                             ).filter(instance => instance.generalInventory && requestedInstances[instance.id]);
-                            // Get unique custodians from checked instances
                             const custodians = Array.from(new Set(
                               checkedInstances.map(inst => inst["m_custodian@aras.keyed_name"] || inst.m_custodian).filter(Boolean)
                             ));
-
-                            // Calculate capped quantities for each checked instance (for email/request)
-                            // Use selection order so the last-checked instance gets the capped/partial quantity
                             let runningTotal = 0;
                             const usableSurplusQty = usableSurplus;
-                            // Order checkedInstances by selection order (last-checked last)
                             const checkedInstanceIds = checkedInstances.map(inst => inst.id);
                             const orderedIds = instanceSelectionOrder.filter(id => checkedInstanceIds.includes(id));
                             const orderedCheckedInstances = orderedIds.map(id => checkedInstances.find(inst => inst.id === id)).filter(Boolean);
@@ -592,12 +464,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                 runningTotal += allowedQty;
                               }
                             }
-
                             setRequestPopup({
                               open: true,
                               custodians,
                               group: { ...group, generalInventoryFilter: generalInventoryFilter[group.itemNumber], requestedInstances },
-                              cappedInstances // Pass capped instance list for email/request generation
+                              cappedInstances
                             });
                           }}
                           aria-label="Request selected instances from hardware custodian"
@@ -605,7 +476,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                           Request
                         </button>
                         <span className="checked-quantity-display">
-                          {/* Calculate total quantity of checked instances for this group, capped at usableSurplus */}
                           {(() => {
                             const checkedInstances = (generalInventoryFilter[group.itemNumber]
                               ? group.instances.filter(instance => instance.generalInventory)
@@ -702,7 +572,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                                 All Parent Paths
                               </div>
                               {Array.from(new Set((
-                                // Only use instances matching the selected project (if any)
                                 projectFilter[group.itemNumber]
                                   ? (group.instances || []).filter(inst => (inst.m_project?.keyed_name || inst.associated_project) === projectFilter[group.itemNumber])
                                   : (group.instances || [])
