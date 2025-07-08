@@ -6,6 +6,8 @@ import personIcon from '../../../assets/person.svg';
 import * as XLSX from 'xlsx';
 import PartsTableHeader from './PartsTableHeader';
 import PartsTableMainRow from './PartsTableMainRow';
+import Chatbox from '../../chatbox/chatbox';
+import '../../../styles/ChatBox.css';
 
 // Utility to get visible fields (not hidden)
 function getVisibleFields(allFields, hiddenFields) {

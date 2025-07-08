@@ -3,6 +3,7 @@ import { HideFieldsButton, FilterButton } from '../../SearchBarLogic';
 import { GlobalSearchBar } from '../../SearchBarLogic/components/GlobalSearchBar';
 import downloadIcon from '../../../assets/download.svg';
 import nextIcon from '../../../assets/next.svg';
+import chatIcon from '../../../assets/chat.svg'; // Add chat icon import
 
 const PartsTableHeader = ({
   // HideFieldsButton props
@@ -12,7 +13,8 @@ const PartsTableHeader = ({
   // GlobalSearchBar props
   localSearch, setLocalSearch, setGlobalSearchResults, accessToken, onGlobalSearchConditionsChange,
   // Other
-  loading, resultsToDisplay, selected, quantities, handleExport, setPage
+  loading, resultsToDisplay, selected, quantities, handleExport, setPage,
+  onOpenChat // <-- Add this prop
 }) => (
   <div className="search-result-button-header">
     <div className="flex-start">
@@ -132,6 +134,23 @@ const PartsTableHeader = ({
         aria-label="Proceed to required fields"
       >
         <img src={nextIcon} alt="Next" style={{ width: 28, height: 28 }} />
+      </button>
+      <button
+        className="chat-btn"
+        style={{
+          marginLeft: 12,
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center'
+        }}
+        onClick={onOpenChat}
+        title="Open Copilot Chat"
+        aria-label="Open Copilot Chat"
+      >
+        <img src={chatIcon} alt="Chat" style={{ width: 28, height: 28 }} />
       </button>
     </div>
   </div>
