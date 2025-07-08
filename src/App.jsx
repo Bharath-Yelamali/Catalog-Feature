@@ -18,6 +18,7 @@ import garbageIcon from './assets/garbage.svg';
 import plusIcon from './assets/plus.svg';
 import { searchableFields } from './components/SearchBarLogic/constants';
 import { GlobalSearchBar } from './components/SearchBarLogic/components/GlobalSearchBar';
+import Chatbox from './components/chatbox/chatbox';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -90,6 +91,7 @@ function App() {
   // Add filter state for advanced/global search UI sync
   const [filterConditions, setFilterConditions] = useState([]);
   const [logicalOperator, setLogicalOperator] = useState('and');
+  const [chatOpen, setChatOpen] = useState(false);
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
@@ -437,6 +439,8 @@ function App() {
 
   return (
     <div>
+      {/* Render Chatbox at the top level so it does not overlap nav/header */}
+      <Chatbox open={chatOpen} onClose={() => setChatOpen(false)} />
       {showSessionPopup && (
         <div className="session-popup-overlay" onClick={() => setShowSessionPopup(false)}>
           <div className="session-popup" onClick={e => e.stopPropagation()}>
@@ -581,17 +585,11 @@ function App() {
         <LoginPage setPage={setPage} handleLoginSuccess={handleLoginSuccess} />
       )}
       {page === 'search' && (
-        <div style={{ paddingTop: '120px', minHeight: '50vh', background: '#f7fafd' }}>
+        <div style={{ minHeight: '50vh', background: '#f7fafd' }}>
           {/* Redirect to home page if not logged in and somehow navigated to search page */}
           {!accessToken ? (
             <>{setPage('home')}</>
           ) : null}
-          {/* Global Search Bar */}
-          <GlobalSearchBar
-            value={search}
-            onGlobalSearchConditionsChange={handleGlobalSearchConditionsChange}
-            placeholder="Global search..."
-          />
           {(() => {
             window.renderExportButton = () => (
               <button
@@ -624,28 +622,29 @@ function App() {
           {/* Always render PartsTable if logged in and on search page, even if no results yet */}
           {accessToken && (
             <>
-              {loading && <div>Loading parts...</div>}
-              {error && <div style={{color: 'red'}}>{error}</div>}
-              <PartsTable
-                results={results}
-                selected={selected}
-                setSelected={setSelected}
-                quantities={quantities}
-                setQuantities={setQuantities}
-                search={lastSearch}
-                setPage={page => setPage(page)}
-                isAdmin={isAdmin}
-                accessToken={accessToken}
-                requestPopup={requestPopup}
-                setRequestPopup={setRequestPopup}
-                onFilterSearch={handleFilterSearch}
-                loading={loading} // Pass loading state to PartsTable
-                // Pass filter state to PartsTable for advanced/global search UI sync
-                filterConditions={filterConditions}
-                setFilterConditions={setFilterConditions}
-                logicalOperator={logicalOperator}
-                setLogicalOperator={setLogicalOperator}
-              />
+              <div className="main-table-area" style={{marginTop: 55}}>
+                <PartsTable
+                  results={results}
+                  selected={selected}
+                  setSelected={setSelected}
+                  quantities={quantities}
+                  setQuantities={setQuantities}
+                  search={lastSearch}
+                  setPage={page => setPage(page)}
+                  isAdmin={isAdmin}
+                  accessToken={accessToken}
+                  requestPopup={requestPopup}
+                  setRequestPopup={setRequestPopup}
+                  onFilterSearch={handleFilterSearch}
+                  loading={loading}
+                  filterConditions={filterConditions}
+                  setFilterConditions={setFilterConditions}
+                  logicalOperator={logicalOperator}
+                  setLogicalOperator={setLogicalOperator}
+                  chatOpen={chatOpen}
+                  setChatOpen={setChatOpen}
+                />
+              </div>
             </>
           )}
         </div>

@@ -2,19 +2,19 @@
    Parts Table
    ========================================================================== */
 .search-results-dropdown {
-  position: fixed;
-  top: 180px; /* Start below both headers (60px taskbar + 60px button header + 60px column header) */
-  left: 0;
-  right: 0;
-  bottom: 0; /* Extend to bottom of viewport */
-  width: 100vw;
+  position: relative; /* Changed from fixed to relative */
+  top: unset;
+  left: unset;
+  right: unset;
+  bottom: unset;
+  width: 100%; /* Changed from 100vw to 100% */
   background: #fff;
   border: none; /* Remove borders for cleaner full-screen look */
   border-radius: 0; /* Remove border radius for full-screen look */
   box-shadow: none; /* Remove shadow for cleaner look */
   margin: 0; /* Remove margins to use full space */
   padding: 16px; /* Keep some padding for content readability */
-  height: calc(100vh - 180px); /* Full height minus taskbar and both headers */
+  height: auto; /* Let content determine height */
   max-height: none; /* Remove max-height restriction */
   overflow-y: auto;
   z-index: 800;
@@ -49,11 +49,11 @@
   border-bottom: 1px solid #bbb;
   border-top: none; /* Ensure no gap with taskbar */
   border-radius: 0; /* Remove border radius for seamless look */
-  position: fixed; /* Fixed positioning to stay at top */
-  top: 60px; /* Adjusted to touch taskbar more closely */
+  position: sticky; /* Sticky below nav bar */
+  top: 50px; /* Height of nav bar */
   left: 0;
   right: 0;
-  width: 100vw;
+  width: 100%;
   z-index: 950; /* Higher than column header */
   min-height: 60px; /* Extended height for buttons */
   height: 60px; /* Fixed height for consistency */
@@ -71,11 +71,11 @@
   font-weight: bold;
   border-bottom: 2px solid #bbb;
   border-radius: 0; /* Remove border radius for seamless look */
-  position: fixed; /* Fixed positioning to stay at top */
-  top: 120px; /* Below taskbar and button header (60px + 60px) */
+  position: sticky; /* Sticky below button header */
+  top: 110px; /* Height of nav bar + button header */
   left: 0;
   right: 0;
-  width: 100vw;
+  width: 100%;
   z-index: 900; /* Higher than table content but lower than button header */
   min-height: 60px; /* Extended height for better prominence */
   height: 60px; /* Fixed height for consistency */
@@ -1240,4 +1240,14 @@
 
 .filter-group__add-popup-btn:hover {
   background: #f5f5f5;
+}
+
+/* When chatbox is open, shift the main table area */
+.main-table-area.chat-open {
+  margin-right: 400px; /* Adjust this value to match chatbox width */
+  transition: margin-right 0.3s cubic-bezier(0.4,0,0.2,1);
+}
+
+.main-table-area {
+  transition: margin-right 0.3s cubic-bezier(0.4,0,0.2,1);
 }

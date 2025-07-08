@@ -1,11 +1,11 @@
 .copilot-chat-sidebar {
   position: fixed;
-  top: 0;
+  top: 115px; /* Start below nav bar and header bar (60px + 60px) */
   right: 0;
   width: 400px;
   min-width: 300px;
   max-width: 50vw;
-  height: 100vh;
+  height: calc(100vh - 120px); /* Fit below headers */
   background: #1e1e1e;
   color: #fff;
   box-shadow: -2px 0 8px rgba(0,0,0,0.2);

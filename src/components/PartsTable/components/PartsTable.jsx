@@ -5,7 +5,6 @@ import personIcon from '../../../assets/person.svg';
 import * as XLSX from 'xlsx';
 import PartsTableHeader from './PartsTableHeader';
 import PartsTableMainRow from './PartsTableMainRow';
-import Chatbox from '../../chatbox/chatbox';
 import '../../../styles/ChatBox.css';
 import InstanceSection from './InstanceSection';
 import ExpandedModal from './ExpandedModal';
@@ -23,7 +22,7 @@ function getVisibleFields(allFields, hiddenFields) {
   return allFields.filter(field => !hiddenFields[field]);
 }
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -53,7 +52,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // 1. Add state to track the order in which instances are checked
   const [instanceSelectionOrder, setInstanceSelectionOrder] = useState([]); // array of instance ids in order of selection
-  const [chatOpen, setChatOpen] = useState(false);
 
   // Use field management hook
   const {
@@ -265,8 +263,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   return (
     <>
-      <Chatbox open={chatOpen} onClose={() => setChatOpen(false)} />
-      {/* Button/Action header positioned against taskbar */}
+      {/* Chatbox is now rendered at the App level, not here */}
+      {/* Button/Action header positioned against taskbar - OUTSIDE main-table-area so it does not shift */}
       <PartsTableHeader
         hiddenFieldCount={hiddenFieldCount}
         hideFieldsDropdownOpen={hideFieldsDropdownOpen}
@@ -322,115 +320,117 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         }}
         onOpenChat={() => setChatOpen(true)}
       />
-      {/* Column header positioned below button header */}
-      <div className="search-result-item search-result-header main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
-          <div className="search-result-field">
-            <input
-              type="checkbox"
-              aria-label="Select all"
-              checked={displayGroups.length > 0 && displayGroups.every(group => selected[group.itemNumber])}
-              onChange={handleSelectAll}
-            />
+      {/* Wrap main table/results area in a container that shifts when chat is open */}
+      <div className={`main-table-area${chatOpen ? ' chat-open' : ''}`}>
+        {/* Column header positioned below button header */}
+        <div className="search-result-item search-result-header main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
+            <div className="search-result-field">
+              <input
+                type="checkbox"
+                aria-label="Select all"
+                checked={displayGroups.length > 0 && displayGroups.every(group => selected[group.itemNumber])}
+                onChange={handleSelectAll}
+              />
+            </div>
+            {!hiddenFields.qty && <div className="search-result-field">Qty</div>}
+            <div className="search-result-field"></div>
+            {!hiddenFields.total && <div className="search-result-field">Total</div>}
+            {!hiddenFields.inUse && <div className="search-result-field">In Use</div>}
+            {!hiddenFields.essentialReserve && <div className="search-result-field">Essential Reserve</div>}
+            {!hiddenFields.usableSurplus && <div className="search-result-field">Usable Surplus</div>}
+            {!hiddenFields.inventoryItemNumber && <div className="search-result-field">Inventory Item Number</div>}
+            {!hiddenFields.manufacturerPartNumber && <div className="search-result-field">Manufactur Part #</div>}
+            {!hiddenFields.manufacturerName && <div className="search-result-field">Manufacturer Name</div>}
+            {!hiddenFields.inventoryDescription && <div className="search-result-field">Inventory Description</div>}
           </div>
-          {!hiddenFields.qty && <div className="search-result-field">Qty</div>}
-          <div className="search-result-field"></div>
-          {!hiddenFields.total && <div className="search-result-field">Total</div>}
-          {!hiddenFields.inUse && <div className="search-result-field">In Use</div>}
-          {!hiddenFields.essentialReserve && <div className="search-result-field">Essential Reserve</div>}
-          {!hiddenFields.usableSurplus && <div className="search-result-field">Usable Surplus</div>}
-          {!hiddenFields.inventoryItemNumber && <div className="search-result-field">Inventory Item Number</div>}
-          {!hiddenFields.manufacturerPartNumber && <div className="search-result-field">Manufactur Part #</div>}
-          {!hiddenFields.manufacturerName && <div className="search-result-field">Manufacturer Name</div>}
-          {!hiddenFields.inventoryDescription && <div className="search-result-field">Inventory Description</div>}
-        </div>
-      
-      {/* Main table content */}
-      <div className="search-results-dropdown">
-        {isEmpty ? (
-          <EmptyState isInitial={results.length === 0 && localSearch.trim() === ''} />
-        ) : (
-          <>
-          {resultsToDisplay.map(group => {
-            const part = group.instances[0];
-            const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
-            const total = part.total == null ? 0 : part.total;
-            const inUse = part.inUse == null ? 0 : part.inUse;
-            const generalInventoryAmount = total - inUse;
-            const essentialReserve = Math.ceil(spareThreshold * inUse);
-            const usableSurplus = generalInventoryAmount - essentialReserve;
-            return (
-              <div key={group.itemNumber}>
-                <PartsTableMainRow
-                  group={group}
-                  part={{
-                    ...part,
-                    essentialReserve,
-                    usableSurplus,
-                  }}
-                  hiddenFields={hiddenFields}
-                  selected={selected}
-                  setSelected={setSelected}
-                  quantities={quantities}
-                  setQuantities={setQuantities}
-                  handleCheckboxChange={handleCheckboxChange}
-                  handleQuantityChange={handleQuantityChange}
-                  handleExpandToggle={handleExpandToggle}
-                  expanded={!!expandedRows[group.itemNumber]}
-                  getMainTableGridColumns={getMainTableGridColumns}
-                  truncateText={truncateText}
-                  highlightFieldWithMatches={highlightFieldWithMatches}
-                  setExpandedValue={setExpandedValue}
-                  setExpandedLabel={setExpandedLabel}
-                />
-                {expandedRows[group.itemNumber] && (
-                  <InstanceSection
+        {/* Main table content */}
+        <div className="search-results-dropdown">
+          {isEmpty ? (
+            <EmptyState isInitial={results.length === 0 && localSearch.trim() === ''} />
+          ) : (
+            <>
+            {resultsToDisplay.map(group => {
+              const part = group.instances[0];
+              const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
+              const total = part.total == null ? 0 : part.total;
+              const inUse = part.inUse == null ? 0 : part.inUse;
+              const generalInventoryAmount = total - inUse;
+              const essentialReserve = Math.ceil(spareThreshold * inUse);
+              const usableSurplus = generalInventoryAmount - essentialReserve;
+              return (
+                <div key={group.itemNumber}>
+                  <PartsTableMainRow
                     group={group}
-                    part={part}
-                    isAdmin={isAdmin}
+                    part={{
+                      ...part,
+                      essentialReserve,
+                      usableSurplus,
+                    }}
                     hiddenFields={hiddenFields}
-                    generalInventoryFilter={generalInventoryFilter}
-                    setGeneralInventoryFilter={setGeneralInventoryFilter}
-                    spareFeedback={spareFeedback}
-                    setSpareFeedback={setSpareFeedback}
-                    requestedInstances={requestedInstances}
-                    setRequestedInstances={setRequestedInstances}
-                    instanceSelectionOrder={instanceSelectionOrder}
-                    setInstanceSelectionOrder={setInstanceSelectionOrder}
-                    projectFilter={projectFilter}
-                    setProjectFilter={setProjectFilter}
-                    openProjectDropdown={openProjectDropdown}
-                    setOpenProjectDropdown={setOpenProjectDropdown}
-                    maturityFilter={maturityFilter}
-                    setMaturityFilter={setMaturityFilter}
-                    openMaturityDropdown={openMaturityDropdown}
-                    setOpenMaturityDropdown={setOpenMaturityDropdown}
-                    custodianFilter={custodianFilter}
-                    setCustodianFilter={setCustodianFilter}
-                    openCustodianDropdown={openCustodianDropdown}
-                    setOpenCustodianDropdown={setOpenCustodianDropdown}
-                    parentPathFilter={parentPathFilter}
-                    setParentPathFilter={setParentPathFilter}
-                    openParentPathDropdown={openParentPathDropdown}
-                    setOpenParentPathDropdown={setOpenParentPathDropdown}
-                    accessToken={accessToken}
-                    getInstanceTableGridColumns={getInstanceTableGridColumns}
+                    selected={selected}
+                    setSelected={setSelected}
+                    quantities={quantities}
+                    setQuantities={setQuantities}
+                    handleCheckboxChange={handleCheckboxChange}
+                    handleQuantityChange={handleQuantityChange}
+                    handleExpandToggle={handleExpandToggle}
+                    expanded={!!expandedRows[group.itemNumber]}
+                    getMainTableGridColumns={getMainTableGridColumns}
+                    truncateText={truncateText}
                     highlightFieldWithMatches={highlightFieldWithMatches}
-                    usableSurplus={usableSurplus}
-                    updateSpareValue={updateSpareValue}
+                    setExpandedValue={setExpandedValue}
+                    setExpandedLabel={setExpandedLabel}
                   />
-                )}
-              </div>
-            );
-          })}
-          <ExpandedModal
-            open={!!expandedValue}
-            label={expandedLabel}
-            value={expandedValue}
-            onClose={handleClose}
-          />
-        </>
-      )}
-    </div>
+                  {expandedRows[group.itemNumber] && (
+                    <InstanceSection
+                      group={group}
+                      part={part}
+                      isAdmin={isAdmin}
+                      hiddenFields={hiddenFields}
+                      generalInventoryFilter={generalInventoryFilter}
+                      setGeneralInventoryFilter={setGeneralInventoryFilter}
+                      spareFeedback={spareFeedback}
+                      setSpareFeedback={setSpareFeedback}
+                      requestedInstances={requestedInstances}
+                      setRequestedInstances={setRequestedInstances}
+                      instanceSelectionOrder={instanceSelectionOrder}
+                      setInstanceSelectionOrder={setInstanceSelectionOrder}
+                      projectFilter={projectFilter}
+                      setProjectFilter={setProjectFilter}
+                      openProjectDropdown={openProjectDropdown}
+                      setOpenProjectDropdown={setOpenProjectDropdown}
+                      maturityFilter={maturityFilter}
+                      setMaturityFilter={setMaturityFilter}
+                      openMaturityDropdown={openMaturityDropdown}
+                      setOpenMaturityDropdown={setOpenMaturityDropdown}
+                      custodianFilter={custodianFilter}
+                      setCustodianFilter={setCustodianFilter}
+                      openCustodianDropdown={openCustodianDropdown}
+                      setOpenCustodianDropdown={setOpenCustodianDropdown}
+                      parentPathFilter={parentPathFilter}
+                      setParentPathFilter={setParentPathFilter}
+                      openParentPathDropdown={openParentPathDropdown}
+                      setOpenParentPathDropdown={setOpenParentPathDropdown}
+                      accessToken={accessToken}
+                      getInstanceTableGridColumns={getInstanceTableGridColumns}
+                      highlightFieldWithMatches={highlightFieldWithMatches}
+                      usableSurplus={usableSurplus}
+                      updateSpareValue={updateSpareValue}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            <ExpandedModal
+              open={!!expandedValue}
+              label={expandedLabel}
+              value={expandedValue}
+              onClose={handleClose}
+            />
+          </>
+        )}
+      </div>
+      </div>
     </>
   );
 }
