@@ -213,7 +213,7 @@ const InstanceSection = ({
         )}
       </div>
       <div className="instance-grid-spacer" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-        <div></div>
+        {/* Removed the empty column for the triangle/expand button */}
         {!hiddenFields.instanceId && <div></div>}
         {!hiddenFields.serialNumber && <div></div>}
         {!hiddenFields.quantity && <div></div>}

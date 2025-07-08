@@ -918,7 +918,7 @@
 
 /* Instance Section Styles */
 .instance-section {
-  background: #f9f9f9;
+  background: #d1d1d1b6;
   padding: 0 16px 12px 16px;
   border-bottom: 1px solid #eee;
 }
@@ -942,7 +942,7 @@
   margin: 0 0 8px 0;
   font-weight: 400;
   font-size: 16px;
-  color: #2d6a4f;
+  color: #000000;
   display: flex;
   align-items: center;
   gap: 8px;

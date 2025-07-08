@@ -17,8 +17,12 @@ const PartsTableMainRow = ({
   setExpandedLabel,
   getMainTableGridColumns
 }) => (
-  <div className="search-result-item main-table-row" style={{ gridTemplateColumns: getMainTableGridColumns() }}>
-    <div className="search-result-field">
+  <div
+    className="search-result-item main-table-row"
+    style={{ gridTemplateColumns: getMainTableGridColumns(), cursor: 'pointer' }}
+    onClick={() => handleExpandToggle(group.itemNumber)}
+  >
+    <div className="search-result-field" onClick={e => e.stopPropagation()}>
       <input
         type="checkbox"
         checked={!!selected[group.itemNumber]}
@@ -27,7 +31,7 @@ const PartsTableMainRow = ({
       />
     </div>
     {!hiddenFields.qty && (
-      <div className="search-result-field">
+      <div className="search-result-field" onClick={e => e.stopPropagation()}>
         <input
           type="text"
           className="quantity-input quantity-input-table"
@@ -44,11 +48,7 @@ const PartsTableMainRow = ({
         />
       </div>
     )}
-    <div className="search-result-field">
-      <button onClick={() => handleExpandToggle(group.itemNumber)} aria-label="Expand details" className="expand-button">
-        {expanded ? '▲' : '▼'}
-      </button>
-    </div>
+    <div className="search-result-field"></div>
     {!hiddenFields.total && <div className="search-result-field">{truncateText(part.total?.toString()) ?? 'N/A'}</div>}
     {!hiddenFields.inUse && <div className="search-result-field">{truncateText(part.inUse?.toString()) ?? 'N/A'}</div>}
     {!hiddenFields.essentialReserve && <div className="search-result-field">{truncateText(part.essentialReserve?.toString())}</div>}
@@ -57,10 +57,10 @@ const PartsTableMainRow = ({
         {truncateText(part.usableSurplus?.toString())}
       </div>
     )}
-    {!hiddenFields.inventoryItemNumber && <div className={`search-result-field ${part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => setExpandedValue && setExpandedLabel && setExpandedValue(part.m_inventory_item?.item_number) && setExpandedLabel('Inventory Item Number')}>{highlightFieldWithMatches(truncateText(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>}
-    {!hiddenFields.manufacturerPartNumber && <div className={`search-result-field ${part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => setExpandedValue && setExpandedLabel && setExpandedValue(part.m_mfg_part_number) && setExpandedLabel('Manufacturer Part #')}>{highlightFieldWithMatches(truncateText(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>}
-    {!hiddenFields.manufacturerName && <div className={`search-result-field ${part.m_mfg_name && part.m_mfg_name.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => setExpandedValue && setExpandedLabel && setExpandedValue(part.m_mfg_name) && setExpandedLabel('Manufacturer Name')}>{highlightFieldWithMatches(truncateText(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>}
-    {!hiddenFields.inventoryDescription && <div className={`search-result-field ${(part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={() => setExpandedValue && setExpandedLabel && setExpandedValue(part.m_inventory_description || part.m_description) && setExpandedLabel('Inventory Description')}>{highlightFieldWithMatches(truncateText((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>}
+    {!hiddenFields.inventoryItemNumber && <div className={`search-result-field ${part.m_inventory_item?.item_number && part.m_inventory_item.item_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={e => { e.stopPropagation(); setExpandedValue && setExpandedLabel && setExpandedValue(part.m_inventory_item?.item_number) && setExpandedLabel('Inventory Item Number'); }}>{highlightFieldWithMatches(truncateText(part.m_inventory_item?.item_number ?? 'N/A'), part._matches?.m_inventory_item)}</div>}
+    {!hiddenFields.manufacturerPartNumber && <div className={`search-result-field ${part.m_mfg_part_number && part.m_mfg_part_number.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={e => { e.stopPropagation(); setExpandedValue && setExpandedLabel && setExpandedValue(part.m_mfg_part_number) && setExpandedLabel('Manufacturer Part #'); }}>{highlightFieldWithMatches(truncateText(part.m_mfg_part_number ?? 'N/A'), part._matches?.m_mfg_part_number)}</div>}
+    {!hiddenFields.manufacturerName && <div className={`search-result-field ${part.m_mfg_name && part.m_mfg_name.length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={e => { e.stopPropagation(); setExpandedValue && setExpandedLabel && setExpandedValue(part.m_mfg_name) && setExpandedLabel('Manufacturer Name'); }}>{highlightFieldWithMatches(truncateText(part.m_mfg_name ?? 'N/A'), part._matches?.m_mfg_name)}</div>}
+    {!hiddenFields.inventoryDescription && <div className={`search-result-field ${(part.m_inventory_description || part.m_description) && (part.m_inventory_description || part.m_description).length > 20 ? 'table-cell--clickable' : 'table-cell--default-cursor'}`} onClick={e => { e.stopPropagation(); setExpandedValue && setExpandedLabel && setExpandedValue(part.m_inventory_description || part.m_description) && setExpandedLabel('Inventory Description'); }}>{highlightFieldWithMatches(truncateText((part.m_inventory_description ?? part.m_description) ?? 'N/A'), part._matches?.m_inventory_description || part._matches?.m_description)}</div>}
   </div>
 );
 

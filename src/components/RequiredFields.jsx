@@ -227,6 +227,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     // ...existing code...
   };
 
+  const [showRequiredWarning, setShowRequiredWarning] = useState(false);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh', padding: '40px 0 80px 0', background: '#f0f4fa' }}>
       {/* Selected Parts Section */}
@@ -855,9 +857,28 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       </div>
 
       {/* Navigation Buttons */}
-      <div className="confirmation-summary-buttons" style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 32 }}>
-        <button onClick={goBack} className="confirmation-summary-button-back" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}>Back</button>
-        <button onClick={() => setPage('confirmationSummary')} className="confirmation-summary-button-submit" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }} disabled={!allRequiredFilled}>Next</button>
+      <div className="confirmation-summary-buttons" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 32 }}>
+        {showRequiredWarning && !allRequiredFilled && (
+          <div style={{ color: 'red', fontWeight: 600, marginBottom: 8 }}>
+            Please fill out all required fields before proceeding.
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 32 }}>
+          <button onClick={goBack} className="confirmation-summary-button-back" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}>Back</button>
+          <button
+            onClick={() => {
+              if (allRequiredFilled) {
+                setPage('confirmationSummary');
+              } else {
+                setShowRequiredWarning(true);
+              }
+            }}
+            className="confirmation-summary-button-submit"
+            style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Project Selection Popup */}
@@ -943,7 +964,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               Select
             </button>
           </div>
-        </div>
+               </div>
       )}
 
       {/* PO Owner Alias Selection Popup */}
@@ -985,7 +1006,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </button>
           </div>
         </div>
-           )}
+      )}
 
       {/* Invoice Approver Alias Selection Popup */}
       {showInvoiceApproverPopup && (
