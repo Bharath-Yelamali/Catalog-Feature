@@ -12,13 +12,8 @@ import OrdersPage from './components/OrdersPage';
 import ReactDOM from 'react-dom';
 // Update SVG imports to use assets folder
 import wizardIcon from './assets/wizard.svg';
-import hideIcon from './assets/hide.svg';
-import filterIcon from './assets/filter.svg';
-import garbageIcon from './assets/garbage.svg';
-import plusIcon from './assets/plus.svg';
-import { searchableFields } from './components/SearchBarLogic/constants';
-import { GlobalSearchBar } from './components/SearchBarLogic/components/GlobalSearchBar';
 import Chatbox from './components/chatbox/chatbox';
+import chatIcon from './assets/chat.svg';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -437,10 +432,33 @@ function App() {
     handleFilterSearch({ conditions, logicalOperator });
   };
 
+  // Wrapper to close chatbox on page change
+  const handleSetPage = (newPage) => {
+    setPage(newPage);
+    if (newPage !== 'search') {
+      setChatOpen(false);
+    }
+    // If navigating to search, do not auto-close; user can open/close manually
+  };
+
+  // Automatically close chatbox if not on search page
+  useEffect(() => {
+    if (page !== 'search' && chatOpen) {
+      setChatOpen(false);
+    }
+  }, [page]);
+
+  // Wrapper to open chatbox only on search page
+  const handleSetChatOpen = (open) => {
+    if (page === 'search') {
+      setChatOpen(open);
+    }
+  };
+
   return (
     <div>
       {/* Render Chatbox at the top level so it does not overlap nav/header */}
-      <Chatbox open={chatOpen} onClose={() => setChatOpen(false)} />
+      <Chatbox open={chatOpen} onClose={() => handleSetChatOpen(false)} />
       {showSessionPopup && (
         <div className="session-popup-overlay" onClick={() => setShowSessionPopup(false)}>
           <div className="session-popup" onClick={e => e.stopPropagation()}>
@@ -550,30 +568,64 @@ function App() {
         </div>,
         document.body
       )}
-      <nav className="taskbar">
+      <nav className="taskbar" style={{ display: 'flex', alignItems: 'center', paddingRight: 24 }}>
         <div className="taskbar-title clickable" onClick={() => setPage('home')}>
           <img src={wizardIcon} alt="Wizard Logo" className="taskbar-logo" />
         </div>
-        <ul className="taskbar-links">
+        {/* Workflow navigation progress indicator (not buttons) */}
+        {accessToken && (
+          <div className="workflow-progress" style={{ display: 'flex', alignItems: 'center', gap: 18, marginLeft: 32 }}>
+            {[
+              { key: 'search', label: '1. Search' },
+              { key: 'requiredFields', label: '2. Required Fields' },
+              { key: 'confirmationSummary', label: '3. Confirmation Summary' },
+              { key: 'submit', label: '4. Submit' }
+            ].map((step, idx, arr) => (
+              <div key={step.key} style={{ display: 'flex', alignItems: 'center' }}>
+                <span
+                  className={`workflow-step${page === step.key ? ' active' : ''}${arr.findIndex(s => s.key === page) > idx ? ' completed' : ''}`}
+                  style={{
+                    color: '#fff', // Force white for all steps
+                    fontWeight: page === step.key ? 700 : 500,
+                    fontSize: 15,
+                    borderBottom: page === step.key ? '3px solid #2563eb' : arr.findIndex(s => s.key === page) > idx ? '3px solid #22c55e' : '3px solid #e5e7eb',
+                    paddingBottom: 2,
+                    minWidth: 90,
+                    textAlign: 'left',
+                    background: 'none',
+                    transition: 'color 0.2s, border-bottom 0.2s',
+                  }}
+                >
+                  {step.label}
+                </span>
+                {idx < arr.length - 1 && (
+                  <span style={{ margin: '0 8px', color: '#fff', fontSize: 18 }}>&rarr;</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ flex: 1 }} />
+        <ul className="taskbar-links" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', paddingRight: 6 }}>
           {/* Only show Search link if user is logged in */}
           {accessToken && (
-            <li><a href="#" onClick={() => setPage('search')}>Search</a></li>
+            <li><a href="#" onClick={() => setPage('search')} style={{ color: '#fff', textDecoration: 'none' }}>Search</a></li>
           )}
           {/* Only show Orders link if user is logged in */}
           {accessToken && (
-            <li><a href="#" onClick={() => setPage('orders')}>Orders</a></li>
+            <li><a href="#" onClick={() => setPage('orders')} style={{ color: '#fff', textDecoration: 'none' }}>Orders</a></li>
           )}
           {/* About page removed */}
           {!accessToken ? (
-            <li><a href="#" onClick={handleNavLogin}>Login</a></li>
+            <li><a href="#" onClick={handleNavLogin} style={{ color: '#fff', textDecoration: 'none' }}>Login</a></li>
           ) : (
             <>
               <li>
-                <a href="#" className="taskbar-link" onClick={e => { e.preventDefault(); setShowSessionPopup(true); }}>
+                <a href="#" className="taskbar-link" onClick={e => { e.preventDefault(); setShowSessionPopup(true); }} style={{ color: '#fff', textDecoration: 'none' }}>
                   Session
                 </a>
               </li>
-              <li><a href="#" onClick={handleLogout}>Logout</a></li>
+              <li><a href="#" onClick={handleLogout} style={{ color: '#fff', textDecoration: 'none' }}>Logout</a></li>
             </>
           )}
         </ul>
@@ -630,7 +682,7 @@ function App() {
                   quantities={quantities}
                   setQuantities={setQuantities}
                   search={lastSearch}
-                  setPage={page => setPage(page)}
+                  setPage={handleSetPage}
                   isAdmin={isAdmin}
                   accessToken={accessToken}
                   requestPopup={requestPopup}
@@ -646,6 +698,33 @@ function App() {
                 />
               </div>
             </>
+          )}
+          {accessToken && page === 'search' && (
+            <button
+              style={{
+                position: 'fixed',
+                bottom: 32,
+                right: 15,
+                zIndex: 1000,
+                background: '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: 56,
+                height: 56,
+                fontSize: 28,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                cursor: 'pointer',
+                display: chatOpen ? 'none' : 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0
+              }}
+              aria-label="Open Chatbox"
+              onClick={() => handleSetChatOpen(true)}
+            >
+              <img src={chatIcon} alt="Open Chat" style={{ width: 32, height: 32,}} />
+            </button>
           )}
         </div>
       )}
