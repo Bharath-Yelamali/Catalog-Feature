@@ -434,13 +434,30 @@ function App() {
   // Wrapper to close chatbox on page change
   const handleSetPage = (newPage) => {
     setPage(newPage);
-    setChatOpen(false);
+    if (newPage !== 'search') {
+      setChatOpen(false);
+    }
+    // If navigating to search, do not auto-close; user can open/close manually
+  };
+
+  // Automatically close chatbox if not on search page
+  useEffect(() => {
+    if (page !== 'search' && chatOpen) {
+      setChatOpen(false);
+    }
+  }, [page]);
+
+  // Wrapper to open chatbox only on search page
+  const handleSetChatOpen = (open) => {
+    if (page === 'search') {
+      setChatOpen(open);
+    }
   };
 
   return (
     <div>
       {/* Render Chatbox at the top level so it does not overlap nav/header */}
-      <Chatbox open={chatOpen} onClose={() => setChatOpen(false)} />
+      <Chatbox open={chatOpen} onClose={() => handleSetChatOpen(false)} />
       {showSessionPopup && (
         <div className="session-popup-overlay" onClick={() => setShowSessionPopup(false)}>
           <div className="session-popup" onClick={e => e.stopPropagation()}>
@@ -680,6 +697,32 @@ function App() {
                 />
               </div>
             </>
+          )}
+          {accessToken && page === 'search' && (
+            <button
+              style={{
+                position: 'fixed',
+                bottom: 32,
+                right: 32,
+                zIndex: 1000,
+                background: '#2563eb',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: 56,
+                height: 56,
+                fontSize: 28,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                cursor: 'pointer',
+                display: chatOpen ? 'none' : 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              aria-label="Open Chatbox"
+              onClick={() => handleSetChatOpen(true)}
+            >
+              💬
+            </button>
           )}
         </div>
       )}
