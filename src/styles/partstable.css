@@ -19,13 +19,24 @@
   overflow-y: auto;
   z-index: 800;
   box-sizing: border-box; /* Include padding in height calculation */
+  min-height: calc(100vh - 110px); /* Fill below headers, adjust 110px as needed */
+  display: flex;
+  flex-direction: column;
+  padding-top: 1px;
 }
 
+/* Removed justify-content: center; so content starts at the top */
+
+/* Empty state styles - centered content */
 .search-results-empty {
   color: #888;
   font-size: 15px;
   text-align: center;
   padding: 32px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-result-item {
