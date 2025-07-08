@@ -333,12 +333,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               />
             </div>
             {!hiddenFields.qty && <div className="search-result-field">Qty</div>}
-            <div className="search-result-field"></div>
+            {/* Move these four columns immediately after Qty */}
             {!hiddenFields.total && <div className="search-result-field">Total</div>}
             {!hiddenFields.inUse && <div className="search-result-field">In Use</div>}
             {!hiddenFields.essentialReserve && <div className="search-result-field">Essential Reserve</div>}
             {!hiddenFields.usableSurplus && <div className="search-result-field">Usable Surplus</div>}
-            {!hiddenFields.inventoryItemNumber && <div className="search-result-field">Inventory Item Number</div>}
+            {/* Remove expand button column */}
+            {!hiddenFields.inventoryItemNumber && <div className="search-result-field small-header">Inventory Item Number</div>}
             {!hiddenFields.manufacturerPartNumber && <div className="search-result-field">Manufactur Part #</div>}
             {!hiddenFields.manufacturerName && <div className="search-result-field">Manufacturer Name</div>}
             {!hiddenFields.inventoryDescription && <div className="search-result-field">Inventory Description</div>}

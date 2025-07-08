@@ -48,7 +48,6 @@ const PartsTableMainRow = ({
         />
       </div>
     )}
-    <div className="search-result-field"></div>
     {!hiddenFields.total && <div className="search-result-field">{truncateText(part.total?.toString()) ?? 'N/A'}</div>}
     {!hiddenFields.inUse && <div className="search-result-field">{truncateText(part.inUse?.toString()) ?? 'N/A'}</div>}
     {!hiddenFields.essentialReserve && <div className="search-result-field">{truncateText(part.essentialReserve?.toString())}</div>}
