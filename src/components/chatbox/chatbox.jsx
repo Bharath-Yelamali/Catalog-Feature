@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import sendIcon from '../../assets/send.svg';
+import '../../styles/ChatBox.css';
 
 const Chatbox = ({ open, onClose, children, onSend }) => {
   const [input, setInput] = useState('');
@@ -41,41 +42,17 @@ const Chatbox = ({ open, onClose, children, onSend }) => {
         <span>Chat</span>
         <button className="copilot-chat-close" onClick={onClose} aria-label="Close chat">×</button>
       </div>
-      <div className="copilot-chat-content" style={{
-        overflowY: 'auto',
-        flex: 1,
-        padding: '1em 0.5em 0.5em 0.5em',
-        background: 'rgba(40, 44, 52, 1)'
-      }}>
+      <div className="copilot-chat-content">
         {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              marginBottom: '0.5em',
-            }}
-          >
-            <div
-              style={{
-                background: 'linear-gradient(90deg, #4f8cff 0%, #2356a8 100%)',
-                color: '#fff',
-                borderRadius: '1.2em',
-                padding: '0.6em 1.2em',
-                maxWidth: '70%',
-                wordBreak: 'break-word',
-                textAlign: 'right',
-                fontSize: '1em',
-                boxShadow: '0 1px 4px rgba(58,58,58,0.08)'
-              }}
-            >
+          <div key={idx} className="copilot-chat-message">
+            <div className="copilot-chat-bubble">
               {msg.text}
             </div>
           </div>
         ))}
         {children}
       </div>
-      <form className="copilot-chat-input-bar" onSubmit={handleSend} style={{ position: 'relative', margin: '0.5em 0.5em 0.75em 0.5em' }}>
+      <form className="copilot-chat-input-bar" onSubmit={handleSend}>
         <textarea
           ref={textareaRef}
           className="copilot-chat-input"
@@ -85,65 +62,15 @@ const Chatbox = ({ open, onClose, children, onSend }) => {
           onKeyDown={handleKeyDown}
           autoComplete="off"
           rows={2}
-          style={{
-            resize: 'none',
-            width: '100%',
-            minHeight: '2.5em',
-            maxHeight: '12em',
-            fontSize: '1.1em',
-            padding: '0.75em 2.2em 0.75em 0.75em',
-            borderRadius: '0.5em',
-            border: '1px solid rgb(255, 255, 255)',
-            boxSizing: 'border-box',
-            background: 'rgb(102, 102, 102)',
-            color: 'rgb(255, 250, 250)',
-            margin: 0,
-            outline: 'none',
-            boxShadow: '0 1px 4px rgba(58, 58, 58, 0.08)',
-            overflow: 'hidden',
-            WebkitOverflowScrolling: 'auto',
-            msOverflowStyle: 'none',
-            scrollbarWidth: 'none'
-          }}
         />
         <button
           type="submit"
           className="copilot-chat-send"
           aria-label="Send message"
-          style={{
-            position: 'absolute',
-            right: '0.7em',
-            bottom: '0.7em',
-            background: 'rgba(0,0,0,0)',
-            border: 'none',
-            color: 'rgba(255,255,255,1)',
-            fontSize: '1.1em',
-            cursor: 'pointer',
-            padding: 0,
-            width: 28,
-            height: 28,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
         >
-          <img src={sendIcon} alt="Send" style={{ width: 18, height: 18, display: 'block', filter: 'invert(1) brightness(2)' }} />
+          <img src={sendIcon} alt="Send" />
         </button>
       </form>
-      <style>
-        {`
-          .copilot-chat-input::placeholder {
-            color: #fff;
-            opacity: 1;
-          }
-          .copilot-chat-input::-webkit-scrollbar {
-            display: none;
-          }
-          .copilot-chat-content::-webkit-scrollbar {
-            display: none;
-          }
-        `}
-      </style>
     </div>
   );
 };
