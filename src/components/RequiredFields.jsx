@@ -561,7 +561,24 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
           <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Requester Info</legend>          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
             <label style={{ fontWeight: 500 }}>PO Owner Alias <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
+                <input
+                  type="text"
+                  name="poOwnerAlias"
+                  value={preqFields.poOwnerAlias}
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: 8,
+                    marginTop: 4,
+                    borderRadius: 6,
+                    border: '1px solid #bbb',
+                    fontSize: 15,
+                    background: '#f5f5f5',
+                    color: '#333',
+                    cursor: 'not-allowed'
+                  }}
+                  placeholder="Select using button"
+                />
                 <button
                   type="button"
                   style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
@@ -587,7 +604,24 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
             <label style={{ fontWeight: 500 }}>Project <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="text" name="project" value={preqFields.project} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Project" />
+                <input
+                  type="text"
+                  name="project"
+                  value={preqFields.project}
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: 8,
+                    marginTop: 4,
+                    borderRadius: 6,
+                    border: '1px solid #bbb',
+                    fontSize: 15,
+                    background: '#f5f5f5',
+                    color: '#333',
+                    cursor: 'not-allowed'
+                  }}
+                  placeholder="Select using button"
+                />
                 <button
                   type="button"
                   style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
@@ -599,7 +633,24 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </label>
             <label style={{ fontWeight: 500 }}>Supplier <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="text" name="supplier" value={preqFields.supplier} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Supplier" />
+                <input
+                  type="text"
+                  name="supplier"
+                  value={preqFields.supplier}
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: 8,
+                    marginTop: 4,
+                    borderRadius: 6,
+                    border: '1px solid #bbb',
+                    fontSize: 15,
+                    background: '#f5f5f5',
+                    color: '#333',
+                    cursor: 'not-allowed'
+                  }}
+                  placeholder="Select using button"
+                />
                 <button
                   type="button"
                   style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
