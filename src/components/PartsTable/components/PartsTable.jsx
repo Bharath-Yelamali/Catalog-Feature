@@ -318,7 +318,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           });
           setInputValues(newInputValues);
         }}
-        onOpenChat={() => setChatOpen(true)}
+        chatOpen={chatOpen}
+        setChatOpen={setChatOpen}
       />
       {/* Wrap main table/results area in a container that shifts when chat is open */}
       <div className={`main-table-area${chatOpen ? ' chat-open' : ''}`}>

@@ -14,7 +14,7 @@ const PartsTableHeader = ({
   localSearch, setLocalSearch, setGlobalSearchResults, accessToken, onGlobalSearchConditionsChange,
   // Other
   loading, resultsToDisplay, selected, quantities, handleExport, setPage,
-  onOpenChat // <-- Add this prop
+  chatOpen, setChatOpen // <-- Add chatOpen and setChatOpen props
 }) => (
   <div className="search-result-button-header">
     <div className="flex-start">
@@ -149,9 +149,9 @@ const PartsTableHeader = ({
           display: 'flex',
           alignItems: 'center'
         }}
-        onClick={onOpenChat}
-        title="Open Copilot Chat"
-        aria-label="Open Copilot Chat"
+        onClick={() => setChatOpen(prev => !prev)}
+        title={chatOpen ? 'Close Copilot Chat' : 'Open Copilot Chat'}
+        aria-label={chatOpen ? 'Close Copilot Chat' : 'Open Copilot Chat'}
       >
         <img src={chatIcon} alt="Chat" style={{ width: 28, height: 28 }} />
         <span style={{ marginLeft: 6, fontSize: 15, fontWeight: 500, color: '#222' }}>
