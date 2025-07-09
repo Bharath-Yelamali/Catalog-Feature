@@ -59,11 +59,10 @@ export function useFieldManagement() {
       const columns = [
         '40px', // Checkbox column
         !hiddenFields.qty ? '80px' : '',
-        '40px', // Expand button column
-        !hiddenFields.total ? '1fr' : '',
-        !hiddenFields.inUse ? '1fr' : '',
-        !hiddenFields.essentialReserve ? '1fr' : '',
-        !hiddenFields.usableSurplus ? '1fr' : '',
+        !hiddenFields.total ? '80px' : '',
+        !hiddenFields.inUse ? '80px' : '',
+        !hiddenFields.essentialReserve ? '80px' : '',
+        !hiddenFields.usableSurplus ? '80px' : '',
         !hiddenFields.inventoryItemNumber ? '1.2fr' : '',
         !hiddenFields.manufacturerPartNumber ? '1.2fr' : '',
         !hiddenFields.manufacturerName ? '1.2fr' : '',
@@ -73,7 +72,7 @@ export function useFieldManagement() {
       return columns.join(' ');
     } catch (error) {
       console.error('Error generating main table grid columns:', error);
-      return '40px 80px 40px 1fr 1fr 1fr 1fr 1.2fr 1.2fr 1.2fr 2fr'; // Fallback
+      return '40px 80px 80px 80px 80px 80px 1.2fr 1.2fr 1.2fr 2fr'; // Fallback
     }
   }, [hiddenFields]);
 

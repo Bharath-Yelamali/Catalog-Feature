@@ -1,0 +1,114 @@
+.copilot-chat-sidebar {
+  position: fixed;
+  top: 115px; /* Start below nav bar and header bar (60px + 60px) */
+  right: 0;
+  width: 400px;
+  min-width: 300px;
+  max-width: 50vw;
+  height: calc(100vh - 120px); /* Fit below headers */
+  background: #1e1e1e;
+  color: #fff;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+  transform: translateX(100%);
+  transition: transform 0.3s;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  resize: horizontal;
+  overflow: auto;
+}
+.copilot-chat-sidebar.open {
+  transform: translateX(0);
+}
+.copilot-chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #222;
+  border-bottom: 1px solid #333;
+}
+.copilot-chat-close {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 1.5em;
+  cursor: pointer;
+}
+.copilot-chat-content {
+  flex: 1;
+  padding: 1em 0.5em 0.5em 0.5em;
+  overflow-y: auto;
+  background: rgba(40, 44, 52, 1);
+}
+.copilot-chat-content::-webkit-scrollbar {
+  display: none;
+}
+.copilot-chat-message {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5em;
+}
+.copilot-chat-bubble {
+  background: linear-gradient(90deg, #4f8cff 0%, #2356a8 100%);
+  color: #fff;
+  border-radius: 1.2em;
+  padding: 0.6em 1.2em;
+  max-width: 70%;
+  word-break: break-word;
+  text-align: right;
+  font-size: 1em;
+  box-shadow: 0 1px 4px rgba(58,58,58,0.08);
+}
+.copilot-chat-input-bar {
+  position: relative;
+  margin: 0.5em 0.5em 0.75em 0.5em;
+}
+.copilot-chat-input {
+  resize: none;
+  width: 100%;
+  min-height: 2.5em;
+  max-height: 12em;
+  font-size: 1.1em;
+  padding: 0.75em 2.2em 0.75em 0.75em;
+  border-radius: 0.5em;
+  border: 1px solid rgb(255, 255, 255);
+  box-sizing: border-box;
+  background: rgb(102, 102, 102);
+  color: rgb(255, 250, 250);
+  margin: 0;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(58, 58, 58, 0.08);
+  overflow: hidden;
+  -webkit-overflow-scrolling: auto;
+  scrollbar-width: none;
+}
+.copilot-chat-input::placeholder {
+  color: #fff;
+  opacity: 1;
+}
+.copilot-chat-input::-webkit-scrollbar {
+  display: none;
+}
+.copilot-chat-send {
+  position: absolute;
+  right: 0.7em;
+  bottom: 0.7em;
+  background: rgba(0,0,0,0);
+  border: none;
+  color: rgba(255,255,255,1);
+  font-size: 1.1em;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.copilot-chat-send img {
+  width: 18px;
+  height: 18px;
+  display: block;
+  filter: invert(1) brightness(2);
+}

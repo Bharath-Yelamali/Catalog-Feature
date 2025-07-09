@@ -227,6 +227,8 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
     // ...existing code...
   };
 
+  const [showRequiredWarning, setShowRequiredWarning] = useState(false);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '60vh', padding: '40px 0 80px 0', background: '#f0f4fa' }}>
       {/* Selected Parts Section */}
@@ -559,7 +561,24 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
           <legend style={{ fontWeight: 600, fontSize: 15, padding: '0 12px' }}>Requester Info</legend>          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
             <label style={{ fontWeight: 500 }}>PO Owner Alias <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="text" name="poOwnerAlias" value={preqFields.poOwnerAlias} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="PO Owner Alias" />
+                <input
+                  type="text"
+                  name="poOwnerAlias"
+                  value={preqFields.poOwnerAlias}
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: 8,
+                    marginTop: 4,
+                    borderRadius: 6,
+                    border: '1px solid #bbb',
+                    fontSize: 15,
+                    background: '#f5f5f5',
+                    color: '#333',
+                    cursor: 'not-allowed'
+                  }}
+                  placeholder="Select using button"
+                />
                 <button
                   type="button"
                   style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
@@ -585,7 +604,24 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
             <label style={{ fontWeight: 500 }}>Project <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="text" name="project" value={preqFields.project} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Project" />
+                <input
+                  type="text"
+                  name="project"
+                  value={preqFields.project}
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: 8,
+                    marginTop: 4,
+                    borderRadius: 6,
+                    border: '1px solid #bbb',
+                    fontSize: 15,
+                    background: '#f5f5f5',
+                    color: '#333',
+                    cursor: 'not-allowed'
+                  }}
+                  placeholder="Select using button"
+                />
                 <button
                   type="button"
                   style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
@@ -597,7 +633,24 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </label>
             <label style={{ fontWeight: 500 }}>Supplier <span style={{color:'red'}}>*</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="text" name="supplier" value={preqFields.supplier} onChange={handleFieldChange} style={{ width: '100%', padding: 8, marginTop: 4, borderRadius: 6, border: '1px solid #bbb', fontSize: 15 }} placeholder="Supplier" />
+                <input
+                  type="text"
+                  name="supplier"
+                  value={preqFields.supplier}
+                  readOnly
+                  style={{
+                    width: '100%',
+                    padding: 8,
+                    marginTop: 4,
+                    borderRadius: 6,
+                    border: '1px solid #bbb',
+                    fontSize: 15,
+                    background: '#f5f5f5',
+                    color: '#333',
+                    cursor: 'not-allowed'
+                  }}
+                  placeholder="Select using button"
+                />
                 <button
                   type="button"
                   style={{ padding: '4px 8px', borderRadius: 4, border: '1px solid #2d72d9', background: '#f5f8fc', color: '#2d72d9', fontWeight: 600, fontSize: 13, cursor: 'pointer', height: 30, lineHeight: '20px' }}
@@ -855,9 +908,28 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
       </div>
 
       {/* Navigation Buttons */}
-      <div className="confirmation-summary-buttons" style={{ display: 'flex', justifyContent: 'center', gap: 32, marginTop: 32 }}>
-        <button onClick={goBack} className="confirmation-summary-button-back" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}>Back</button>
-        <button onClick={() => setPage('confirmationSummary')} className="confirmation-summary-button-submit" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }} disabled={!allRequiredFilled}>Next</button>
+      <div className="confirmation-summary-buttons" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginTop: 32 }}>
+        {showRequiredWarning && !allRequiredFilled && (
+          <div style={{ color: 'red', fontWeight: 600, marginBottom: 8 }}>
+            Please fill out all required fields before proceeding.
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 32 }}>
+          <button onClick={goBack} className="confirmation-summary-button-back" style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}>Back</button>
+          <button
+            onClick={() => {
+              if (allRequiredFilled) {
+                setPage('confirmationSummary');
+              } else {
+                setShowRequiredWarning(true);
+              }
+            }}
+            className="confirmation-summary-button-submit"
+            style={{ fontSize: 22, padding: '16px 48px', minWidth: 180, borderRadius: 10 }}
+          >
+            Next
+          </button>
+        </div>
       </div>
 
       {/* Project Selection Popup */}
@@ -943,7 +1015,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
               Select
             </button>
           </div>
-        </div>
+               </div>
       )}
 
       {/* PO Owner Alias Selection Popup */}
@@ -985,7 +1057,7 @@ function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, 
             </button>
           </div>
         </div>
-           )}
+      )}
 
       {/* Invoice Approver Alias Selection Popup */}
       {showInvoiceApproverPopup && (

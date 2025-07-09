@@ -198,7 +198,7 @@ router.post('/m_Inventory', async (req, res) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': token,
+        'Authorization': `Bearer ${token}`,
         'Prefer': preferHeader,
       },
       body: JSON.stringify(newPart),
@@ -251,7 +251,7 @@ router.patch('/m_Instance/:id/spare-value', async (req, res) => {
       headers: {
         'Content-Type': 'application/json',
         'If-Match': '*',
-        ...(token ? { 'Authorization': token } : {}),
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         'Prefer': preferHeader,
       },
       body: JSON.stringify({ spare_value }),
