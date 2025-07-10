@@ -74,7 +74,7 @@ const ordersRouter = require('./orders');
 app.use(API_PREFIX, ordersRouter);
 
 // --- JSON Middleware ---
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // --- Root and Health Endpoints ---
 app.get('/', (req, res) => {

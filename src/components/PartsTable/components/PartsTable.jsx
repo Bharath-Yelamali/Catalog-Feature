@@ -368,7 +368,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               const essentialReserve = Math.ceil(spareThreshold * inUse);
               const usableSurplus = generalInventoryAmount - essentialReserve;
               return (
-                <div key={group.itemNumber}>
+                <div key={group.itemNumber} className={expandedRows[group.itemNumber] ? 'part-instance-wrapper' : ''}>
                   <PartsTableMainRow
                     group={group}
                     part={{
