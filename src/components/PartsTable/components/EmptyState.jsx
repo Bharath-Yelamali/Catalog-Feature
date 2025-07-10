@@ -12,7 +12,7 @@ function EmptyState({ isInitial }) {
       {isInitial ? (
         <>
           <div className="empty-header">
-            Welcome to Accio
+            Welcome to Scout
           </div>
           <div className="empty-desc">
             Get started by searching for parts or using the tools below:
