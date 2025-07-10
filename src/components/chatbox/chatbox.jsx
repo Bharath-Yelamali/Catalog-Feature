@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import sendIcon from '../../assets/send.svg';
+import garbageIcon from '../../assets/garbage.svg';
+import wizardIcon from '../../assets/wizard.svg';
 import '../../styles/ChatBox.css';
 import { sendAIChat } from '../../api/aiChat';
 
@@ -75,6 +77,12 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
     }
   };
 
+  const handleClearChat = () => {
+    setMessages([]);
+    setInput('');
+    autoResizeTextarea();
+  };
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     const chatContent = chatContentRef.current;
@@ -85,11 +93,27 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
 
   return (
     <div className={`copilot-chat-sidebar${open ? ' open' : ''}`}>
-      <div className="copilot-chat-header">
-        <span>Chat</span>
+      <div className="copilot-chat-header" style={{ display: 'flex', alignItems: 'center' }}>
+        <span style={{ flex: 'none', fontWeight: 'bold' }}>Chat</span>
+        <button
+          className="copilot-chat-clear"
+          aria-label="Clear chat history"
+          style={{ background: 'none', border: 'none', padding: 0, marginLeft: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+          onClick={handleClearChat}
+        >
+          <img src={garbageIcon} alt="Clear chat" style={{ width: '20px', height: '20px', filter: 'invert(1)', marginRight: '8px' }} />
+        </button>
         <button className="copilot-chat-close" onClick={onClose} aria-label="Close chat">×</button>
       </div>
       <div className="copilot-chat-content" ref={chatContentRef}>
+        {messages.length === 0 && !loading && (
+          <div className="copilot-chat-empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <img src={wizardIcon} alt="Wizard" style={{ width: '64px', height: '64px', marginBottom: '16px', opacity: 0.8 }} />
+            <div style={{ color: '#aaa', fontSize: '.9em', textAlign: 'center' }}>
+              Start a conversation by typing your question below!
+            </div>
+          </div>
+        )}
         {messages.map((msg, idx) => (
           <div key={idx} className={`copilot-chat-message ${msg.from}`}>
             <div
