@@ -524,7 +524,36 @@ router.post('/m_Procurement_Request', upload.single('m_quote'), async (req, res)
         fields.m_po_owner = req.body.poOwnerAlias;
       }
     }
-      let odataPayload = { ...fields };
+    let odataPayload = { ...fields };
+    // Extensive logging for deep insert payloads
+    console.log('--- Deep Insert Debug ---');
+    console.log('Raw fields.m_Procurement_Request_Lineitem:', fields.m_Procurement_Request_Lineitem);
+    if (fields.m_Procurement_Request_Lineitem) {
+      if (typeof fields.m_Procurement_Request_Lineitem === 'string') {
+        try {
+          odataPayload.m_Procurement_Request_Lineitem = JSON.parse(fields.m_Procurement_Request_Lineitem);
+          console.log('Parsed m_Procurement_Request_Lineitem as JSON:', odataPayload.m_Procurement_Request_Lineitem);
+        } catch (e) {
+          console.warn('Failed to parse m_Procurement_Request_Lineitem as JSON:', e);
+        }
+      } else if (Array.isArray(fields.m_Procurement_Request_Lineitem)) {
+        odataPayload.m_Procurement_Request_Lineitem = fields.m_Procurement_Request_Lineitem;
+        console.log('Assigned m_Procurement_Request_Lineitem as array:', odataPayload.m_Procurement_Request_Lineitem);
+      } else {
+        console.warn('m_Procurement_Request_Lineitem is neither string nor array:', fields.m_Procurement_Request_Lineitem);
+      }
+      // Log each line item for inspection
+      if (Array.isArray(odataPayload.m_Procurement_Request_Lineitem)) {
+        odataPayload.m_Procurement_Request_Lineitem.forEach((item, idx) => {
+          console.log(`Lineitem[${idx}]:`, item);
+        });
+      }
+    } else {
+      console.log('No m_Procurement_Request_Lineitem provided in request.');
+    }
+    // Log the full outgoing payload before sending to IMS
+    console.log('--- Outgoing OData Payload ---');
+    console.log(JSON.stringify(odataPayload, null, 2));
     // Always use deep insert for file - if no file provided, create a default one
     if (req.file) {
       odataPayload.m_Procurement_Request_Files = [

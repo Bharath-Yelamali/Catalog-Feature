@@ -42,7 +42,7 @@ function ConfirmationSummary({ selected, quantities, preqFields, newParts, attac
         }
       }
       // 2. Prepare FormData for multipart/form-data
-      const formData = buildProcurementRequestFormData(preqFields, attachments);
+      const formData = buildProcurementRequestFormData(preqFields, attachments, Object.keys(selected).length, selected, quantities);
       if (attachments && attachments.length > 0) {
         console.log('Attachment included:', attachments[0].name);
       } else {

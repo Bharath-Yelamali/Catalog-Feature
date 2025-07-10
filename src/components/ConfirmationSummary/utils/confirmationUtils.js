@@ -31,9 +31,12 @@ export function mapNewPartForApi(part) {
  * Builds a FormData object for the procurement request API.
  * @param {Object} preqFields
  * @param {Array} attachments
+ * @param {number} selectedCount - The number of parts selected (for m_lineitem_options logic)
+ * @param {Object} selected - The selected parts object
+ * @param {Object} quantities - The quantities for each part
  * @returns {FormData}
  */
-export function buildProcurementRequestFormData(preqFields, attachments) {
+export function buildProcurementRequestFormData(preqFields, attachments, selectedCount = 0, selected = {}, quantities = {}) {
   const formData = new FormData();
   Object.entries(preqFields).forEach(([key, value]) => {
     if (key !== 'attachments' && value !== undefined && value !== null) {
@@ -85,7 +88,17 @@ export function buildProcurementRequestFormData(preqFields, attachments) {
       }
     }
   });
-  formData.append('m_lineitem_options', 1);
+  formData.append('m_lineitem_options', selectedCount < 20 ? 2 : 1);
+  // Add line items for each selected part
+  const lineItems = Object.entries(selected).map(([itemNumber, group]) => {
+    const part = Array.isArray(group.instances) ? group.instances[0] : group;
+    return {
+      item_number: itemNumber,
+      m_description: part.m_inventory_description || part.m_description || '',
+      m_quantity: quantities[itemNumber] || 1
+    };
+  });
+  formData.append('m_Procurement_Request_Lineitem', JSON.stringify(lineItems));
   if (!preqFields.purchaseTypeId && preqFields.purchaseType) {
     formData.append('m_purchase_type', preqFields.purchaseType);
   }
