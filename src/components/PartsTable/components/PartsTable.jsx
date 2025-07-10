@@ -22,7 +22,7 @@ function getVisibleFields(allFields, hiddenFields) {
   return allFields.filter(field => !hiddenFields[field]);
 }
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen, onResultsChange }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -260,6 +260,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     XLSX.utils.book_append_sheet(wb, ws, 'Selected Parts');
     XLSX.writeFile(wb, `selected_parts_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
+
+  // --- AI Chat Integration: Notify parent of filtered results ---
+  useEffect(() => {
+    if (typeof onResultsChange === 'function') {
+      onResultsChange(resultsToDisplay);
+    }
+    // Only call when resultsToDisplay changes
+  }, [JSON.stringify(resultsToDisplay), onResultsChange]);
 
   return (
     <>

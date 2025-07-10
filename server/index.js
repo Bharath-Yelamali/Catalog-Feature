@@ -135,6 +135,9 @@ app.use(API_PREFIX, projectRouter);
 const supplierRouter = require('./supplier');
 app.use(API_PREFIX, supplierRouter);
 
+const aiChatRouter = require('./aiChat');
+app.use(API_PREFIX, aiChatRouter);
+
 // --- Start Server ---
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

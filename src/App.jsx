@@ -87,6 +87,7 @@ function App() {
   const [filterConditions, setFilterConditions] = useState([]);
   const [logicalOperator, setLogicalOperator] = useState('and');
   const [chatOpen, setChatOpen] = useState(false);
+  const [chatboxResults, setChatboxResults] = useState([]); // <-- Add this line
 
   const handleSearch = async (e) => {
     if (e.key === 'Enter') {
@@ -458,7 +459,7 @@ function App() {
   return (
     <div>
       {/* Render Chatbox at the top level so it does not overlap nav/header */}
-      <Chatbox open={chatOpen} onClose={() => handleSetChatOpen(false)} />
+      <Chatbox open={chatOpen} onClose={() => handleSetChatOpen(false)} searchResults={chatboxResults} />
       {showSessionPopup && (
         <div className="session-popup-overlay" onClick={() => setShowSessionPopup(false)}>
           <div className="session-popup" onClick={e => e.stopPropagation()}>
@@ -695,6 +696,7 @@ function App() {
                   setLogicalOperator={setLogicalOperator}
                   chatOpen={chatOpen}
                   setChatOpen={setChatOpen}
+                  onResultsChange={setChatboxResults} // <-- Add this line
                 />
               </div>
             </>
