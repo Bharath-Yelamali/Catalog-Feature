@@ -74,7 +74,7 @@ const ordersRouter = require('./orders');
 app.use(API_PREFIX, ordersRouter);
 
 // --- JSON Middleware ---
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
 // --- Root and Health Endpoints ---
 app.get('/', (req, res) => {
@@ -134,6 +134,9 @@ app.use(API_PREFIX, projectRouter);
 
 const supplierRouter = require('./supplier');
 app.use(API_PREFIX, supplierRouter);
+
+const aiChatRouter = require('./aiChat');
+app.use(API_PREFIX, aiChatRouter);
 
 // --- Start Server ---
 app.listen(PORT, () => {

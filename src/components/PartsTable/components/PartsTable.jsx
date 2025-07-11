@@ -22,7 +22,7 @@ function getVisibleFields(allFields, hiddenFields) {
   return allFields.filter(field => !hiddenFields[field]);
 }
 
-function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen }) {
+function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen, onResultsChange }) {
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -261,6 +261,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     XLSX.writeFile(wb, `selected_parts_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
+  // --- AI Chat Integration: Notify parent of filtered results ---
+  useEffect(() => {
+    if (typeof onResultsChange === 'function') {
+      onResultsChange(resultsToDisplay);
+    }
+    // Only call when resultsToDisplay changes
+  }, [JSON.stringify(resultsToDisplay), onResultsChange]);
+
   return (
     <>
       {/* Chatbox is now rendered at the App level, not here */}
@@ -318,7 +326,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           });
           setInputValues(newInputValues);
         }}
-        onOpenChat={() => setChatOpen(true)}
+        chatOpen={chatOpen}
+        setChatOpen={setChatOpen}
       />
       {/* Wrap main table/results area in a container that shifts when chat is open */}
       <div className={`main-table-area${chatOpen ? ' chat-open' : ''}`}>
@@ -359,7 +368,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
               const essentialReserve = Math.ceil(spareThreshold * inUse);
               const usableSurplus = generalInventoryAmount - essentialReserve;
               return (
-                <div key={group.itemNumber}>
+                <div key={group.itemNumber} className={expandedRows[group.itemNumber] ? 'part-instance-wrapper' : ''}>
                   <PartsTableMainRow
                     group={group}
                     part={{

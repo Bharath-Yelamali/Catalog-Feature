@@ -50,15 +50,27 @@
   margin-bottom: 0.5em;
 }
 .copilot-chat-bubble {
-  background: linear-gradient(90deg, #4f8cff 0%, #2356a8 100%);
+  background: #587086;
   color: #fff;
-  border-radius: 1.2em;
+  border-radius: 0.6em; /* Less round */
   padding: 0.6em 1.2em;
   max-width: 70%;
   word-break: break-word;
   text-align: right;
-  font-size: 1em;
+  font-size: 0.92em; /* Smaller text */
   box-shadow: 0 1px 4px rgba(58,58,58,0.08);
+}
+.copilot-chat-bubble.ai-bubble {
+  background: #111;
+  color: #fff;
+  text-align: left;
+  align-self: flex-start;
+  border-radius: 8px 8px 8px 3px; /* Less round for AI */
+  margin-left: 0;
+  margin-right: auto;
+  max-width: 80%;
+  font-size: 0.92em; /* Smaller text for AI too */
+  white-space: pre-wrap; /* Preserve AI formatting */
 }
 .copilot-chat-input-bar {
   position: relative;
