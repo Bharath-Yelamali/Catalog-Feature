@@ -1,3 +1,4 @@
+// ...existing code...
 require('dotenv/config');
 const express = require('express');
 const router = express.Router();
@@ -107,7 +108,7 @@ router.post('/ai-chat', async (req, res) => {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.7,
+      temperature: 0,
       max_tokens: 512,
       top_p: 1,
       frequency_penalty: 0,
@@ -125,3 +126,61 @@ router.post('/ai-chat', async (req, res) => {
 });
 
 module.exports = router;
+
+// --- AI Search Query Endpoint ---
+// This endpoint takes a user question and returns a generated search JSON using Azure OpenAI
+router.post('/ai-search-query', async (req, res) => {
+  try {
+    const { question } = req.body;
+    console.log('[aiChat.js] Received /ai-search-query POST');
+    console.log('[aiChat.js] question:', question);
+
+
+    // Use the same system prompt as /ai-chat (from answer-system-prompt.txt or env)
+    let searchSystemPrompt = SYSTEM_PROMPT;
+    if (!searchSystemPrompt) {
+      searchSystemPrompt = process.env.AZURE_OPENAI_SYSTEM_PROMPT || '';
+    }
+
+    const url = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=${AZURE_OPENAI_API_VERSION}`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'api-key': AZURE_OPENAI_KEY,
+    };
+    const data = {
+      messages: [
+        { role: 'system', content: searchSystemPrompt },
+        { role: 'user', content: question },
+      ],
+      temperature: 0,
+      max_tokens: 512,
+      top_p: 1,
+      frequency_penalty: 0,
+      presence_penalty: 0
+    };
+    console.log('[aiChat.js] Sending request to Azure OpenAI for search JSON...');
+    const response = await axios.post(url, data, { headers });
+    const aiMessage = response.data.choices?.[0]?.message?.content || '{}';
+    console.log('[aiChat.js] Raw model output for /ai-search-query:', aiMessage);
+    let searchJson;
+    try {
+      searchJson = JSON.parse(aiMessage);
+    } catch (err) {
+      // If the model returns extra text, try to extract JSON
+      const match = aiMessage.match(/\{[\s\S]*\}/);
+      if (match) {
+        try {
+          searchJson = JSON.parse(match[0]);
+        } catch (parseErr) {
+          return res.status(500).json({ error: 'Failed to parse AI-generated search JSON', details: aiMessage });
+        }
+      } else {
+        return res.status(500).json({ error: 'No valid JSON found in AI response', details: aiMessage });
+      }
+    }
+    res.json({ search: searchJson });
+  } catch (error) {
+    console.error('[aiChat.js] Error in /ai-search-query:', error?.response?.data || error.message || error);
+    res.status(500).json({ error: error?.response?.data?.error?.message || error.message || 'Unknown error' });
+  }
+});

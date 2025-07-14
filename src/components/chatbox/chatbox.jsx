@@ -70,6 +70,7 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
       ]);
 
       let aiAnswer = '';
+
       if (intent === 'analyze_results') {
         // Step 2a: Analyze results using the main answer model
         const answerResult = await sendAIChat({ question: userMessage.text, results: searchResults });
@@ -79,9 +80,24 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
         const answerResult = await sendAIChat({ question: userMessage.text });
         aiAnswer = answerResult.answer;
       } else if (intent === 'search') {
-        // Step 2c: Trigger a search in your app (implement as needed)
-        aiAnswer = "I'll search for that! (Search integration not implemented)";
-        // Optionally, call a prop or function to trigger search here
+        // Step 2c: Call /api/ai-search-query and print the JSON in the chatbox
+        try {
+          const res = await fetch('/api/ai-search-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: userMessage.text })
+          });
+          const data = await res.json();
+          if (data.search) {
+            aiAnswer = 'AI-generated search JSON:\n' + JSON.stringify(data.search, null, 2);
+          } else if (data.error) {
+            aiAnswer = 'Error: ' + data.error + (data.raw ? ('\nRaw: ' + data.raw) : '');
+          } else {
+            aiAnswer = 'No search JSON returned.';
+          }
+        } catch (err) {
+          aiAnswer = 'Failed to get search JSON from AI.';
+        }
       } else {
         aiAnswer = "Sorry, I couldn't determine your intent.";
       }
