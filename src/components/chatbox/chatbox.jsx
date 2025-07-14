@@ -3,7 +3,7 @@ import sendIcon from '../../assets/send.svg';
 import garbageIcon from '../../assets/garbage.svg';
 import wizardIcon from '../../assets/wizard.svg';
 import '../../styles/ChatBox.css';
-import { sendAIChat } from '../../api/aiChat';
+import { sendAIChat, sendIntentAI } from '../../api/aiChat';
 
 const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
   const [input, setInput] = useState('');
@@ -48,27 +48,53 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (input.trim()) {
-      const userMessage = { text: input, from: 'user' };
-      setMessages((prev) => [...prev, userMessage]);
-      if (onSend) onSend(input);
-      setInput('');
-      setTimeout(() => autoResizeTextarea(), 0);
-      // --- LOGGING ---
-      console.log('[Chatbox] User input:', userMessage.text);
-      console.log('[Chatbox] searchResults:', searchResults);
-      setLoading(true);
-      try {
-        console.log('[Chatbox] Calling sendAIChat with:', { question: userMessage.text, results: searchResults });
-        const aiAnswer = await sendAIChat({ question: userMessage.text, results: searchResults });
-        console.log('[Chatbox] AI response:', aiAnswer);
-        typeOutMessage(aiAnswer);
-      } catch (err) {
-        console.error('[Chatbox] Error from sendAIChat:', err);
-        setMessages((prev) => [...prev, { text: "Sorry, I couldn't get a response from the assistant.", from: 'assistant' }]);
+    if (!input.trim()) return;
+
+    const userMessage = { text: input, from: 'user' };
+    setMessages((prev) => [...prev, userMessage]);
+    if (onSend) onSend(input);
+    setInput('');
+    setTimeout(() => autoResizeTextarea(), 0);
+    setLoading(true);
+
+    try {
+      // Step 1: Get intent using the dedicated intent model
+      const intentResult = await sendIntentAI({ question: userMessage.text });
+      const intent = intentResult.intent;
+      console.log('[Chatbox] Detected intent:', intent);
+
+      // Show a 'Thinking... (intent: ...)' message after intent is detected
+      setMessages((prev) => [
+        ...prev,
+        { text: `Thinking... (intent: ${intent})`, from: 'assistant', typing: false }
+      ]);
+
+      let aiAnswer = '';
+      if (intent === 'analyze_results') {
+        // Step 2a: Analyze results using the main answer model
+        const answerResult = await sendAIChat({ question: userMessage.text, results: searchResults });
+        aiAnswer = answerResult.answer;
+      } else if (intent === 'general') {
+        // Step 2b: General question using the main answer model
+        const answerResult = await sendAIChat({ question: userMessage.text });
+        aiAnswer = answerResult.answer;
+      } else if (intent === 'search') {
+        // Step 2c: Trigger a search in your app (implement as needed)
+        aiAnswer = "I'll search for that! (Search integration not implemented)";
+        // Optionally, call a prop or function to trigger search here
+      } else {
+        aiAnswer = "Sorry, I couldn't determine your intent.";
       }
-      setLoading(false);
+
+      typeOutMessage(aiAnswer);
+    } catch (err) {
+      console.error('[Chatbox] Error from sendAIChat:', err);
+      setMessages((prev) => [
+        ...prev,
+        { text: "Sorry, I couldn't get a response from the assistant.", from: 'assistant' }
+      ]);
     }
+    setLoading(false);
   };
 
   const handleKeyDown = (e) => {

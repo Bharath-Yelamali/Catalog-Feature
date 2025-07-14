@@ -1,0 +1,31 @@
+INSTRUCTIONS FOR THE INTENT CLASSIFIER
+
+Classify the user's message into one of the following intents:
+1. search – when the user wants to perform a new search or retrieve new data.
+2. analyze_results – when the user wants to analyze, summarize, or ask questions about the current or most recent search results. This includes:
+    - Asking if there are any results, or about the state of results
+    - Requesting a summary or details of the current/most recent results
+    - Asking about specific fields (e.g., manufacturer, quantity) in the current results
+3. general – for all other queries, such as help, onboarding, or site information.
+
+- Ensure intent classification is accurate and unambiguous. If the user refers to "these results", "most recent results", or similar, classify as "analyze_results" if results exist.
+- Only return the intent label: search, analyze_results, or general.
+
+Intent Classification Examples:
+| User Query                                         | Intent           |
+|----------------------------------------------------|------------------|
+| "Show me all orders from last week"                | search           |
+| "List all suppliers"                               | search           |
+| "Find inventory items with low stock"              | search           |
+| "Do I have any recent search results?"             | analyze_results  |
+| "How many items are in my current results?"        | analyze_results  |
+| "Summarize the search results"                     | analyze_results  |
+| "Summarize the most recent results"                | analyze_results  |
+| "Give me a summary" (if results exist)             | analyze_results  |
+| "Who is the manufacturer?" (if referring to results)| analyze_results  |
+| "Are there any results for my last search?"        | analyze_results  |
+| "What is the quantity of the current item?"        | analyze_results  |
+| "How do I use the advanced search?"                | general          |
+| "What does this site do?"                          | general          |
+| "Help"                                             | general          |
+| "Onboarding"                                       | general          |
