@@ -295,6 +295,21 @@ function App() {
       setLastName("");
       setIdentities([]);
     }
+    // --- REDIRECT LOGIC FOR USE IT NOW BUTTON ---
+    const redirect = localStorage.getItem('redirectAfterLogin');
+    if (redirect === 'search') {
+      localStorage.removeItem('redirectAfterLogin');
+      setPage('search');
+      setTimeout(() => {
+        const event = { 
+          key: 'Enter',
+          searchMode: 'searchAll',
+          searchData: ''
+        };
+        handleSearch(event);
+      }, 0);
+      return;
+    }
     if (loginFromSearch) {
       setSearch(pendingSearch ?? '');
       setPendingSearch(null);
@@ -570,11 +585,14 @@ function App() {
         document.body
       )}
       <nav className="taskbar" style={{ display: 'flex', alignItems: 'center', paddingRight: 24 }}>
-        <div className="taskbar-title clickable" onClick={() => setPage('home')}>
+        <div className="taskbar-title clickable" onClick={() => setPage('home')} style={{ display: 'flex', alignItems: 'center' }}>
           <img src={wizardIcon} alt="Wizard Logo" className="taskbar-logo" />
+          {page === 'home' && (
+            <span style={{ color: '#fff', fontWeight: 600, fontSize: 22, marginLeft: 12, letterSpacing: '0.01em' }}>Scout</span>
+          )}
         </div>
         {/* Workflow navigation progress indicator (not buttons) */}
-        {accessToken && (
+        {accessToken && ['search', 'requiredFields', 'confirmationSummary'].includes(page) && (
           <div className="workflow-progress" style={{ display: 'flex', alignItems: 'center', gap: 18, marginLeft: 32 }}>
             {[
               { key: 'search', label: '1. Search' },
