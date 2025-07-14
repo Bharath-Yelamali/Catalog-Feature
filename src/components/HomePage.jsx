@@ -1,111 +1,153 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import shuffleIcon from '../assets/shuffle.svg';
+import sendIcon from '../assets/send.svg';
 
-const HomePage = ({ setPage, setSearch, handleSearch, accessToken, setJustSearched, username }) => {
-  const [homeSearch, setHomeSearch] = useState('');
+function AnimatedText({ text, className, baseDelay = 0, delayStep = 0.04, style }) {
+  // Support both string and array of {text, color}
+  if (typeof text === 'string') {
+    return (
+      <span className={className} style={style}>
+        {text.split('').map((char, i) => (
+          <span
+            key={i}
+            style={{
+              opacity: 0,
+              display: 'inline-block',
+              animation: 'fadeInChar 0.5s forwards',
+              animationDelay: `${baseDelay + i * delayStep}s`,
+            }}
+          >
+            {char === ' ' ? '\u00A0' : char}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  // If array, render each segment with its color
+  let charIdx = 0;
+  return (
+    <span className={className} style={style}>
+      {text.map((seg, segIdx) => (
+        seg.text.split('').map((char, i) => {
+          const idx = charIdx++;
+          return (
+            <span
+              key={segIdx + '-' + i}
+              style={{
+                opacity: 0,
+                display: 'inline-block',
+                animation: 'fadeInChar 0.5s forwards',
+                animationDelay: `${baseDelay + idx * delayStep}s`,
+                color: seg.color || undefined,
+              }}
+            >
+              {char === ' ' ? '\u00A0' : char}
+            </span>
+          );
+        })
+      ))}
+    </span>
+  );
+}
 
-  const handleHomeSubmit = e => {
-    e.preventDefault();
-    if (!accessToken) {
-      if (typeof handleSearch === 'function') {
-        handleSearch({ key: 'Enter', preventDefault: () => {}, stopPropagation: () => {}, value: homeSearch });
-      }
-      return;
-    }
-    setSearch(homeSearch);
-    if (typeof setJustSearched === 'function') setJustSearched(true);
-    setPage('search');
-  };
+const headerText = [
+  { text: "Scout", color: "#2d72d9" },
+  { text: " is your hub for hardware discovery and procurement.", color: undefined }
+];
+const headerDuration = 0.1 + (headerText[0].text.length + headerText[1].text.length) * 0.01 + 0.05; // baseDelay + (chars * delayStep) + animation duration (shorter)
 
-  // Personalized greeting if logged in
-  const greeting = accessToken && username ? `Welcome back, ${username.split(' ')[0]}!` : null;
+const demoInputs = [
+  "How do I request a new SSD?",
+  "Show me all open orders for RAM.",
+  "Who is the supplier for part 12345?",
+  "Track delivery for order #9876.",
+  "What is the status of my procurement request?",
+  "Can you recommend a supplier for GPUs?",
+  "List all parts low in stock.",
+  "How do I expedite an order?",
+  "Show me the latest procurement trends.",
+  "What are the lead times for SSDs?"
+];
+
+const typewriterDelay = 0.025;
+
+const HomePage = ({ setPage, accessToken }) => {
+  const [demoIdx, setDemoIdx] = useState(0);
+  const [resetKey, setResetKey] = useState(0);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDemoIdx(idx => {
+        const nextIdx = (idx + 1) % demoInputs.length;
+        setResetKey(prev => prev + 1); // force re-render for animation
+        return nextIdx;
+      });
+    }, demoInputs[demoIdx].length * typewriterDelay * 1000 + 4000); // 4s buffer after typewriter
+    return () => clearTimeout(timeout);
+  }, [demoIdx]);
 
   return (
-    <div>
-      {/* Hero Banner Section */}
-      <div className="homepage-banner">
-        <form className="homepage-banner-searchbar" onSubmit={handleHomeSubmit}>
-          {greeting && <div className="homepage-greeting">{greeting}</div>}
-          <div className="homepage-title-box">
-            <div className="homepage-banner-title">The hardware part search catalog</div>
-            <div className="homepage-banner-subtitle">Find hardware parts, models, suppliers, or procurement orders instantly.</div>
-          </div>
-          <div className="homepage-banner-searchbar-row">
-            <div className="homepage-search-input-wrapper">
-              <span className="homepage-search-icon" aria-hidden="true">🔍</span>
-              <input
-                type="text"
-                value={homeSearch}
-                onChange={e => setHomeSearch(e.target.value)}
-                placeholder="e.g. SSD, Dell PowerEdge, supplier name…"
-                aria-label="Search for hardware parts, models, or suppliers"
-                autoFocus
-              />
-            </div>
-            <button type="submit" className="homepage-banner-searchbar-btn" aria-label="Search">Search</button>
-          </div>
-        </form>
+    <div className="homepage-root">
+      <AnimatedText
+        text={headerText}
+        className="homepage-header-text"
+        baseDelay={0.1}
+        delayStep={0.012}
+      />
+      <div
+        className="homepage-footer-text"
+        style={{ animationDelay: `${headerDuration}s` }}
+      >
+        Plan, track, and create procurement requests with ease. Streamline your hardware sourcing and order management.
       </div>
-      {/* About Section */}
-      <section className="homepage-about-section">
-        <div className="homepage-about-container">
-          <h2>Welcome to the Inventory Catalog</h2>
-          <p>
-            This site is your one-stop platform for searching, requesting, and tracking hardware parts and procurement orders across your organization. Whether you need to find a specific component, submit a new purchase request, or follow the status of your order through the procurement workflow, this catalog makes the process simple and transparent.
-          </p>
-        </div>
-      </section>
-      {/* Feature Highlights Section */}
-      <section className="homepage-features-section">
-        <div className="homepage-features-container">
-          <h3>What you can do here</h3>
-          <div className="homepage-features-grid">
-            <div className="homepage-feature-card">
-              <h4>🔍 Powerful Search</h4>
-              <p>Find hardware parts, models, and suppliers quickly using advanced search and filtering tools.</p>
-            </div>
-            <div className="homepage-feature-card">
-              <h4>📝 Easy Order Requests</h4>
-              <p>Submit new procurement requests with guided forms and required field checks.</p>
-            </div>
-            <div className="homepage-feature-card">
-              <h4>📦 Track Your Orders</h4>
-              <p>View the status and workflow of your orders in real time, including approvals, shipment, and payment.</p>
-            </div>
-            <div className="homepage-feature-card">
-              <h4>📄 Attachments & Notes</h4>
-              <p>Upload quotes, files, and add notes to keep all order information in one place.</p>
-            </div>
-            <div className="homepage-feature-card">
-              <h4>👥 Team Collaboration</h4>
-              <p>Work with coordinators, reviewers, and suppliers to keep procurement moving smoothly.</p>
-            </div>
-            <div className="homepage-feature-card">
-              <h4>🔔 Notifications</h4>
-              <p>Get notified about order status changes, approvals, and required actions.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-      {/* How It Works Section */}
-      <section className="homepage-how-section">
-        <div className="homepage-how-container">
-          <h3>How it works</h3>
-          <ol className="homepage-how-list">
-            <li><b>Search</b> for the part or order you need.</li>
-            <li><b>Submit</b> a new request or view order details.</li>
-            <li><b>Track</b> your order through the procurement workflow.</li>
-            <li><b>Receive</b> notifications and updates at every step.</li>
-          </ol>
-        </div>
-      </section>
-      {/* Contact/Help Section */}
-      <section className="homepage-help-section">
-        <div className="homepage-help-container">
-          <h3>Need help?</h3>
-          <p>Check the <a href="#" className="homepage-faq-link">FAQ</a> or contact your procurement team for support.</p>
-        </div>
-      </section>
-      <div className="homepage-bottom-spacer" />
+      {!accessToken && (
+        <button
+          className="homepage-get-started-btn"
+          style={{ animationDelay: `${headerDuration + 0.7}s` }}
+          onClick={() => setPage && setPage('login')}
+        >
+          Get Started
+        </button>
+      )}
+      {/* Demo Chatbox */}
+      <div className="homepage-demo-chatbox">
+        <AnimatedText
+          key={resetKey}
+          text={demoInputs[demoIdx]}
+          baseDelay={0.1}
+          delayStep={typewriterDelay}
+          style={{ textAlign: 'left', width: '100%' }}
+        />
+        <button
+          className="homepage-suggestion-btn"
+          onClick={() => setDemoIdx(idx => {
+            let nextIdx;
+            do {
+              nextIdx = Math.floor(Math.random() * demoInputs.length);
+            } while (nextIdx === demoIdx && demoInputs.length > 1);
+            setResetKey(prev => prev + 1);
+            return nextIdx;
+          })}
+        >
+          <img src={shuffleIcon} alt="Shuffle" className="homepage-suggestion-icon" />
+          Create a new suggestion
+        </button>
+        <button
+          className="homepage-use-btn"
+          onClick={() => {
+            if (accessToken) {
+              setPage && setPage('search');
+            } else {
+              // Set a flag in localStorage to redirect after login
+              localStorage.setItem('redirectAfterLogin', 'search');
+              setPage && setPage('login');
+            }
+          }}
+        >
+          <img src={sendIcon} alt="Send" className="homepage-use-icon" />
+          Use it now
+        </button>
+      </div>
     </div>
   );
 };
