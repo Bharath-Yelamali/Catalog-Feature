@@ -19,7 +19,7 @@ If the user's intent is to search for inventory items, parts, or orders, your ta
     - m_inventory_description
     - m_id
     - m_project
-    - m_custodian
+    - m_custodian@aras.keyed_name
     - m_parent_ref_path
 - If a user term does not match any of these, ignore it.
 - Print out the list of matched backend field names, one per line, and nothing else.
@@ -37,7 +37,7 @@ Negative Example (DO NOT DO THIS):
 
 Correct Example:
 {
-  "m_custodian": { "operator": "contains", "value": "topher" }
+  "m_custodian@aras.keyed_name": { "operator": "contains", "value": "topher" }
 }
 
 
@@ -60,7 +60,7 @@ Formatting Examples (always use "contains" as the operator):
 - User: "List all parts with Hardware Custodian is John Doe and Parent Path contains 'A1'"
   Output:
   {
-    "m_custodian": { "operator": "contains", "value": "John Doe" },
+    "m_custodian@aras.keyed_name": { "operator": "contains", "value": "John Doe" },
     "m_parent_ref_path": { "operator": "contains", "value": "A1" }
   }
 
@@ -68,7 +68,7 @@ Formatting Examples (always use "contains" as the operator):
   Output:
   {
     "m_id": { "operator": "contains", "value": "555" },
-    "m_custodian": { "operator": "contains", "value": "Smith" }
+    "m_custodian@aras.keyed_name": { "operator": "contains", "value": "Smith" }
   }
 
 - User: "List all parts with Parent Path contains 'A1/B2/C3'"
@@ -82,7 +82,7 @@ Formatting Examples (always use "contains" as the operator):
   {
     "m_mfg_name": { "operator": "contains", "value": "Acme" },
     "m_inventory_description": { "operator": "contains", "value": "Obsolete" },
-    "m_custodian": { "operator": "contains", "value": "John Doe" }
+    "m_custodian@aras.keyed_name": { "operator": "contains", "value": "John Doe" }
   }
 
 

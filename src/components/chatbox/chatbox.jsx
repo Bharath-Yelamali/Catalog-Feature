@@ -5,7 +5,7 @@ import wizardIcon from '../../assets/wizard.svg';
 import '../../styles/ChatBox.css';
 import { sendAIChat, sendIntentAI } from '../../api/aiChat';
 
-const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
+const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearchConditions }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]); // Store chat messages
   const [loading, setLoading] = useState(false);
@@ -89,6 +89,24 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults }) => {
           });
           const data = await res.json();
           if (data.search) {
+            // Convert model JSON to conditions array
+            const conditions = Object.entries(data.search).map(([field, { operator, value }]) => ({
+              field,
+              operator,
+              value
+            }));
+            console.log('[Chatbox] Model JSON received:', data.search);
+            console.log('[Chatbox] Converted conditions array:', conditions);
+            // Trigger filtering (replace with your actual callback/prop)
+            if (typeof window.onGlobalSearchConditions === 'function') {
+              console.log('[Chatbox] Calling window.onGlobalSearchConditions with:', { conditions, logicalOperator: 'and' });
+              window.onGlobalSearchConditions({ conditions, logicalOperator: 'and' });
+            } else if (typeof onGlobalSearchConditions === 'function') {
+              console.log('[Chatbox] Calling onGlobalSearchConditions prop with:', { conditions, logicalOperator: 'and' });
+              onGlobalSearchConditions({ conditions, logicalOperator: 'and' });
+            } else {
+              console.warn('[Chatbox] No global search callback found to trigger filter update.');
+            }
             aiAnswer = 'AI-generated search JSON:\n' + JSON.stringify(data.search, null, 2);
           } else if (data.error) {
             aiAnswer = 'Error: ' + data.error + (data.raw ? ('\nRaw: ' + data.raw) : '');

@@ -442,7 +442,7 @@ function App() {
   };
 
   // Handler for global search bar
-  const handleGlobalSearchConditionsChange = ({ conditions, logicalOperator }) => {
+  const handleGlobalSearchConditions = ({ conditions, logicalOperator }) => {
     setFilterConditions(conditions || []);
     setLogicalOperator(logicalOperator || 'or');
     handleFilterSearch({ conditions, logicalOperator });
@@ -474,7 +474,12 @@ function App() {
   return (
     <div>
       {/* Render Chatbox at the top level so it does not overlap nav/header */}
-      <Chatbox open={chatOpen} onClose={() => handleSetChatOpen(false)} searchResults={chatboxResults} />
+      <Chatbox
+        open={chatOpen}
+        onClose={() => handleSetChatOpen(false)}
+        searchResults={chatboxResults}
+        onGlobalSearchConditions={handleGlobalSearchConditions}
+      />
       {showSessionPopup && (
         <div className="session-popup-overlay" onClick={() => setShowSessionPopup(false)}>
           <div className="session-popup" onClick={e => e.stopPropagation()}>
