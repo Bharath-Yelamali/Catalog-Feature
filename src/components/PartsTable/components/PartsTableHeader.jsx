@@ -68,7 +68,7 @@ const PartsTableHeader = ({
           <button
             className="clear-search-btn"
             style={{
-              marginLeft: 8,
+              marginLeft: 0,
               background: '#f5f5f5',
               border: '1px solid #ccc',
               borderRadius: 4,
@@ -78,7 +78,18 @@ const PartsTableHeader = ({
               color: '#333',
               fontSize: 13,
               minWidth: 0,
+              minHeight: 30,
               transition: 'background 0.2s, color 0.2s'
+              
+              
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = '#9a9a9aff';
+              e.currentTarget.style.color = '#fff';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = '#ffffffff';
+              e.currentTarget.style.color = '#000000ff';
             }}
             onClick={onClearSearch}
             title="Clear all search and filters"
