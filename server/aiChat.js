@@ -165,20 +165,21 @@ router.post('/ai-search-query', async (req, res) => {
     let searchJson;
     try {
       searchJson = JSON.parse(aiMessage);
+      return res.json({ search: searchJson, isJson: true });
     } catch (err) {
       // If the model returns extra text, try to extract JSON
       const match = aiMessage.match(/\{[\s\S]*\}/);
       if (match) {
         try {
           searchJson = JSON.parse(match[0]);
+          return res.json({ search: searchJson, isJson: true });
         } catch (parseErr) {
-          return res.status(500).json({ error: 'Failed to parse AI-generated search JSON', details: aiMessage });
+          // fall through to send raw text
         }
-      } else {
-        return res.status(500).json({ error: 'No valid JSON found in AI response', details: aiMessage });
       }
+      // If not valid JSON, return the raw text and isJson: false
+      return res.json({ result: aiMessage, isJson: false });
     }
-    res.json({ search: searchJson });
   } catch (error) {
     console.error('[aiChat.js] Error in /ai-search-query:', error?.response?.data || error.message || error);
     res.status(500).json({ error: error?.response?.data?.error?.message || error.message || 'Unknown error' });

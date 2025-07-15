@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
+
 import sendIcon from '../../assets/send.svg';
 import garbageIcon from '../../assets/garbage.svg';
 import wizardIcon from '../../assets/wizard.svg';
+import jsonIcon from '../../assets/json.svg';
 import '../../styles/ChatBox.css';
 import { sendAIChat, sendIntentAI } from '../../api/aiChat';
 
@@ -9,6 +11,7 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]); // Store chat messages
   const [loading, setLoading] = useState(false);
+  const [showJson, setShowJson] = useState(true); // Toggle for showing JSON
   const textareaRef = useRef(null);
   const chatContentRef = useRef(null);
 
@@ -84,7 +87,7 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
       // Show a 'Thinking... (intent: ...)' message after intent is detected
       setMessages((prev) => [
         ...prev,
-        { text: `Thinking... (intent: ${JSON.stringify({ intent, logicalOperator })})`, from: 'assistant', typing: false }
+        { text: `(intent: ${JSON.stringify({ intent, logicalOperator })})`, from: 'assistant', typing: false, isIntent: true }
       ]);
 
       let aiAnswer = '';
@@ -106,8 +109,8 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
             body: JSON.stringify({ question: userMessage.text })
           });
           const data = await res.json();
-          if (data.search) {
-            // Convert model JSON to conditions array
+          if (data.isJson) {
+            // Model returned valid search JSON
             const conditions = Object.entries(data.search).map(([field, { operator, value }]) => ({
               field,
               operator,
@@ -125,20 +128,46 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
             } else {
               console.warn('[Chatbox] No global search callback found to trigger filter update.');
             }
-            aiAnswer = 'AI-generated search JSON:\n' + JSON.stringify(data.search, null, 2);
+            setMessages((prev) => [
+              ...prev,
+              { text: 'AI-generated search JSON:\n' + JSON.stringify(data.search, null, 2), from: 'assistant', isJson: true },
+              { text: 'Search completed!', from: 'assistant' }
+            ]);
+            aiAnswer = '';
+          } else if (data.isJson === false && typeof data.result === 'string') {
+            setMessages((prev) => [
+              ...prev,
+              { text: data.result, from: 'assistant' }
+            ]);
+            aiAnswer = '';
           } else if (data.error) {
-            aiAnswer = 'Error: ' + data.error + (data.raw ? ('\nRaw: ' + data.raw) : '');
+            setMessages((prev) => [
+              ...prev,
+              { text: 'Error: ' + data.error + (data.raw ? ('\nRaw: ' + data.raw) : ''), from: 'assistant' }
+            ]);
+            aiAnswer = '';
           } else {
-            aiAnswer = 'No search JSON returned.';
+            setMessages((prev) => [
+              ...prev,
+              { text: 'No search JSON returned.', from: 'assistant' }
+            ]);
+            aiAnswer = '';
           }
         } catch (err) {
-          aiAnswer = 'Failed to get search JSON from AI.';
+          setMessages((prev) => {
+            const msgs = prev.filter((m, i) => !(i === prev.length - 1 && m.isIntent));
+            return [
+              ...msgs,
+              { text: 'Failed to get search response from AI.', from: 'assistant' }
+            ];
+          });
+          aiAnswer = '';
         }
       } else {
         aiAnswer = "Sorry, I couldn't determine your intent.";
       }
 
-      typeOutMessage(aiAnswer);
+      if (aiAnswer) typeOutMessage(aiAnswer);
     } catch (err) {
       console.error('[Chatbox] Error from sendAIChat:', err);
       setMessages((prev) => [
@@ -171,36 +200,53 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
 
   return (
     <div className={`copilot-chat-sidebar${open ? ' open' : ''}`}>
-      <div className="copilot-chat-header" style={{ display: 'flex', alignItems: 'center' }}>
-        <span style={{ flex: 'none', fontWeight: 'bold' }}>Chat</span>
+      <div className="copilot-chat-header">
+        <span className="copilot-chat-header-title">Chat</span>
+        <div className="copilot-json-toggle-group">
+          <label className="copilot-json-slider">
+            <input
+              type="checkbox"
+              checked={showJson}
+              onChange={() => setShowJson((prev) => !prev)}
+              className="copilot-json-slider-input"
+            />
+            <span className={`copilot-json-slider-track${showJson ? ' checked' : ''}`}>
+              <span className={`copilot-json-slider-thumb${showJson ? ' checked' : ''}`}/>
+            </span>
+          </label>
+          <img src={jsonIcon} alt="JSON" className="copilot-json-icon" />
+          <span className="copilot-json-label">JSON Response</span>
+        </div>
         <button
           className="copilot-chat-clear"
           aria-label="Clear chat history"
-          style={{ background: 'none', border: 'none', padding: 0, marginLeft: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           onClick={handleClearChat}
         >
-          <img src={garbageIcon} alt="Clear chat" style={{ width: '20px', height: '20px', filter: 'invert(1)', marginRight: '8px' }} />
+          <img src={garbageIcon} alt="Clear chat" className="copilot-chat-clear-icon" />
         </button>
         <button className="copilot-chat-close" onClick={onClose} aria-label="Close chat">×</button>
       </div>
       <div className="copilot-chat-content" ref={chatContentRef}>
         {messages.length === 0 && !loading && (
-          <div className="copilot-chat-empty-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <img src={wizardIcon} alt="Wizard" style={{ width: '64px', height: '64px', marginBottom: '16px', opacity: 0.8 }} />
-            <div style={{ color: '#aaa', fontSize: '.9em', textAlign: 'center' }}>
+          <div className="copilot-chat-empty-state">
+            <img src={wizardIcon} alt="Wizard" className="copilot-chat-empty-state-icon" />
+            <div className="copilot-chat-empty-state-text">
               Start a conversation by typing your question below!
             </div>
           </div>
         )}
-        {messages.map((msg, idx) => (
-          <div key={idx} className={`copilot-chat-message ${msg.from}`}>
-            <div
-              className={`copilot-chat-bubble${msg.from === 'assistant' ? ' ai-bubble' : ''}`}
-            >
-              {msg.text}
+        {messages.map((msg, idx) => {
+          if ((msg.isJson || msg.isIntent) && !showJson) return null;
+          return (
+            <div key={idx} className={`copilot-chat-message ${msg.from}`}>
+              <div
+                className={`copilot-chat-bubble${msg.from === 'assistant' ? ' ai-bubble' : ''}`}
+              >
+                {msg.text}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {loading && (
           <div className="copilot-chat-message assistant">
             <div className="copilot-chat-bubble ai-bubble">
