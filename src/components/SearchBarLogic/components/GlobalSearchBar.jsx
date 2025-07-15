@@ -6,19 +6,15 @@ import { searchableFields } from '../constants';
  * GlobalSearchBar - a text input for global search, styled to align with other search bar controls.
  * Triggers a filter search with 8 OR'ed conditions for server-side filtering.
  */
-export function GlobalSearchBar({ value, onGlobalSearchConditionsChange, placeholder = 'Global search...' }) {
-  const [inputValue, setInputValue] = useState(value);
+export function GlobalSearchBar({ value, setInputValue, onGlobalSearchConditionsChange, placeholder = 'Global search...' }) {
   const debounceTimeout = useRef(null);
-
-  // Synchronize local inputValue with parent value prop
-  useEffect(() => {
-    setInputValue(value);
-  }, [value]);
 
   // Handler for input change
   const handleChange = (e) => {
     const newValue = e.target.value;
-    setInputValue(newValue);
+    if (typeof setInputValue === 'function') {
+      setInputValue(newValue);
+    }
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
       handleGlobalSearch(newValue);
@@ -54,7 +50,7 @@ export function GlobalSearchBar({ value, onGlobalSearchConditionsChange, placeho
         fontSize: 15,
         width: 220
       }}
-      value={inputValue}
+      value={value}
       onChange={handleChange}
       aria-label="Global search"
     />
@@ -63,6 +59,7 @@ export function GlobalSearchBar({ value, onGlobalSearchConditionsChange, placeho
 
 GlobalSearchBar.propTypes = {
   value: PropTypes.string.isRequired,
+  setInputValue: PropTypes.func,
   onGlobalSearchConditionsChange: PropTypes.func.isRequired,
   placeholder: PropTypes.string
 };

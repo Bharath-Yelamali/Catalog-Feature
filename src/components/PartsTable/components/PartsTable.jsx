@@ -23,6 +23,21 @@ function getVisibleFields(allFields, hiddenFields) {
 }
 
 function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen, onResultsChange }) {
+  // Handler to clear all search, filters, and results
+  const handleClearSearch = () => {
+    // Clear both the local and global search input fields
+    setLocalSearch("");
+    if (typeof setSearch === 'function') {
+      setSearch(""); // Clear the global search prop/state
+    }
+    // If the search prop is used to initialize localSearch, also sync it
+    // Clear all filters and results
+    setFilterConditions([]);
+    setInputValues({});
+    setGlobalSearchResults(null);
+    setHasUnprocessedChanges(true);
+    // Optionally, reset other state like selected, quantities, etc.
+  };
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // Remove old selected/quantity logic for flat parts
@@ -328,6 +343,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         }}
         chatOpen={chatOpen}
         setChatOpen={setChatOpen}
+        onClearSearch={handleClearSearch}
       />
       {/* Wrap main table/results area in a container that shifts when chat is open */}
       <div className={`main-table-area${chatOpen ? ' chat-open' : ''}`}>

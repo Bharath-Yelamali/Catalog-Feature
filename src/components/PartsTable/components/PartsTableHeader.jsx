@@ -15,7 +15,8 @@ const PartsTableHeader = ({
   localSearch, setLocalSearch, setGlobalSearchResults, accessToken, onGlobalSearchConditionsChange,
   // Other
   loading, resultsToDisplay, selected, quantities, handleExport, setPage,
-  chatOpen, setChatOpen // <-- Add chatOpen and setChatOpen props
+  chatOpen, setChatOpen,
+  onClearSearch // <-- Add onClearSearch prop
 }) => {
   const [infoDropdownOpen, setInfoDropdownOpen] = useState(false);
 
@@ -64,6 +65,27 @@ const PartsTableHeader = ({
             accessToken={accessToken}
             onGlobalSearchConditionsChange={onGlobalSearchConditionsChange}
           />
+          <button
+            className="clear-search-btn"
+            style={{
+              marginLeft: 8,
+              background: '#f5f5f5',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              padding: '4px 8px',
+              cursor: 'pointer',
+              fontWeight: 500,
+              color: '#333',
+              fontSize: 13,
+              minWidth: 0,
+              transition: 'background 0.2s, color 0.2s'
+            }}
+            onClick={onClearSearch}
+            title="Clear all search and filters"
+            aria-label="Clear all search and filters"
+          >
+            Clear
+          </button>
           <span className="item-count-text" style={{ marginLeft: 8 }}>
             {loading ? (
               <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
