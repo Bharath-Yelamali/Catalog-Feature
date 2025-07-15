@@ -60,13 +60,31 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
     try {
       // Step 1: Get intent using the dedicated intent model
       const intentResult = await sendIntentAI({ question: userMessage.text });
-      const intent = intentResult.intent;
+      let intent, logicalOperator;
+      // Handle stringified JSON, object, or string intent responses
+      if (typeof intentResult.intent === 'string' && intentResult.intent.trim().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(intentResult.intent);
+          intent = parsed.intent;
+          logicalOperator = parsed.logicalOperator || 'and';
+        } catch (e) {
+          intent = intentResult.intent;
+          logicalOperator = intentResult.logicalOperator || 'and';
+        }
+      } else if (typeof intentResult.intent === 'object' && intentResult.intent !== null) {
+        intent = intentResult.intent.intent;
+        logicalOperator = intentResult.intent.logicalOperator || 'and';
+      } else {
+        intent = intentResult.intent;
+        logicalOperator = intentResult.logicalOperator || 'and';
+      }
       console.log('[Chatbox] Detected intent:', intent);
+      console.log('[Chatbox] Detected logicalOperator:', logicalOperator);
 
       // Show a 'Thinking... (intent: ...)' message after intent is detected
       setMessages((prev) => [
         ...prev,
-        { text: `Thinking... (intent: ${intent})`, from: 'assistant', typing: false }
+        { text: `Thinking... (intent: ${JSON.stringify({ intent, logicalOperator })})`, from: 'assistant', typing: false }
       ]);
 
       let aiAnswer = '';
@@ -99,11 +117,11 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
             console.log('[Chatbox] Converted conditions array:', conditions);
             // Trigger filtering (replace with your actual callback/prop)
             if (typeof window.onGlobalSearchConditions === 'function') {
-              console.log('[Chatbox] Calling window.onGlobalSearchConditions with:', { conditions, logicalOperator: 'and' });
-              window.onGlobalSearchConditions({ conditions, logicalOperator: 'and' });
+              console.log('[Chatbox] Calling window.onGlobalSearchConditions with:', { conditions, logicalOperator });
+              window.onGlobalSearchConditions({ conditions, logicalOperator });
             } else if (typeof onGlobalSearchConditions === 'function') {
-              console.log('[Chatbox] Calling onGlobalSearchConditions prop with:', { conditions, logicalOperator: 'and' });
-              onGlobalSearchConditions({ conditions, logicalOperator: 'and' });
+              console.log('[Chatbox] Calling onGlobalSearchConditions prop with:', { conditions, logicalOperator });
+              onGlobalSearchConditions({ conditions, logicalOperator });
             } else {
               console.warn('[Chatbox] No global search callback found to trigger filter update.');
             }

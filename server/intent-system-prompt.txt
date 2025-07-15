@@ -9,14 +9,19 @@ Classify the user's message into one of the following intents:
 3. general – for all other queries, such as help, onboarding, or site information.
 
 - Ensure intent classification is accurate and unambiguous. If the user refers to "these results", "most recent results", or similar, classify as "analyze_results" if results exist.
-- Only return the intent label: search, analyze_results, or general.
+
+- If the intent is 'search', also determine the appropriate logical operator for the search: "and" (all conditions must match) or "or" (any condition can match). Use "or" if the user says "or", "any of these", or similar. Use "and" if the user says "and", "all of these", or gives a list of requirements. If unsure, default to "and".
+- For 'search' intent, return a JSON object with both fields: { "intent": "search", "logicalOperator": "and" } or { "intent": "search", "logicalOperator": "or" } as appropriate.
+- For all other intents, return only the intent label as before.
 
 Intent Classification Examples:
-| User Query                                         | Intent           |
+| User Query                                         | Intent/Output    |
 |----------------------------------------------------|------------------|
-| "Show me all orders from last week"                | search           |
-| "List all suppliers"                               | search           |
-| "Find inventory items with low stock"              | search           |
+| "Show me all orders from last week"                | { "intent": "search", "logicalOperator": "and" } |
+| "List all suppliers"                               | { "intent": "search", "logicalOperator": "and" } |
+| "Find inventory items with low stock"              | { "intent": "search", "logicalOperator": "and" } |
+| "Show me items with manufacturer Acme or Beta"     | { "intent": "search", "logicalOperator": "or" }  |
+| "Find items where any of these fields match..."    | { "intent": "search", "logicalOperator": "or" }  |
 | "Do I have any recent search results?"             | analyze_results  |
 | "How many items are in my current results?"        | analyze_results  |
 | "Summarize the search results"                     | analyze_results  |
