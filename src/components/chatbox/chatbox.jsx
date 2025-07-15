@@ -210,8 +210,8 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
               onChange={() => setShowJson((prev) => !prev)}
               className="copilot-json-slider-input"
             />
-            <span className={`copilot-json-slider-track${showJson ? ' checked' : ''}`}>
-              <span className={`copilot-json-slider-thumb${showJson ? ' checked' : ''}`}/>
+            <span className={`copilot-json-slider-bar${showJson ? ' checked' : ''}`}>
+              <span className={`copilot-json-slider-knob${showJson ? ' checked' : ''}`}/>
             </span>
           </label>
           <img src={jsonIcon} alt="JSON" className="copilot-json-icon" />

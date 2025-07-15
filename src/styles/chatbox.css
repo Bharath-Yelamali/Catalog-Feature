@@ -40,7 +40,7 @@
   display: inline-block;
   margin-right: 0.5em;
 }
-.copilot-json-slider.checked .copilot-json-slider-bar {
+.copilot-json-slider-bar.checked {
   background: #2d72d9;
 }
 .copilot-json-slider-knob {
