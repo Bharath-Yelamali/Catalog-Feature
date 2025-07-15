@@ -12,6 +12,8 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
   const [messages, setMessages] = useState([]); // Store chat messages
   const [loading, setLoading] = useState(false);
   const [showJson, setShowJson] = useState(true); // Toggle for showing JSON
+  const [lastSearchJson, setLastSearchJson] = useState(null); // Store last valid search JSON
+  const [lastLogicalOperator, setLastLogicalOperator] = useState('and'); // Store last logical operator
   const textareaRef = useRef(null);
   const chatContentRef = useRef(null);
 
@@ -94,23 +96,92 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
 
       if (intent === 'analyze_results') {
         // Step 2a: Analyze results using the main answer model
-        const answerResult = await sendAIChat({ question: userMessage.text, results: searchResults });
+        const payload = { question: userMessage.text, results: searchResults };
+        console.log('[Chatbox] Posting to answer model (analyze_results):', payload);
+        const answerResult = await sendAIChat(payload);
         aiAnswer = answerResult.answer;
       } else if (intent === 'general') {
         // Step 2b: General question using the main answer model
-        const answerResult = await sendAIChat({ question: userMessage.text });
+        const payload = { question: userMessage.text };
+        console.log('[Chatbox] Posting to answer model (general):', payload);
+        const answerResult = await sendAIChat(payload);
         aiAnswer = answerResult.answer;
+      } else if (intent === 'refine') {
+        // Step 2d: Refine previous search
+        // Get last user query from messages array
+        const lastUserMessage = messages.filter(m => m.from === 'user').slice(-1)[0];
+        const lastUserQuery = lastUserMessage ? lastUserMessage.text : '';
+        const payload = {
+          previousQuery: lastUserQuery,
+          previousSearch: lastSearchJson,
+          logicalOperator: lastLogicalOperator,
+          question: userMessage.text
+        };
+        // Removed verbose log of instructions payload
+        const res = await fetch('/api/ai-search-query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.isJson) {
+          setLastSearchJson(data.search);
+          setLastLogicalOperator(logicalOperator);
+          // Trigger filtering (same as search intent)
+          const conditions = Object.entries(data.search).map(([field, { operator, value }]) => ({
+            field,
+            operator,
+            value
+          }));
+          if (typeof window.onGlobalSearchConditions === 'function') {
+            console.log('[Chatbox] Calling window.onGlobalSearchConditions with:', { conditions, logicalOperator });
+            window.onGlobalSearchConditions({ conditions, logicalOperator });
+          } else if (typeof onGlobalSearchConditions === 'function') {
+            console.log('[Chatbox] Calling onGlobalSearchConditions prop with:', { conditions, logicalOperator });
+            onGlobalSearchConditions({ conditions, logicalOperator });
+          } else {
+            console.warn('[Chatbox] No global search callback found to trigger filter update.');
+          }
+          // Add a message to chat
+          setMessages((prev) => [
+            ...prev,
+            { text: 'Refined search JSON:\n' + JSON.stringify(data.search, null, 2), from: 'assistant', isJson: true },
+            { text: 'Search refined!', from: 'assistant' }
+          ]);
+          aiAnswer = '';
+        } else if (data.isJson === false && typeof data.result === 'string') {
+          setMessages((prev) => [
+            ...prev,
+            { text: data.result, from: 'assistant' }
+          ]);
+          aiAnswer = '';
+        } else if (data.error) {
+          setMessages((prev) => [
+            ...prev,
+            { text: 'Error: ' + data.error + (data.raw ? ('\nRaw: ' + data.raw) : ''), from: 'assistant' }
+          ]);
+          aiAnswer = '';
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { text: 'No refined search JSON returned.', from: 'assistant' }
+          ]);
+          aiAnswer = '';
+        }
       } else if (intent === 'search') {
         // Step 2c: Call /api/ai-search-query and print the JSON in the chatbox
         try {
+          const payload = { question: userMessage.text };
+          console.log('[Chatbox] Posting to answer model (search):', payload);
           const res = await fetch('/api/ai-search-query', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question: userMessage.text })
+            body: JSON.stringify(payload)
           });
           const data = await res.json();
           if (data.isJson) {
-            // Model returned valid search JSON
+            setLastSearchJson(data.search);
+            setLastLogicalOperator(logicalOperator);
             const conditions = Object.entries(data.search).map(([field, { operator, value }]) => ({
               field,
               operator,

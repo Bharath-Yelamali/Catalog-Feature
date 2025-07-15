@@ -131,15 +131,27 @@ module.exports = router;
 // This endpoint takes a user question and returns a generated search JSON using Azure OpenAI
 router.post('/ai-search-query', async (req, res) => {
   try {
-    const { question } = req.body;
+    // Log the full payload received for debugging
     console.log('[aiChat.js] Received /ai-search-query POST');
+    console.log('[aiChat.js] Full payload received:', JSON.stringify(req.body, null, 2));
+    const { question, previousQuery, previousSearch, logicalOperator } = req.body;
     console.log('[aiChat.js] question:', question);
-
+    if (previousQuery) console.log('[aiChat.js] previousQuery:', previousQuery);
+    if (previousSearch) console.log('[aiChat.js] previousSearch:', JSON.stringify(previousSearch, null, 2));
+    if (logicalOperator) console.log('[aiChat.js] logicalOperator:', logicalOperator);
 
     // Use the same system prompt as /ai-chat (from answer-system-prompt.txt or env)
     let searchSystemPrompt = SYSTEM_PROMPT;
     if (!searchSystemPrompt) {
       searchSystemPrompt = process.env.AZURE_OPENAI_SYSTEM_PROMPT || '';
+    }
+
+    let userMessage;
+    // If this is a refine intent, format the user message to include all context
+    if (previousQuery && previousSearch) {
+      userMessage = `Previous Query: ${previousQuery}\nPrevious Search JSON:\n${JSON.stringify(previousSearch, null, 2)}\nNew Query: ${question}`;
+    } else {
+      userMessage = question;
     }
 
     const url = `${AZURE_OPENAI_ENDPOINT}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=${AZURE_OPENAI_API_VERSION}`;
@@ -150,7 +162,7 @@ router.post('/ai-search-query', async (req, res) => {
     const data = {
       messages: [
         { role: 'system', content: searchSystemPrompt },
-        { role: 'user', content: question },
+        { role: 'user', content: userMessage },
       ],
       temperature: 0,
       max_tokens: 512,
@@ -158,6 +170,7 @@ router.post('/ai-search-query', async (req, res) => {
       frequency_penalty: 0,
       presence_penalty: 0
     };
+    // Removed verbose log of instructions payload
     console.log('[aiChat.js] Sending request to Azure OpenAI for search JSON...');
     const response = await axios.post(url, data, { headers });
     const aiMessage = response.data.choices?.[0]?.message?.content || '{}';
