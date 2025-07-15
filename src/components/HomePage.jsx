@@ -57,16 +57,16 @@ const headerText = [
 const headerDuration = 0.1 + (headerText[0].text.length + headerText[1].text.length) * 0.01 + 0.05; // baseDelay + (chars * delayStep) + animation duration (shorter)
 
 const demoInputs = [
-  "How do I request a new SSD?",
-  "Show me all open orders for RAM.",
-  "Who is the supplier for part 12345?",
-  "Track delivery for order #9876.",
-  "What is the status of my procurement request?",
-  "Can you recommend a supplier for GPUs?",
-  "List all parts low in stock.",
-  "How do I expedite an order?",
-  "Show me the latest procurement trends.",
-  "What are the lead times for SSDs?"
+  "How do I search for parts by manufacturer and type?",
+  "Can I filter parts by both status and location?",
+  "Show me parts with manufacturer Acme or Delta.",
+  "Find all parts where the type is SSD and the status is active.",
+  "How do I use 'or' in my search?",
+  "List parts with location 'Warehouse A' or 'Warehouse B'.",
+  "What fields can I use to filter parts?",
+  "Find parts with serial number starting with 'X1'.",
+  "How do I clear all filters?",
+  "Show me parts with manufacturer Acme and location 'Main Facility'."
 ];
 
 const typewriterDelay = 0.025;
