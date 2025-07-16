@@ -1,3 +1,4 @@
+
 /* ==========================================================================
    Parts Table
    ========================================================================== */
@@ -25,7 +26,137 @@
   padding-top: 1px;
 }
 
-/* Removed justify-content: center; so content starts at the top */
+/* Loading message for PartsTable */
+.searching-message {
+  padding: 2rem;
+  text-align: center;
+  color: #888;
+}
+/* Header Flex Group for search and actions */
+.header-flex-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Header Buttons (Clear, Surplus, Download, Next, Chat) */
+.header-btn {
+  margin-left: 12px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #222;
+  font-size: 15px;
+  min-width: 0;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s, color 0.2s;
+  opacity: 1;
+}
+.header-btn:disabled,
+.header-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.header-btn:hover:not(:disabled) {
+  background: #9a9a9aff;
+  color: #fff;
+}
+.clear-search-btn {
+  margin-left: 0;
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  color: #333;
+  font-size: 13px;
+}
+.clear-search-btn:hover {
+  background: #9a9a9aff;
+  color: #fff;
+}
+.surplus-request-btn {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  padding: 10px 32px;
+  color: #000;
+  font-size: 15px;
+}
+.surplus-request-btn:hover {
+  background: #9a9a9aff;
+  color: #fff;
+}
+.download-export-btn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.next-btn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.chat-btn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+}
+.header-btn-icon {
+  width: 28px;
+  height: 28px;
+}
+.header-btn-label {
+  margin-left: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #222;
+}
+.item-count-text {
+  margin-left: 8px;
+}
+.default-react-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+}
+.info-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+.info-icon {
+  width: 22px;
+  height: 22px;
+  margin-left: 8px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.info-dropdown {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  padding: 6px 10px;
+  min-width: 220px;
+  z-index: 100;
+  color: #222;
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 0;
+  border: none;
+  outline: none;
+  box-sizing: border-box;
+}
 
 /* Empty state styles - centered content */
 .search-results-empty {
@@ -62,6 +193,7 @@
   color: #2563eb;
   letter-spacing: 0.2px;
 }
+
 
 .search-results-empty .empty-desc {
   margin-bottom: 14px;

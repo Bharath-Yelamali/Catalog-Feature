@@ -1,7 +1,18 @@
+/**
+ * PartsTable Component
+ * ---------------------
+ * Renders the main parts table UI, including filtering, selection, export, and instance management.
+ *
+ * Features:
+ * - Dynamic filtering and field visibility management
+ * - Row expansion for instance details and admin controls
+ * - Export selected parts to XLSX
+ * - Integration with AI chat and search utilities
+ * - Robust state management for selection, quantities, and filters
+ */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { updateSpareValue } from '../../../api/parts';
 import { useFieldManagement, useFilterManagement, useSearchUtilities } from '../../SearchBarLogic';
-import personIcon from '../../../assets/person.svg';
 import * as XLSX from 'xlsx';
 import PartsTableHeader from './PartsTableHeader';
 import PartsTableMainRow from './PartsTableMainRow';
@@ -10,7 +21,12 @@ import InstanceSection from './InstanceSection';
 import ExpandedModal from './ExpandedModal';
 import EmptyState from './EmptyState';
 
-// Utility to get visible fields (not hidden)
+/**
+ * Returns an array of visible field keys (not hidden).
+ * @param {Array} allFields - Array of field objects or strings
+ * @param {Object} hiddenFields - Object with field keys as keys and true/false as values
+ * @returns {Array}
+ */
 function getVisibleFields(allFields, hiddenFields) {
   // allFields: array of field objects or strings
   // hiddenFields: object with field keys as keys and true/false as values
@@ -22,6 +38,27 @@ function getVisibleFields(allFields, hiddenFields) {
   return allFields.filter(field => !hiddenFields[field]);
 }
 
+/**
+ * Main table UI for parts and their instances.
+ * @param {Object} props
+ * @param {Array} props.results - Array of part groups
+ * @param {Object} props.selected - Selected parts by itemNumber
+ * @param {Function} props.setSelected - Setter for selected parts
+ * @param {Object} props.quantities - Quantities for each part
+ * @param {Function} props.setQuantities - Setter for quantities
+ * @param {string} [props.search] - Search string
+ * @param {Function} [props.setSearch] - Setter for search string
+ * @param {Function} props.setPage - Setter for pagination
+ * @param {boolean} props.isAdmin - Whether the user is an admin
+ * @param {string} props.accessToken - Auth token
+ * @param {Function} props.onFilterSearch - Handler for filter search
+ * @param {boolean} props.loading - Loading state
+ * @param {any} props.spinner - Spinner component
+ * @param {boolean} props.chatOpen - Whether chat is open
+ * @param {Function} props.setChatOpen - Setter for chat open state
+ * @param {Function} props.onResultsChange - Handler for results change
+ * @returns {JSX.Element}
+ */
 function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen, onResultsChange }) {
   // Handler to clear all search, filters, and results
   const handleClearSearch = () => {
@@ -30,7 +67,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     if (typeof setSearch === 'function') {
       setSearch(""); // Clear the global search prop/state
     }
-    // If the search prop is used to initialize localSearch, also sync it
     // Clear all filters and results
     setFilterConditions([]);
     setInputValues({});
@@ -121,7 +157,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // Use search utilities hook
   const { highlightFieldWithMatches, truncateText } = useSearchUtilities();
 
-  // Handler for clicking a cell
+  /**
+   * Handler for clicking a cell to expand its value in a modal.
+   * @param {string} label - The cell label
+   * @param {string} value - The cell value
+   */
   const handleCellClick = (label, value) => {
     if (value && value.length > 20) {
       setExpandedValue(value);
@@ -129,7 +169,9 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     }
   };
 
-  // Handler for closing the expanded box
+  /**
+   * Handler for closing the expanded modal.
+   */
   const handleClose = () => {
     setExpandedValue(null);
     setExpandedLabel('');
@@ -202,7 +244,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     }
   };
 
-  // Helper to cap requested instances for a group at usable surplus
+  /**
+   * Helper to cap requested instances for a group at usable surplus.
+   * @param {Object} group - The part group
+   * @param {Object} requestedInstances - Requested instance ids
+   * @param {Object} generalInventoryFilter - General inventory filter state
+   * @returns {Object} - Capped requested instances
+   */
   function getCappedRequestedInstances(group, requestedInstances, generalInventoryFilter) {
     const part = group.instances[0];
     const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
@@ -372,7 +420,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         {/* Main table content */}
         <div className="search-results-dropdown">
           {loading ? (
-            <div className="searching-message" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Searching...</div>
+            <div className="searching-message">Searching...</div>
           ) : isEmpty ? (
             <EmptyState isInitial={results.length === 0 && localSearch.trim() === ''} />
           ) : (

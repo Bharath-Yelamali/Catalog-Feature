@@ -1,12 +1,98 @@
+/**
+ * Chatbox Component
+ * ------------------
+ * Provides a sidebar chat interface for user and AI assistant interaction.
+ * Features include:
+ * - Message history and assistant typing animation
+ * - Intent detection and AI response handling
+ * - JSON response toggle and chat clearing
+ * - Auto-resizing input and accessibility features
+ *
+ * @fileoverview Chatbox UI for AI assistant, with message rendering, intent detection, and utility helpers.
+ * @author Bharath Yelamali
+ */
 import React, { useState, useRef, useEffect } from 'react';
-
 import sendIcon from '../../assets/send.svg';
 import garbageIcon from '../../assets/garbage.svg';
 import wizardIcon from '../../assets/wizard.svg';
 import jsonIcon from '../../assets/json.svg';
 import '../../styles/ChatBox.css';
-import { sendAIChat, sendIntentAI } from '../../api/aiChat';
+// import { sendAIChat, sendIntentAI } from '../../api/aiChat'; // Unused imports removed
+import { detectIntent, handleAIResponse, handleSearchOrRefine } from './chatboxLogic';
 
+
+/**
+ * Renders a single chat message bubble (user or assistant).
+ * Hides intent/JSON messages if toggled off.
+ *
+ * @param {Object} props
+ * @param {Object} props.msg - Message object to render
+ * @returns {JSX.Element|null}
+ */
+function ChatMessage({ msg }) {
+  if ((msg.isJson || msg.isIntent) && typeof msg.showJson !== 'undefined' && !msg.showJson) return null;
+  return (
+    <div className={`copilot-chat-message ${msg.from}`}>
+      <div className={`copilot-chat-bubble${msg.from === 'assistant' ? ' ai-bubble' : ''}`}>
+        {msg.text}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Automatically resizes the textarea to fit its content.
+ *
+ * @param {React.RefObject<HTMLTextAreaElement>} textareaRef - Ref to the textarea element
+ */
+function autoResizeTextarea(textareaRef) {
+  const textarea = textareaRef.current;
+  if (textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+  }
+}
+
+/**
+ * Simulates typing animation for assistant's response by incrementally updating message text.
+ *
+ * @param {string} fullText - The full message to type out
+ * @param {Function} setMessages - State setter for messages
+ */
+function typeOutMessage(fullText, setMessages) {
+  let i = 0;
+  setMessages((prev) => [...prev, { text: '', from: 'assistant', typing: true }]);
+  const interval = setInterval(() => {
+    setMessages((prev) => {
+      const msgs = [...prev];
+      const last = msgs[msgs.length - 1];
+      if (last && last.from === 'assistant' && last.typing) {
+        last.text = fullText.slice(0, i + 1);
+        if (i + 1 === fullText.length) {
+          last.typing = false;
+          clearInterval(interval);
+        }
+      }
+      return msgs;
+    });
+    i++;
+    if (i >= fullText.length) clearInterval(interval);
+  }, 5);
+}
+
+/**
+ * Main chat UI component for user/assistant conversation.
+ * Handles input, message state, intent detection, and rendering.
+ *
+ * @param {Object} props
+ * @param {boolean} props.open - Whether the chat sidebar is open
+ * @param {Function} props.onClose - Handler to close the chat
+ * @param {React.ReactNode} props.children - Optional children to render in chat
+ * @param {Function} props.onSend - Callback when user sends a message
+ * @param {Array} props.searchResults - Search results for AI context
+ * @param {Function} props.onGlobalSearchConditions - Handler for global search conditions
+ * @returns {JSX.Element}
+ */
 const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearchConditions }) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]); // Store chat messages
@@ -17,40 +103,21 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
   const textareaRef = useRef(null);
   const chatContentRef = useRef(null);
 
+  /**
+   * Handles input change in the textarea and resizes it.
+   * @param {React.ChangeEvent<HTMLTextAreaElement>} e
+   */
   const handleInputChange = (e) => {
     setInput(e.target.value);
-    autoResizeTextarea();
+    autoResizeTextarea(textareaRef);
   };
 
-  const autoResizeTextarea = () => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto';
-      textarea.style.height = textarea.scrollHeight + 'px';
-    }
-  };
 
-  const typeOutMessage = (fullText) => {
-    let i = 0;
-    setMessages((prev) => [...prev, { text: '', from: 'assistant', typing: true }]);
-    const interval = setInterval(() => {
-      setMessages((prev) => {
-        const msgs = [...prev];
-        const last = msgs[msgs.length - 1];
-        if (last && last.from === 'assistant' && last.typing) {
-          last.text = fullText.slice(0, i + 1);
-          if (i + 1 === fullText.length) {
-            last.typing = false;
-            clearInterval(interval);
-          }
-        }
-        return msgs;
-      });
-      i++;
-      if (i >= fullText.length) clearInterval(interval);
-    }, 5); // ~110 chars/sec (twice as fast)
-  };
 
+  /**
+   * Handles sending a user message, intent detection, and AI response.
+   * @param {React.FormEvent} e
+   */
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -59,187 +126,40 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
     setMessages((prev) => [...prev, userMessage]);
     if (onSend) onSend(input);
     setInput('');
-    setTimeout(() => autoResizeTextarea(), 0);
+    setTimeout(() => autoResizeTextarea(textareaRef), 0);
     setLoading(true);
 
     try {
-      // Step 1: Get intent using the dedicated intent model
-      const intentResult = await sendIntentAI({ question: userMessage.text });
-      let intent, logicalOperator;
-      // Handle stringified JSON, object, or string intent responses
-      if (typeof intentResult.intent === 'string' && intentResult.intent.trim().startsWith('{')) {
-        try {
-          const parsed = JSON.parse(intentResult.intent);
-          intent = parsed.intent;
-          logicalOperator = parsed.logicalOperator || 'and';
-        } catch (e) {
-          intent = intentResult.intent;
-          logicalOperator = intentResult.logicalOperator || 'and';
-        }
-      } else if (typeof intentResult.intent === 'object' && intentResult.intent !== null) {
-        intent = intentResult.intent.intent;
-        logicalOperator = intentResult.intent.logicalOperator || 'and';
-      } else {
-        intent = intentResult.intent;
-        logicalOperator = intentResult.logicalOperator || 'and';
-      }
-      console.log('[Chatbox] Detected intent:', intent);
-      console.log('[Chatbox] Detected logicalOperator:', logicalOperator);
-
+      const { intent, logicalOperator } = await detectIntent(userMessage);
       // Show a 'Thinking... (intent: ...)' message after intent is detected
       setMessages((prev) => [
         ...prev,
         { text: `(intent: ${JSON.stringify({ intent, logicalOperator })})`, from: 'assistant', typing: false, isIntent: true }
       ]);
 
-      let aiAnswer = '';
-
-      if (intent === 'analyze_results') {
-        // Step 2a: Analyze results using the main answer model
-        const payload = { question: userMessage.text, results: searchResults };
-        console.log('[Chatbox] Posting to answer model (analyze_results):', payload);
-        const answerResult = await sendAIChat(payload);
-        aiAnswer = answerResult.answer;
-      } else if (intent === 'general') {
-        // Step 2b: General question using the main answer model
-        const payload = { question: userMessage.text };
-        console.log('[Chatbox] Posting to answer model (general):', payload);
-        const answerResult = await sendAIChat(payload);
-        aiAnswer = answerResult.answer;
-      } else if (intent === 'refine') {
-        // Step 2d: Refine previous search
-        // Get last user query from messages array
-        const lastUserMessage = messages.filter(m => m.from === 'user').slice(-1)[0];
-        const lastUserQuery = lastUserMessage ? lastUserMessage.text : '';
-        const payload = {
-          previousQuery: lastUserQuery,
-          previousSearch: lastSearchJson,
-          logicalOperator: lastLogicalOperator,
-          question: userMessage.text
-        };
-        // Removed verbose log of instructions payload
-        const res = await fetch('/api/ai-search-query', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+      let aiAnswer = null;
+      if (intent === 'analyze_results' || intent === 'general') {
+        aiAnswer = await handleAIResponse(intent, userMessage, searchResults);
+      } else if (intent === 'refine' || intent === 'search') {
+        aiAnswer = await handleSearchOrRefine({
+          intent,
+          userMessage,
+          logicalOperator,
+          messages,
+          lastSearchJson,
+          lastLogicalOperator,
+          setLastSearchJson,
+          setLastLogicalOperator,
+          setMessages,
+          onGlobalSearchConditions
         });
-        const data = await res.json();
-        if (data.isJson) {
-          setLastSearchJson(data.search);
-          setLastLogicalOperator(logicalOperator);
-          // Trigger filtering (same as search intent)
-          const conditions = Object.entries(data.search).map(([field, { operator, value }]) => ({
-            field,
-            operator,
-            value
-          }));
-          if (typeof window.onGlobalSearchConditions === 'function') {
-            console.log('[Chatbox] Calling window.onGlobalSearchConditions with:', { conditions, logicalOperator });
-            window.onGlobalSearchConditions({ conditions, logicalOperator });
-          } else if (typeof onGlobalSearchConditions === 'function') {
-            console.log('[Chatbox] Calling onGlobalSearchConditions prop with:', { conditions, logicalOperator });
-            onGlobalSearchConditions({ conditions, logicalOperator });
-          } else {
-            console.warn('[Chatbox] No global search callback found to trigger filter update.');
-          }
-          // Add a message to chat
-          setMessages((prev) => [
-            ...prev,
-            { text: 'Refined search JSON:\n' + JSON.stringify(data.search, null, 2), from: 'assistant', isJson: true },
-            { text: 'Search refined!', from: 'assistant' }
-          ]);
-          aiAnswer = '';
-        } else if (data.isJson === false && typeof data.result === 'string') {
-          setMessages((prev) => [
-            ...prev,
-            { text: data.result, from: 'assistant' }
-          ]);
-          aiAnswer = '';
-        } else if (data.error) {
-          setMessages((prev) => [
-            ...prev,
-            { text: 'Error: ' + data.error + (data.raw ? ('\nRaw: ' + data.raw) : ''), from: 'assistant' }
-          ]);
-          aiAnswer = '';
-        } else {
-          setMessages((prev) => [
-            ...prev,
-            { text: 'No refined search JSON returned.', from: 'assistant' }
-          ]);
-          aiAnswer = '';
-        }
-      } else if (intent === 'search') {
-        // Step 2c: Call /api/ai-search-query and print the JSON in the chatbox
-        try {
-          const payload = { question: userMessage.text };
-          console.log('[Chatbox] Posting to answer model (search):', payload);
-          const res = await fetch('/api/ai-search-query', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          const data = await res.json();
-          if (data.isJson) {
-            setLastSearchJson(data.search);
-            setLastLogicalOperator(logicalOperator);
-            const conditions = Object.entries(data.search).map(([field, { operator, value }]) => ({
-              field,
-              operator,
-              value
-            }));
-            console.log('[Chatbox] Model JSON received:', data.search);
-            console.log('[Chatbox] Converted conditions array:', conditions);
-            // Trigger filtering (replace with your actual callback/prop)
-            if (typeof window.onGlobalSearchConditions === 'function') {
-              console.log('[Chatbox] Calling window.onGlobalSearchConditions with:', { conditions, logicalOperator });
-              window.onGlobalSearchConditions({ conditions, logicalOperator });
-            } else if (typeof onGlobalSearchConditions === 'function') {
-              console.log('[Chatbox] Calling onGlobalSearchConditions prop with:', { conditions, logicalOperator });
-              onGlobalSearchConditions({ conditions, logicalOperator });
-            } else {
-              console.warn('[Chatbox] No global search callback found to trigger filter update.');
-            }
-            setMessages((prev) => [
-              ...prev,
-              { text: 'AI-generated search JSON:\n' + JSON.stringify(data.search, null, 2), from: 'assistant', isJson: true },
-              { text: 'Search completed!', from: 'assistant' }
-            ]);
-            aiAnswer = '';
-          } else if (data.isJson === false && typeof data.result === 'string') {
-            setMessages((prev) => [
-              ...prev,
-              { text: data.result, from: 'assistant' }
-            ]);
-            aiAnswer = '';
-          } else if (data.error) {
-            setMessages((prev) => [
-              ...prev,
-              { text: 'Error: ' + data.error + (data.raw ? ('\nRaw: ' + data.raw) : ''), from: 'assistant' }
-            ]);
-            aiAnswer = '';
-          } else {
-            setMessages((prev) => [
-              ...prev,
-              { text: 'No search JSON returned.', from: 'assistant' }
-            ]);
-            aiAnswer = '';
-          }
-        } catch (err) {
-          setMessages((prev) => {
-            const msgs = prev.filter((m, i) => !(i === prev.length - 1 && m.isIntent));
-            return [
-              ...msgs,
-              { text: 'Failed to get search response from AI.', from: 'assistant' }
-            ];
-          });
-          aiAnswer = '';
-        }
       } else {
         aiAnswer = "Sorry, I couldn't determine your intent.";
       }
 
-      if (aiAnswer) typeOutMessage(aiAnswer);
+      if (aiAnswer) typeOutMessage(aiAnswer, setMessages);
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error('[Chatbox] Error from sendAIChat:', err);
       setMessages((prev) => [
         ...prev,
@@ -249,19 +169,30 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
     setLoading(false);
   };
 
+  /**
+   * Handles Enter key to send message (Shift+Enter for newline).
+   * @param {React.KeyboardEvent} e
+   */
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       handleSend(e);
     }
   };
 
+
+
+  /**
+   * Clears the chat history and input field.
+   */
   const handleClearChat = () => {
     setMessages([]);
     setInput('');
-    autoResizeTextarea();
+    autoResizeTextarea(textareaRef);
   };
 
-  // Auto-scroll to bottom when messages change
+  /**
+   * Auto-scrolls to the bottom of the chat when messages or input change.
+   */
   useEffect(() => {
     const chatContent = chatContentRef.current;
     if (chatContent) {
@@ -306,18 +237,9 @@ const Chatbox = ({ open, onClose, children, onSend, searchResults, onGlobalSearc
             </div>
           </div>
         )}
-        {messages.map((msg, idx) => {
-          if ((msg.isJson || msg.isIntent) && !showJson) return null;
-          return (
-            <div key={idx} className={`copilot-chat-message ${msg.from}`}>
-              <div
-                className={`copilot-chat-bubble${msg.from === 'assistant' ? ' ai-bubble' : ''}`}
-              >
-                {msg.text}
-              </div>
-            </div>
-          );
-        })}
+        {messages.map((msg, idx) => (
+          <ChatMessage key={idx} msg={{ ...msg, showJson }} />
+        ))}
         {loading && (
           <div className="copilot-chat-message assistant">
             <div className="copilot-chat-bubble ai-bubble">
