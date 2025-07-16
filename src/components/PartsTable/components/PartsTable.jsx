@@ -371,7 +371,9 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           </div>
         {/* Main table content */}
         <div className="search-results-dropdown">
-          {isEmpty ? (
+          {loading ? (
+            <div className="searching-message" style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Searching...</div>
+          ) : isEmpty ? (
             <EmptyState isInitial={results.length === 0 && localSearch.trim() === ''} />
           ) : (
             <>
