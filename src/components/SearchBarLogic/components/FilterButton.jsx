@@ -1,3 +1,13 @@
+/**
+ * FilterButton Component
+ * ----------------------
+ * Renders a button to open the advanced filter dropdown for table data, showing the number of active filters.
+ *
+ * Features:
+ * - Opens/closes the filter dropdown
+ * - Displays active filter count
+ * - Integrates with drag-and-drop and logical operator controls
+ */
 import React from 'react';
 import PropTypes from 'prop-types';
 import { FilterDropdown } from '../../FilterDropdown';

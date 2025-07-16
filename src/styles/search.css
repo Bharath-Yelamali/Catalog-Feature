@@ -131,3 +131,13 @@
   box-shadow: 0 1px 2px #e2e8f0;
   min-width: 100px;
 }
+
+/* Global Search Bar Styles */
+.global-search-input {
+  margin-left: 16px;
+  padding: 6px 12px;
+  border: 1px solid #bcd6f7;
+  border-radius: 6px;
+  font-size: 15px;
+  width: 220px;
+}

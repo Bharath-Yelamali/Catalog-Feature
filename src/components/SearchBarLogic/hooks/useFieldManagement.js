@@ -1,3 +1,16 @@
+/**
+ * useFieldManagement Hook
+ * -----------------------
+ * Custom React hook for managing field visibility, search, and table layout in the parts table UI.
+ *
+ * Features:
+ * - Manages state for hidden fields, dropdown open state, and field search query
+ * - Provides functions to toggle field visibility and generate grid layouts
+ * - Filters fields by search query and counts hidden fields
+ * - Handles closing the dropdown when clicking outside
+ *
+ * @fileoverview Custom hook for field visibility and layout management in the main table UI.
+ */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { allFields } from '../constants';
 
@@ -5,31 +18,40 @@ import { allFields } from '../constants';
  * Custom hook for managing field visibility and table layout
  * @returns {Object} Field management state and functions
  */
+
 export function useFieldManagement() {
+  // State for whether the hide fields dropdown is open
   const [hideFieldsDropdownOpen, setHideFieldsDropdownOpen] = useState(false);
+  // State for which fields are hidden (object: { [fieldKey]: true })
   const [hiddenFields, setHiddenFields] = useState({});
+  // State for the current search query in the field search input
   const [fieldSearchQuery, setFieldSearchQuery] = useState('');
 
+  /**
+   * Toggle the visibility of a field by its key.
+   * @param {string} fieldKey - The key of the field to toggle
+   */
   const toggleFieldVisibility = useCallback((fieldKey) => {
     if (!fieldKey) {
       console.warn('toggleFieldVisibility called with invalid fieldKey:', fieldKey);
       return;
     }
-    
     setHiddenFields(prev => ({
       ...prev,
       [fieldKey]: !prev[fieldKey]
     }));
   }, []);
 
-  // Filter fields based on search query - memoized for performance
+  /**
+   * Filter fields based on the current search query (case-insensitive).
+   * Memoized for performance.
+   */
   const filteredFields = useMemo(() => {
     try {
       const query = fieldSearchQuery?.trim();
       if (!query) {
         return allFields;
       }
-      
       const searchLower = query.toLowerCase();
       return allFields.filter(field => {
         if (!field?.label || typeof field.label !== 'string') {
@@ -43,7 +65,10 @@ export function useFieldManagement() {
     }
   }, [fieldSearchQuery]);
 
-  // Count hidden fields - memoized for performance
+  /**
+   * Count the number of currently hidden fields.
+   * Memoized for performance.
+   */
   const hiddenFieldCount = useMemo(() => {
     try {
       return Object.values(hiddenFields).filter(Boolean).length;
@@ -53,7 +78,11 @@ export function useFieldManagement() {
     }
   }, [hiddenFields]);
 
-  // Helper function to generate grid template columns for main table
+  /**
+   * Generate the CSS grid-template-columns string for the main table.
+   * Columns are included/excluded based on hiddenFields.
+   * @returns {string} CSS grid-template-columns value
+   */
   const getMainTableGridColumns = useCallback(() => {
     try {
       const columns = [
@@ -68,7 +97,6 @@ export function useFieldManagement() {
         !hiddenFields.manufacturerName ? '1.2fr' : '',
         !hiddenFields.inventoryDescription ? '2fr' : ''
       ].filter(col => col !== '');
-      
       return columns.join(' ');
     } catch (error) {
       console.error('Error generating main table grid columns:', error);
@@ -76,7 +104,11 @@ export function useFieldManagement() {
     }
   }, [hiddenFields]);
 
-  // Helper function to generate grid template columns for instance table
+  /**
+   * Generate the CSS grid-template-columns string for the instance table.
+   * Columns are included/excluded based on hiddenFields.
+   * @returns {string} CSS grid-template-columns value
+   */
   const getInstanceTableGridColumns = useCallback(() => {
     try {
       const columns = [
@@ -89,7 +121,6 @@ export function useFieldManagement() {
         !hiddenFields.hardwareCustodian ? '2fr' : '',
         !hiddenFields.parentPath ? '2fr' : ''
       ].filter(col => col !== '');
-      
       return columns.join(' ');
     } catch (error) {
       console.error('Error generating instance table grid columns:', error);
@@ -97,7 +128,9 @@ export function useFieldManagement() {
     }
   }, [hiddenFields]);
 
-  // Close hide fields dropdown when clicking outside
+  /**
+   * Effect: Close the hide fields dropdown when clicking outside of it.
+   */
   useEffect(() => {
     if (!hideFieldsDropdownOpen) {
       return; // Early return if dropdown is not open
@@ -108,7 +141,7 @@ export function useFieldManagement() {
         if (!event?.target) {
           return;
         }
-        
+        // Only close if click is outside any .hide-fields-container
         const container = event.target.closest('.hide-fields-container');
         if (!container) {
           setHideFieldsDropdownOpen(false);
@@ -125,6 +158,7 @@ export function useFieldManagement() {
     };
   }, [hideFieldsDropdownOpen]);
 
+  // Return all state, computed values, and functions needed for field management
   return {
     // State
     hideFieldsDropdownOpen,
@@ -133,16 +167,13 @@ export function useFieldManagement() {
     setHiddenFields,
     fieldSearchQuery,
     setFieldSearchQuery,
-    
     // Computed values
     filteredFields,
     hiddenFieldCount,
-    
     // Functions
     toggleFieldVisibility,
     getMainTableGridColumns,
     getInstanceTableGridColumns,
-    
     // Field definitions
     allFields
   };
