@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import '../styles/projectpopup.css';
-import { fetchProjects } from '../api/project';
-import { fetchSuppliers } from '../api/supplier';
-import { fetchAllIdentities } from '../api/identity';
+import '../../styles/projectpopup.css';
+import { fetchProjects } from '../../api/project';
+import { fetchSuppliers } from '../../api/supplier';
+import { fetchAllIdentities } from '../../api/identity';
 
 function RequiredFields({ selected, quantities, goBack, setPage, setPreqFields, preqFields, newParts, setNewParts, isAdmin, accessToken }) {
   const [showParts, setShowParts] = useState(false);

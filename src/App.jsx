@@ -1,14 +1,14 @@
 import { useEffect, useState, useRef } from 'react'
 import * as XLSX from 'xlsx';
 import PartsTable from './components/PartsTable/components/PartsTable';
-import RequiredFields from './components/RequiredFields';
+import RequiredFields from './components/RequiredFields/RequiredFields';
 import ConfirmationSummary from './components/ConfirmationSummary/components/ConfirmationSummary';
 import { fetchParts } from './api/parts';
 import { executeSearch, processSearchResults } from './controllers/searchController';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { fetchUserFirstName } from './api/userInfo';
-import OrdersPage from './components/OrdersPage';
+import OrdersPage from './components/OrdersPage/OrdersPage';
 import ReactDOM from 'react-dom';
 // Update SVG imports to use assets folder
 import wizardIcon from './assets/wizard.svg';

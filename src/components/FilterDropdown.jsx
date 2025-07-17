@@ -1,12 +1,41 @@
+
+/**
+ * FilterDropdown.jsx
+ *
+ * This component renders a dropdown UI for managing a list of filter conditions, including
+ * adding, removing, editing, and reordering conditions. It supports drag-and-drop, logical operator
+ * selection, and integrates with UnifiedFilterList for rendering the list of conditions.
+ *
+ * @module src/components/FilterDropdown
+ */
+
 import React from 'react';
 import { UnifiedFilterList } from './UnifiedFilterList';
 import plusIcon from '../assets/plus.svg';
 
+/**
+ * FilterDropdown component for managing filter conditions.
+ *
+ * @param {Object} props - The component props
+ * @param {Array} props.filterConditions - Array of filter condition objects
+ * @param {Function} props.setFilterConditions - Setter for filter conditions array
+ * @param {boolean} props.hasUnprocessedChanges - Whether there are unsaved changes
+ * @param {Function} props.setHasUnprocessedChanges - Setter for unsaved changes flag
+ * @param {'and'|'or'} props.logicalOperator - The logical operator for the filter group
+ * @param {Function} props.setLogicalOperator - Setter for logical operator
+ * @param {number} [props.draggedCondition] - Index of the currently dragged condition
+ * @param {number} [props.dragHoverTarget] - Index of the drag hover target
+ * @param {Function} props.handleDragStart - Handler for drag start
+ * @param {Function} props.handleDragOver - Handler for drag over
+ * @param {Function} props.handleDragEnter - Handler for drag enter
+ * @param {Function} props.handleDragLeave - Handler for drag leave
+ * @param {Function} props.handleDrop - Handler for drop
+ * @param {Function} props.handleDragEnd - Handler for drag end
+ * @param {Array} props.searchableFields - Array of searchable field objects
+ */
 export function FilterDropdown({
   filterConditions,
   setFilterConditions,
-  inputValues,
-  setInputValues,
   hasUnprocessedChanges,
   setHasUnprocessedChanges,
   logicalOperator,
@@ -22,6 +51,12 @@ export function FilterDropdown({
   searchableFields
 }) {
   // Handler functions for flat filter conditions
+
+  /**
+   * Handles field change for a filter condition.
+   * @param {number} index - Index of the condition to update
+   * @param {string} value - New field value
+   */
   const handleFieldChange = (index, value) => {
     const newConditions = [...filterConditions];
     newConditions[index].field = value;
@@ -29,6 +64,12 @@ export function FilterDropdown({
     setHasUnprocessedChanges(true);
   };
 
+
+  /**
+   * Handles operator change for a filter condition or the logical operator.
+   * @param {number|string} index - Index of the condition or 'logical' for group operator
+   * @param {string} value - New operator value
+   */
   const handleOperatorChange = (index, value) => {
     if (index === 'logical') {
       setLogicalOperator(value);
@@ -40,41 +81,45 @@ export function FilterDropdown({
     setHasUnprocessedChanges(true);
   };
 
+  /**
+   * Handles value change for a filter condition.
+   * @param {number} index - Index of the condition to update
+   * @param {string} value - New value for the condition
+   */
   const handleValueChange = (index, value) => {
-    setInputValues(prev => ({ ...prev, [index]: value }));
-    setFilterConditions(prevConditions => {
-      const newConditions = [...prevConditions];
-      newConditions[index].value = value;
-      return newConditions;
-    });
+    const newConditions = [...filterConditions];
+    newConditions[index].value = value;
+    setFilterConditions(newConditions);
     setHasUnprocessedChanges(true);
   };
 
+  /**
+   * Handles removing a filter condition.
+   * @param {number} index - Index of the condition to remove
+   */
   const handleRemoveCondition = (index) => {
     const newConditions = filterConditions.filter((_, i) => i !== index);
     setFilterConditions(newConditions);
-    // Clean up input values - reindex remaining values
-    const newInputValues = {};
-    newConditions.forEach((condition, newIndex) => {
-      const oldIndex = filterConditions.findIndex(c => c.id === condition.id);
-      newInputValues[newIndex] = inputValues[oldIndex] || condition.value;
-    });
-    setInputValues(newInputValues);
     setHasUnprocessedChanges(true);
   };
 
+  /**
+   * Handles adding a new filter condition.
+   * Adds a new condition with default values to the list.
+   */
   const handleAddCondition = () => {
-    const newIndex = filterConditions.length;
     const defaultField = searchableFields && searchableFields.length > 0 
       ? searchableFields[0].key 
       : 'inventoryItemNumber';
-    setFilterConditions([...filterConditions, {
-      id: Date.now(),
-      field: defaultField,
-      operator: 'contains',
-      value: ''
-    }]);
-    setInputValues(prev => ({ ...prev, [newIndex]: '' }));
+    setFilterConditions([
+      ...filterConditions,
+      {
+        id: Date.now(),
+        field: defaultField,
+        operator: 'contains',
+        value: ''
+      }
+    ]);
   };
 
   return (
@@ -92,7 +137,6 @@ export function FilterDropdown({
             filterConditions={filterConditions}
             logicalOperator={logicalOperator}
             onOperatorChange={handleOperatorChange}
-            inputValues={inputValues}
             searchableFields={searchableFields}
             draggedCondition={draggedCondition}
             dragHoverTarget={dragHoverTarget}

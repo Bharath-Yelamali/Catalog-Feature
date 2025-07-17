@@ -1,3 +1,13 @@
+
+/**
+ * FilterComponents.jsx
+ *
+ * This file contains the FilterCondition component, which renders a single filter condition row
+ * with field, operator, and value controls, as well as drag-and-drop and remove functionality.
+ *
+ * @module src/components/FilterComponents
+ */
+
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { LogicalOperatorSelector } from './LogicalOperatorSelector';
@@ -5,6 +15,28 @@ import garbageIcon from '../assets/garbage.svg';
 import dotsIcon from '../assets/dots.svg';
 
 // Individual Filter Condition Component (flat only)
+/**
+ * Renders a single filter condition row with field, operator, value, drag-and-drop, and remove controls.
+ *
+ * @param {Object} props - The component props
+ * @param {Object} props.condition - The filter condition object
+ * @param {number} props.index - The index of this condition in the list
+ * @param {'and'|'or'} props.logicalOperator - The logical operator for this condition
+ * @param {number} [props.draggedCondition] - The index of the currently dragged condition
+ * @param {number} [props.dragHoverTarget] - The index of the drag hover target
+ * @param {Function} props.onFieldChange - Callback for field change
+ * @param {Function} props.onOperatorChange - Callback for operator change
+ * @param {Function} props.onValueChange - Callback for value change
+ * @param {Function} props.onRemove - Callback for remove
+ * @param {Function} props.onDragStart - Callback for drag start
+ * @param {Function} props.onDragOver - Callback for drag over
+ * @param {Function} props.onDragEnter - Callback for drag enter
+ * @param {Function} props.onDragLeave - Callback for drag leave
+ * @param {Function} props.onDrop - Callback for drop
+ * @param {Function} props.onDragEnd - Callback for drag end
+ * @param {Array} [props.searchableFields=[]] - Array of searchable field objects
+ * @param {boolean} [props.showLeftColumn=true] - Whether to show the left column
+ */
 export function FilterCondition({ 
   condition,
   index,
@@ -22,10 +54,11 @@ export function FilterCondition({
   onDrop,
   onDragEnd,
   searchableFields = [],
-  inputValues = {},
   showLeftColumn = true
 }) {
-  // Input validation
+  /**
+   * Input validation for required props
+   */
   if (!condition || typeof condition !== 'object') {
     console.error('FilterCondition: Invalid condition prop');
     return null;
@@ -34,58 +67,74 @@ export function FilterCondition({
     console.error('FilterCondition: Invalid index prop');
     return null;
   }
+  /**
+   * Drag state for styling
+   */
   const isDragging = draggedCondition === index;
   const isDragHover = dragHoverTarget === index;
 
-  // Memoized event handlers
-  const handleFieldChange = useCallback((e) => {
-    if (onFieldChange) {
-      onFieldChange(index, e.target.value);
+  /**
+   * Utility to stop event propagation
+   * @param {Event} e
+   */
+  const stopPropagation = useCallback((e) => e.stopPropagation(), []);
+
+  /**
+   * Generic handler for field/operator/value changes
+   * @param {'field'|'operator'|'value'} type
+   * @param {Event} e
+   */
+  const handleChange = useCallback((type, e) => {
+    const value = e.target.value;
+    switch (type) {
+      case 'field':
+        onFieldChange && onFieldChange(index, value);
+        break;
+      case 'operator':
+        onOperatorChange && onOperatorChange(index, value);
+        break;
+      case 'value':
+        onValueChange && onValueChange(index, value);
+        break;
+      default:
+        break;
     }
-  }, [index, onFieldChange]);
-  const handleOperatorChange = useCallback((e) => {
-    if (onOperatorChange) {
-      onOperatorChange(index, e.target.value);
-    }
-  }, [index, onOperatorChange]);
-  const handleValueChange = useCallback((e) => {
-    if (onValueChange) {
-      onValueChange(index, e.target.value);
-    }
-  }, [index, onValueChange]);
+  }, [index, onFieldChange, onOperatorChange, onValueChange]);
+
+  /**
+   * Handler for removing this filter condition
+   */
   const handleRemove = useCallback(() => {
-    if (onRemove) {
-      onRemove(index);
-    }
+    onRemove && onRemove(index);
   }, [index, onRemove]);
+
+  /**
+   * Drag-and-drop event handlers
+   */
   const handleDragStart = useCallback((e) => {
     e.dataTransfer.setData('application/root-condition', JSON.stringify({ conditionIndex: index }));
-    if (onDragStart) onDragStart(e, index);
+    onDragStart && onDragStart(e, index);
   }, [index, onDragStart]);
   const handleDragEnter = useCallback((e) => {
-    if (onDragEnter) {
-      onDragEnter(e, index);
-    }
+    onDragEnter && onDragEnter(e, index);
   }, [index, onDragEnter]);
   const handleDragLeave = useCallback((e) => {
-    if (onDragLeave) {
-      onDragLeave(e, index);
-    }
+    onDragLeave && onDragLeave(e, index);
   }, [index, onDragLeave]);
   const handleDrop = useCallback((e) => {
-    if (onDrop) {
-      onDrop(e, index);
-    }
+    onDrop && onDrop(e, index);
   }, [index, onDrop]);
 
+  // Use condition.value as the source of truth for value
+  // Make isFirstItem dynamic: only true for index === 0
   return (
     <div className="filter-condition">
       {showLeftColumn && (
-        <LogicalOperatorSelector 
+        <LogicalOperatorSelector
           index={index}
           logicalOperator={logicalOperator}
           onOperatorChange={onOperatorChange}
-          isFirstItem={true}
+          isFirstItem={index === 0}
           showLabel={true}
         />
       )}
@@ -106,8 +155,8 @@ export function FilterCondition({
         {/* Field dropdown */}
         <select
           value={condition.field || ''}
-          onChange={handleFieldChange}
-          onMouseDown={(e) => e.stopPropagation()}
+          onChange={handleChange.bind(null, 'field')}
+          onMouseDown={stopPropagation}
           className="filter-form-select"
           aria-label="Select field to filter"
         >
@@ -121,8 +170,8 @@ export function FilterCondition({
         {/* Operator dropdown */}
         <select
           value={condition.operator || 'contains'}
-          onChange={handleOperatorChange}
-          onMouseDown={(e) => e.stopPropagation()}
+          onChange={handleChange.bind(null, 'operator')}
+          onMouseDown={stopPropagation}
           className="filter-form-select filter-form-select--operator"
           aria-label="Select filter operator"
         >
@@ -134,9 +183,9 @@ export function FilterCondition({
         {/* Value input */}
         <input
           type="text"
-          value={inputValues[index] || ''}
-          onChange={handleValueChange}
-          onMouseDown={(e) => e.stopPropagation()}
+          value={condition.value || ''}
+          onChange={handleChange.bind(null, 'value')}
+          onMouseDown={stopPropagation}
           placeholder="Enter a value"
           className="filter-form-input"
           aria-label="Enter filter value"
@@ -144,26 +193,26 @@ export function FilterCondition({
         {/* Remove button */}
         <button
           onClick={handleRemove}
-          onMouseDown={(e) => e.stopPropagation()}
+          onMouseDown={stopPropagation}
           className="filter-form-button--remove"
           title="Remove condition"
           aria-label={`Remove filter condition ${index + 1}`}
         >
-          <img 
-            src={garbageIcon} 
-            alt="" 
+          <img
+            src={garbageIcon}
+            alt=""
             className="filter-form-button--remove-icon"
           />
         </button>
         {/* Drag handle */}
-        <div 
-          className="filter-drag-handle" 
+        <div
+          className="filter-drag-handle"
           title="Drag to reorder"
           aria-label={`Drag to reorder condition ${index + 1}`}
         >
-          <img 
-            src={dotsIcon} 
-            alt="" 
+          <img
+            src={dotsIcon}
+            alt=""
             className="filter-drag-handle__icon"
           />
         </div>
@@ -172,7 +221,9 @@ export function FilterCondition({
   );
 }
 
-// PropTypes for FilterCondition
+/**
+ * PropTypes for FilterCondition
+ */
 FilterCondition.propTypes = {
   condition: PropTypes.shape({
     field: PropTypes.string,
@@ -195,17 +246,16 @@ FilterCondition.propTypes = {
   onDragEnd: PropTypes.func.isRequired,
   searchableFields: PropTypes.arrayOf(PropTypes.shape({
     key: PropTypes.string.isRequired,
-    label: PropTypes.string.isRequired,
-    isMainTable: PropTypes.bool.isRequired
+    label: PropTypes.string.isRequired
   })),
-  inputValues: PropTypes.object,
   showLeftColumn: PropTypes.bool
 };
 
-// Default props for FilterCondition
+/**
+ * Default props for FilterCondition
+ */
 FilterCondition.defaultProps = {
   searchableFields: [],
-  inputValues: {},
   draggedCondition: null,
   dragHoverTarget: null,
   showLeftColumn: true
