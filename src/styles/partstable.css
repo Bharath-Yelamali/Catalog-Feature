@@ -132,6 +132,7 @@
 .info-dropdown-container {
   position: relative;
   display: inline-block;
+  z-index: 3000;
 }
 .info-icon {
   width: 22px;
@@ -146,9 +147,10 @@
   left: 0;
   background: #fff;
   box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  padding: 6px 10px;
-  min-width: 220px;
-  z-index: 100;
+  min-width: 180px;
+  max-width: 280px;
+  padding: 8px 14px;
+  z-index: 3000; /* Raised to ensure above chatbox and overlays */
   color: #222;
   font-size: 12px;
   font-weight: 400;
@@ -156,6 +158,8 @@
   border: none;
   outline: none;
   box-sizing: border-box;
+  white-space: normal;
+  word-break: break-word;
 }
 
 /* Empty state styles - centered content */

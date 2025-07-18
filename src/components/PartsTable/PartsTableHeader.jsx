@@ -13,7 +13,8 @@
  * @fileoverview Header row for the main parts table UI, with all action controls.
  * @author Bharath Yelamali
  */
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { HideFieldsButton, FilterButton } from '../SearchBarLogic';
 import { GlobalSearchBar } from '../SearchBarLogic/components/GlobalSearchBar';
 import downloadIcon from '../../assets/download.svg';
@@ -36,6 +37,25 @@ const PartsTableHeader = ({
 }) => {
   // State for info tooltip dropdown
   const [infoDropdownOpen, setInfoDropdownOpen] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const infoIconRef = useRef(null);
+
+  // Show tooltip and calculate position
+  const handleInfoMouseEnter = () => {
+    if (infoIconRef.current) {
+      const rect = infoIconRef.current.getBoundingClientRect();
+      setTooltipPosition({
+        top: rect.bottom + 6, // 6px below the icon
+        left: rect.left,
+      });
+    }
+    setInfoDropdownOpen(true);
+  };
+
+  // Hide tooltip
+  const handleInfoMouseLeave = () => {
+    setTimeout(() => setInfoDropdownOpen(false), 200);
+  };
 
   return (
     <div className="search-result-button-header">
@@ -129,28 +149,36 @@ const PartsTableHeader = ({
           <button
             className="surplus-request-btn header-btn"
             onClick={() => window.open('https://dev.azure.com/CHIELabs/CHIE%20Labs/_workitems/create/Lab%20Task', '_blank')}
-            title="Request surplus parts"
-            aria-label="Request surplus parts"
+            title="Create ADO Request Ticket For Surplus"
+            aria-label="Create ADO Request Ticket For Surplus"
           >
-            Request surplus parts?
+            Create ADO Request Ticket For Surplus
           </button>
           {/* Info tooltip for surplus request */}
           <div className="info-dropdown-container">
             <img
+              ref={infoIconRef}
               src={infoIcon}
               alt="Info"
               className="info-icon"
-              onMouseEnter={() => setInfoDropdownOpen(true)}
-              onMouseLeave={() => setTimeout(() => setInfoDropdownOpen(false), 200)}
+              onMouseEnter={handleInfoMouseEnter}
+              onMouseLeave={handleInfoMouseLeave}
             />
-            {infoDropdownOpen && (
+            {infoDropdownOpen && createPortal(
               <div
                 className="info-dropdown"
+                style={{
+                  position: 'fixed',
+                  top: tooltipPosition.top,
+                  left: tooltipPosition.left,
+                  zIndex: 3000,
+                }}
                 onMouseEnter={() => setInfoDropdownOpen(true)}
                 onMouseLeave={() => setInfoDropdownOpen(false)}
               >
                 Click the link to request usable surplus values and check if they're available and ready for pickup.
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
