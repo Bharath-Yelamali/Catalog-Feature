@@ -1,10 +1,27 @@
-import React, { useState } from 'react';
-import { HideFieldsButton, FilterButton } from '../../SearchBarLogic';
-import { GlobalSearchBar } from '../../SearchBarLogic/components/GlobalSearchBar';
-import downloadIcon from '../../../assets/download.svg';
-import nextIcon from '../../../assets/next.svg';
-import chatIcon from '../../../assets/chat.svg'; // Add chat icon import
-import infoIcon from '../../../assets/info.svg';
+/**
+ * PartsTableHeader Component
+ * -------------------------
+ * Renders the header section for the parts table, including controls for field visibility, filtering, search, export, navigation, and chat.
+ *
+ * Features:
+ * - Field visibility management (HideFieldsButton)
+ * - Advanced filtering (FilterButton)
+ * - Global search bar
+ * - Export, navigation, and chat controls
+ * - Info tooltip and surplus request link
+ *
+ * @fileoverview Header row for the main parts table UI, with all action controls.
+ * @author Bharath Yelamali
+ */
+import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { HideFieldsButton, FilterButton } from '../SearchBarLogic';
+import { GlobalSearchBar } from '../SearchBarLogic/components/GlobalSearchBar';
+import downloadIcon from '../../assets/download.svg';
+import nextIcon from '../../assets/next.svg';
+import chatIcon from '../../assets/chat.svg'; // Add chat icon import
+import infoIcon from '../../assets/info.svg';
+
 
 const PartsTableHeader = ({
   // HideFieldsButton props
@@ -16,13 +33,34 @@ const PartsTableHeader = ({
   // Other
   loading, resultsToDisplay, selected, quantities, handleExport, setPage,
   chatOpen, setChatOpen,
-  onClearSearch // <-- Add onClearSearch prop
+  onClearSearch
 }) => {
+  // State for info tooltip dropdown
   const [infoDropdownOpen, setInfoDropdownOpen] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const infoIconRef = useRef(null);
+
+  // Show tooltip and calculate position
+  const handleInfoMouseEnter = () => {
+    if (infoIconRef.current) {
+      const rect = infoIconRef.current.getBoundingClientRect();
+      setTooltipPosition({
+        top: rect.bottom + 6, // 6px below the icon
+        left: rect.left,
+      });
+    }
+    setInfoDropdownOpen(true);
+  };
+
+  // Hide tooltip
+  const handleInfoMouseLeave = () => {
+    setTimeout(() => setInfoDropdownOpen(false), 200);
+  };
 
   return (
     <div className="search-result-button-header">
       <div className="flex-start">
+        {/* Field visibility management */}
         <HideFieldsButton
           hiddenFieldCount={hiddenFieldCount}
           hideFieldsDropdownOpen={hideFieldsDropdownOpen}
@@ -35,6 +73,7 @@ const PartsTableHeader = ({
           setHiddenFields={setHiddenFields}
           allFields={allFields}
         />
+        {/* Advanced filtering */}
         <FilterButton
           activeFilterCount={activeFilterCount}
           filterDropdownOpen={filterDropdownOpen}
@@ -57,7 +96,8 @@ const PartsTableHeader = ({
           handleDragEnd={handleDragEnd}
           searchableFields={searchableFields}
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="header-flex-group">
+          {/* Global search bar */}
           <GlobalSearchBar
             value={localSearch}
             setInputValue={setLocalSearch}
@@ -65,42 +105,20 @@ const PartsTableHeader = ({
             accessToken={accessToken}
             onGlobalSearchConditionsChange={onGlobalSearchConditionsChange}
           />
+          {/* Clear search and filters button */}
           <button
-            className="clear-search-btn"
-            style={{
-              marginLeft: 0,
-              background: '#f5f5f5',
-              border: '1px solid #ccc',
-              borderRadius: 4,
-              padding: '4px 8px',
-              cursor: 'pointer',
-              fontWeight: 500,
-              color: '#333',
-              fontSize: 13,
-              minWidth: 0,
-              minHeight: 30,
-              transition: 'background 0.2s, color 0.2s'
-              
-              
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#9a9a9aff';
-              e.currentTarget.style.color = '#fff';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = '#ffffffff';
-              e.currentTarget.style.color = '#000000ff';
-            }}
+            className="clear-search-btn header-btn"
             onClick={onClearSearch}
             title="Clear all search and filters"
             aria-label="Clear all search and filters"
           >
             Clear
           </button>
-          <span className="item-count-text" style={{ marginLeft: 8 }}>
+          {/* Item count and loading spinner */}
+          <span className="item-count-text">
             {loading ? (
-              <span className="default-react-spinner" style={{ display: 'inline-block', width: 20, height: 20, verticalAlign: 'middle' }}>
-                <svg width="20" height="20" viewBox="0 0 50 50" style={{ display: 'block' }}>
+              <span className="default-react-spinner">
+                <svg width="20" height="20" viewBox="0 0 50 50">
                   <circle
                     cx="25"
                     cy="25"
@@ -127,102 +145,58 @@ const PartsTableHeader = ({
               `${resultsToDisplay.length} items`
             )}
           </span>
+          {/* Surplus request button */}
           <button
-            className="surplus-request-btn"
-            style={{
-              marginLeft: 12,
-              background: '#ffffffff',
-              border: 'none', // Remove border
-              borderRadius: 0, // Not rounded
-              padding: '10px 32px', // Comfortable rectangular shape
-              cursor: 'pointer',
-              fontWeight: 500,
-              color: '#000000ff',
-              fontSize: 15,
-              transition: 'background 0.2s, color 0.2s'
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = '#9a9a9aff';
-              e.currentTarget.style.color = '#fff';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = '#ffffffff';
-              e.currentTarget.style.color = '#000000ff';
-            }}
+            className="surplus-request-btn header-btn"
             onClick={() => window.open('https://dev.azure.com/CHIELabs/CHIE%20Labs/_workitems/create/Lab%20Task', '_blank')}
-            title="Request surplus parts"
-            aria-label="Request surplus parts"
+            title="Create ADO Request Ticket For Surplus"
+            aria-label="Create ADO Request Ticket For Surplus"
           >
-            Request surplus parts?
+            Create ADO Request Ticket For Surplus
           </button>
-          <div style={{ position: 'relative', display: 'inline-block' }}>
+          {/* Info tooltip for surplus request */}
+          <div className="info-dropdown-container">
             <img
+              ref={infoIconRef}
               src={infoIcon}
               alt="Info"
-              style={{ width: 22, height: 22, marginLeft: 8, verticalAlign: 'middle', cursor: 'pointer' }}
-              onMouseEnter={() => setInfoDropdownOpen(true)}
-              onMouseLeave={() => setTimeout(() => setInfoDropdownOpen(false), 200)}
+              className="info-icon"
+              onMouseEnter={handleInfoMouseEnter}
+              onMouseLeave={handleInfoMouseLeave}
             />
-            {infoDropdownOpen && (
+            {infoDropdownOpen && createPortal(
               <div
+                className="info-dropdown"
                 style={{
-                  position: 'absolute',
-                  top: 30,
-                  left: 0,
-                  background: '#fff',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                  padding: '6px 10px',
-                  minWidth: 220,
-                  zIndex: 100,
-                  color: '#222',
-                  fontSize: 12,
-                  fontWeight: 400,
-                  borderRadius: 0,
-                  border: 'none',
-                  outline: 'none',
-                  boxSizing: 'border-box'
+                  position: 'fixed',
+                  top: tooltipPosition.top,
+                  left: tooltipPosition.left,
+                  zIndex: 3000,
                 }}
                 onMouseEnter={() => setInfoDropdownOpen(true)}
                 onMouseLeave={() => setInfoDropdownOpen(false)}
               >
                 Click the link to request usable surplus values and check if they're available and ready for pickup.
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
       </div>
       <div className="flex-end">
+        {/* Export selected parts button */}
         <button
-          className="download-export-btn"
-          style={{
-            marginLeft: 12,
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: Object.keys(selected).length === 0 ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            opacity: Object.keys(selected).length === 0 ? 0.5 : 1
-          }}
+          className="download-export-btn header-btn"
           onClick={Object.keys(selected).length === 0 ? undefined : handleExport}
           disabled={Object.keys(selected).length === 0}
           title="Export selected parts"
           aria-label="Export selected parts"
         >
-          <img src={downloadIcon} alt="Download" style={{ width: 28, height: 28 }} />
+          <img src={downloadIcon} alt="Download" className="header-btn-icon" />
         </button>
+        {/* Next page button (proceed to required fields) */}
         <button
-          className="next-btn"
-          style={{
-            marginLeft: 12,
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            opacity: (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== '')) ? 0.5 : 1
-          }}
+          className="next-btn header-btn"
           onClick={
             (Object.keys(selected).length === 0 || !Object.keys(selected).every(id => quantities[id] && quantities[id].trim() !== ''))
               ? undefined
@@ -232,28 +206,20 @@ const PartsTableHeader = ({
           title="Proceed to required fields"
           aria-label="Proceed to required fields"
         >
-          <img src={nextIcon} alt="Next" style={{ width: 28, height: 28 }} />
-          <span style={{ marginLeft: 6, fontSize: 15, fontWeight: 500, color: '#222' }}>
+          <img src={nextIcon} alt="Next" className="header-btn-icon" />
+          <span className="header-btn-label">
             Next Page
           </span>
         </button>
+        {/* Chat button to open/close Copilot chat */}
         <button
-          className="chat-btn"
-          style={{
-            marginLeft: 12,
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center'
-          }}
+          className="chat-btn header-btn"
           onClick={() => setChatOpen(prev => !prev)}
           title={chatOpen ? 'Close Copilot Chat' : 'Open Copilot Chat'}
           aria-label={chatOpen ? 'Close Copilot Chat' : 'Open Copilot Chat'}
         >
-          <img src={chatIcon} alt="Chat" style={{ width: 28, height: 28 }} />
-          <span style={{ marginLeft: 6, fontSize: 15, fontWeight: 500, color: '#222' }}>
+          <img src={chatIcon} alt="Chat" className="header-btn-icon" />
+          <span className="header-btn-label">
             Chat
           </span>
         </button>

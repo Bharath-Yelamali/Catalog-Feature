@@ -1,3 +1,33 @@
+### AI Chat API (`aiChat.js`)
+
+Client for AI-powered endpoints (intent detection and chat) using Azure OpenAI.
+
+#### Core Functions
+
+**`sendIntentAI({ question })`**
+Sends a user message to the backend intent detection endpoint and returns the detected intent.
+
+```javascript
+import { sendIntentAI } from '../api/aiChat.js';
+
+const { intent } = await sendIntentAI({ question: 'What is the status of my order?' });
+// intent: 'search', 'analyze_results', or 'general'
+```
+
+**`sendAIChat({ question, results })`**
+Sends a user message and (optionally) search results to the backend AI chat endpoint and returns the AI assistant's response.
+
+```javascript
+import { sendAIChat } from '../api/aiChat.js';
+
+const { answer } = await sendAIChat({ question: 'Summarize these results', results });
+// answer: AI-generated response string
+```
+
+**Error Handling:**
+- Throws on network or server errors
+- Returns structured error objects from the backend
+
 # API Client Documentation
 
 Frontend API client modules for communicating with the backend services. Provides type-safe, error-handled interfaces for all backend operations.

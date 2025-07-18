@@ -1,3 +1,15 @@
+/**
+ * GlobalSearchBar Component
+ * -------------------------
+ * Renders a text input for global search, styled to align with other search bar controls.
+ *
+ * Features:
+ * - Debounced input for efficient server-side filtering
+ * - Triggers a filter search with OR'ed conditions across all searchable fields
+ * - Integrates with parent filter/search logic
+ *
+ * @fileoverview Global search input for the main table UI, with debounced filter trigger.
+ */
 import React, { useState, useRef, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { searchableFields } from '../constants';
@@ -42,14 +54,6 @@ export function GlobalSearchBar({ value, setInputValue, onGlobalSearchConditions
       type="text"
       className="global-search-input"
       placeholder={placeholder}
-      style={{
-        marginLeft: 16,
-        padding: '6px 12px',
-        border: '1px solid #bcd6f7',
-        borderRadius: 6,
-        fontSize: 15,
-        width: 220
-      }}
       value={value}
       onChange={handleChange}
       aria-label="Global search"

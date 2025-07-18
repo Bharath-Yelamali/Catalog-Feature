@@ -39,6 +39,13 @@ This folder contains the Express.js backend API for the Catalog feature. It acts
 
 ## Route Files and Endpoints
 
+### `aiChat.js`
+- **Endpoints:**
+  - `POST /ai-intent` — Classifies the intent of a user message (e.g., 'analyze_results', 'search', 'general').
+  - `POST /ai-chat` — Generates an AI-powered conversational response to a user question, optionally using search results.
+  - `POST /ai-search-query` — Generates a search JSON from a user query, optionally using previous queries and search context.
+- **Notes:** Uses Azure OpenAI for all endpoints. Helper functions for prompt loading and OpenAI requests are included in the file. All endpoints require a valid Bearer token if authentication is enforced at the app level.
+
 ### `parts.js`
 - **Endpoints:**
   - `GET /parts` — List, search, and group inventory parts. Supports advanced filtering, search, and result highlighting.

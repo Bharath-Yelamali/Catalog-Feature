@@ -3,17 +3,7 @@
  * 
  * This module contains ALL search-related functionality that was previously scattered
  * throughout PartsTable.jsx, providing a clean separation of concerns.
- * 
- * COMPLETED REFACTORING:
- * - ✅ Field Management: All show/hide column logic extracted from PartsTable.jsx
- * - ✅ Filter Management: All filter conditions and logic extracted from PartsTable.jsx  
- * - ✅ Search Utilities: Text highlighting and truncation logic extracted from PartsTable.jsx
- * - ✅ PropTypes: Runtime type validation added for all components and hooks
- * - ✅ Error Handling: Robust error handling and input validation throughout
- * - ✅ Performance: Memoization and useCallback optimizations applied
- * - ✅ Accessibility: ARIA attributes and keyboard navigation support
- * - ✅ Modular Structure: Split into discrete hooks, components, and constants
- * 
+ *
  * ARCHITECTURE:
  * - useFieldManagement: Manages column visibility and table layout
  * - useFilterManagement: Handles all filter conditions and API integration

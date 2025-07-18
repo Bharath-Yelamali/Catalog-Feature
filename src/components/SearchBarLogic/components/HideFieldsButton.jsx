@@ -1,3 +1,16 @@
+/**
+ * HideFieldsButton Component
+ * --------------------------
+ * Renders a button and dropdown UI for showing/hiding table columns, with search and bulk actions.
+ *
+ * Features:
+ * - Toggle visibility of main and instance fields
+ * - Search fields by name
+ * - Hide all / Show all fields with one click
+ * - Accessible and keyboard-friendly
+ *
+ * @fileoverview Button and dropdown for managing visible columns in the main table UI.
+ */
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import hideIcon from '../../../assets/hide.svg';
@@ -18,6 +31,7 @@ import hideIcon from '../../../assets/hide.svg';
  * @param {Array} props.allFields - Complete list of available fields
  * @returns {JSX.Element} Hide fields button and dropdown
  */
+
 export function HideFieldsButton({ 
   hiddenFieldCount = 0, 
   hideFieldsDropdownOpen = false, 
@@ -36,34 +50,40 @@ export function HideFieldsButton({
     return null;
   }
 
+
+  /**
+   * Hide all fields by setting all field keys to true in hiddenFields.
+   */
   const handleHideAll = useCallback(() => {
     try {
-      console.log('Hide All clicked');
-      console.log('allFields:', allFields);
       const newHiddenFields = {};
       allFields.forEach(field => {
         if (field?.key) {
           newHiddenFields[field.key] = true;
         }
       });
-      console.log('Setting hiddenFields to:', newHiddenFields);
       setHiddenFields(newHiddenFields);
-      console.log('Hidden fields set');
     } catch (error) {
       console.error('Error hiding all fields:', error);
     }
   }, [allFields, setHiddenFields]);
 
+
+  /**
+   * Show all fields by clearing the hiddenFields object.
+   */
   const handleShowAll = useCallback(() => {
     try {
-      console.log('Show All clicked');
       setHiddenFields({});
-      console.log('Hidden fields cleared');
     } catch (error) {
       console.error('Error showing all fields:', error);
     }
   }, [setHiddenFields]);
 
+
+  /**
+   * Update the field search query as the user types.
+   */
   const handleSearchChange = useCallback((e) => {
     try {
       const value = e.target?.value || '';
@@ -73,12 +93,14 @@ export function HideFieldsButton({
     }
   }, [setFieldSearchQuery]);
 
+
+  // Separate fields into main table and instance detail fields
   const mainTableFields = filteredFields.filter(field => field?.isMainTable === true);
-  
   const instanceDetailFields = filteredFields.filter(field => field?.isMainTable === false);
 
   return (
     <div className="hide-fields-container">
+      {/* Button to open/close the hide fields dropdown */}
       <button
         className={`hide-fields-button ${hiddenFieldCount > 0 ? 'active' : ''}`}
         onClick={() => setHideFieldsDropdownOpen(!hideFieldsDropdownOpen)}
@@ -97,9 +119,10 @@ export function HideFieldsButton({
         }
       </button>
 
+      {/* Dropdown for managing field visibility */}
       {hideFieldsDropdownOpen && (
         <div className="hide-fields-dropdown" role="menu">
-          {/* Search input */}
+          {/* Search input for filtering fields */}
           <div className="hide-fields-search-section">
             <input
               type="text"
@@ -110,8 +133,7 @@ export function HideFieldsButton({
               aria-label="Search fields"
             />
           </div>
-          
-          {/* Field list */}
+          {/* Field list (main table and instance detail) */}
           <div className="hide-fields-list">
             {/* Main Table Fields */}
             {mainTableFields.length > 0 && (
@@ -135,7 +157,6 @@ export function HideFieldsButton({
                 ))}
               </div>
             )}
-            
             {/* Instance Detail Fields */}
             {instanceDetailFields.length > 0 && (
               <div className="hide-fields-section">
@@ -158,24 +179,19 @@ export function HideFieldsButton({
                 ))}
               </div>
             )}
-
-            {/* No results message */}
+            {/* No results message if search yields nothing */}
             {filteredFields.length === 0 && fieldSearchQuery.trim() && (
               <div className="hide-fields-no-results">
                 No fields match "{fieldSearchQuery}"
               </div>
             )}
           </div>
-          
-          {/* Action buttons */}
+          {/* Action buttons for hide all / show all */}
           <div className="hide-fields-actions">
             <button
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Hide All button clicked');
-                console.log('setHiddenFields function:', setHiddenFields);
-                console.log('allFields:', allFields);
                 handleHideAll();
               }}
               type="button"
@@ -188,8 +204,6 @@ export function HideFieldsButton({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Show All button clicked');
-                console.log('setHiddenFields function:', setHiddenFields);
                 handleShowAll();
               }}
               type="button"

@@ -1,11 +1,50 @@
-import React, { useState } from 'react';
 
+/**
+ * LoginPage.jsx
+ *
+ * This component renders the login form for IMS authentication.
+ * Handles username/password input, error display, and login API call.
+ *
+ * @module src/components/LoginPage
+ */
+
+
+/**
+ * LoginPage component
+ * Renders the login form and handles authentication logic.
+ *
+ * @param {Object} props
+ * @param {Function} [props.setPage] - (Unused) Function to set the current page
+ * @param {Function} [props.setAccessToken] - Setter for access token
+ * @param {Function} [props.setUsername] - Setter for username
+ * @param {Function} [props.handleLoginSuccess] - Optional callback for successful login
+ */
 const LoginPage = ({ setPage, setAccessToken, setUsername, handleLoginSuccess }) => {
+  /**
+   * State for username input
+   * @type {[string, Function]}
+   */
   const [username, setUsernameInput] = useState('');
+  /**
+   * State for password input
+   * @type {[string, Function]}
+   */
   const [password, setPassword] = useState('');
+  /**
+   * State for error message
+   * @type {[string, Function]}
+   */
   const [error, setError] = useState('');
+  /**
+   * State for loading indicator
+   * @type {[boolean, Function]}
+   */
   const [loading, setLoading] = useState(false);
 
+  /**
+   * Handles form submission and login API call.
+   * @param {React.FormEvent<HTMLFormElement>} e
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username || !password) {
@@ -15,7 +54,9 @@ const LoginPage = ({ setPage, setAccessToken, setUsername, handleLoginSuccess })
     setError('');
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:3001/api/login', {
+      // Use Vite environment variable for API base URL
+      const LOGIN_API_URL = `${import.meta.env.VITE_API_BASE_URL}/login`;
+      const response = await fetch(LOGIN_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -35,8 +76,8 @@ const LoginPage = ({ setPage, setAccessToken, setUsername, handleLoginSuccess })
       if (typeof handleLoginSuccess === 'function') {
         await handleLoginSuccess(data.access_token, username);
       } else {
-        setAccessToken(data.access_token);
-        setUsername(username);
+        setAccessToken && setAccessToken(data.access_token);
+        setUsername && setUsername(username);
       }
       // Do not setPage here; let parent App handle redirect after login
     } catch (err) {
@@ -88,3 +129,4 @@ const LoginPage = ({ setPage, setAccessToken, setUsername, handleLoginSuccess })
 };
 
 export default LoginPage;
+import React, { useState } from 'react';

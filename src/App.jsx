@@ -1,19 +1,29 @@
 import { useEffect, useState, useRef } from 'react'
 import * as XLSX from 'xlsx';
-import PartsTable from './components/PartsTable/components/PartsTable';
-import RequiredFields from './components/RequiredFields';
+import PartsTable from './components/PartsTable/PartsTable';
+import RequiredFields from './components/RequiredFields/RequiredFields';
 import ConfirmationSummary from './components/ConfirmationSummary/components/ConfirmationSummary';
-import { fetchParts } from './api/parts';
 import { executeSearch, processSearchResults } from './controllers/searchController';
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
 import { fetchUserFirstName } from './api/userInfo';
-import OrdersPage from './components/OrdersPage';
-import ReactDOM from 'react-dom';
+import OrdersPage from './components/OrdersPage/OrdersPage';
 // Update SVG imports to use assets folder
-import wizardIcon from './assets/wizard.svg';
+import NavigationBar from './components/NavigationBar/NavigationBar';
+import SessionPopup from './components/NavigationBar/SessionPopup';
 import Chatbox from './components/chatbox/chatbox';
-import chatIcon from './assets/chat.svg';
+
+import ChatboxOpenButton from './components/PartsTable/ChatboxOpenButton';
+// Updated imports for FilterComponents folder
+// import FilterDropdown from './components/FilterDropdown';
+// import { FilterCondition } from './components/FilterComponents';
+// import { LogicalOperatorSelector } from './components/LogicalOperatorSelector';
+// import { UnifiedFilterList } from './components/UnifiedFilterList';
+// Now use:
+// import FilterDropdown from './components/FilterComponents/FilterDropdown';
+// import { FilterCondition } from './components/FilterComponents/FilterComponents';
+// import { LogicalOperatorSelector } from './components/FilterComponents/LogicalOperatorSelector';
+// import { UnifiedFilterList } from './components/FilterComponents/UnifiedFilterList';
 
 function App() {
   const [page, setPage] = useState('home')
@@ -82,7 +92,7 @@ function App() {
   const [justSearched, setJustSearched] = useState(false);
   // Track if default search has been triggered to avoid infinite loop
   const [defaultSearchTriggered, setDefaultSearchTriggered] = useState(false);
-  const [requestPopup, setRequestPopup] = useState({ open: false, custodians: [], group: null });
+  // Removed requestPopup feature
   // Add filter state for advanced/global search UI sync
   const [filterConditions, setFilterConditions] = useState([]);
   const [logicalOperator, setLogicalOperator] = useState('and');
@@ -481,179 +491,24 @@ function App() {
         onGlobalSearchConditions={handleGlobalSearchConditions}
       />
       {showSessionPopup && (
-        <div className="session-popup-overlay" onClick={() => setShowSessionPopup(false)}>
-          <div className="session-popup" onClick={e => e.stopPropagation()}>
-            <div className="session-popup-title">About my session</div>
-            <div className="session-popup-fields">
-              <div className="session-popup-field"><span>Login Name:</span> <span>{username || 'N/A'}</span></div>
-              <div className="session-popup-field"><span>Database:</span> <span>IMSStageBharath</span></div>
-              <div className="session-popup-field"><span>Admin:</span> <span>{isAdmin ? 'Yes' : 'No'}</span></div>
-              <div className="session-popup-field"><span>Full Name:</span> <span>{(firstName || lastName) ? `${firstName} ${lastName}`.trim() : 'N/A'}</span></div>
-            </div>
-            <button className="session-popup-close" onClick={() => setShowSessionPopup(false)}>Close</button>
-          </div>
-        </div>
+        <SessionPopup
+          username={username}
+          isAdmin={isAdmin}
+          firstName={firstName}
+          lastName={lastName}
+          onClose={() => setShowSessionPopup(false)}
+        />
       )}
-      {/* Request popup modal rendered at the top level using a Portal */}
-      {requestPopup.open && ReactDOM.createPortal(
-        <div
-          className="session-popup-overlay"
-          tabIndex={-1}
-          onClick={e => e.stopPropagation()} // Prevent closing on background click
-          onMouseDown={e => e.preventDefault()} // Prevent focus loss
-          onFocus={e => {
-            // Trap focus inside popup
-            const popup = document.getElementById('request-popup-modal');
-            if (popup) popup.focus();
-          }}
-        >
-          <div
-            id="request-popup-modal"
-            className="session-popup"
-            tabIndex={0}
-            style={{ outline: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => {
-              // Trap focus inside modal
-              if (e.key === 'Tab') {
-                e.preventDefault();
-              }
-              if (e.key === 'Escape') {
-                setRequestPopup({ open: false, custodians: [], group: null });
-              }
-            }}
-            autoFocus
-          >
-            <div className="session-popup-title" style={{ marginBottom: 12 }}>Request Parts From:</div>
-            {requestPopup.custodians.length === 0 ? (
-              <div style={{ color: '#888', marginBottom: 12 }}>No custodians found for selected instances.</div>
-            ) : (
-              requestPopup.custodians.map((custodian, idx) => {
-                // Use cappedInstances for email, filtered by custodian
-                const cappedInstances = (requestPopup.cappedInstances || []).filter(inst => (inst["m_custodian@aras.keyed_name"] || inst.m_custodian) === custodian && inst.capped_quantity > 0);
-                if (cappedInstances.length === 0) return null;
-                // Shared part info (from first instance)
-                const shared = cappedInstances[0];
-                const sharedInfo = [
-                  `Inventory Item Number:    ${shared.item_number || 'N/A'}`,
-                  `Manufacturer Part #:      ${shared.m_mfg_part_number || 'N/A'}`,
-                  `Manufacturer Name:        ${shared.m_mfg_name || 'N/A'}`,
-                  `Inventory Description:    ${shared.m_inventory_description || shared.m_description || 'N/A'}`
-                ].join('\n');
-                // Instance-specific lines (each instance on its own line, using capped_quantity)
-                const instanceLines = cappedInstances.map(inst => {
-                  const imsLink = inst.id ? `https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${inst.id}` : '';
-                  return `Quantity: ${inst.capped_quantity}    Instance ID: ${inst.m_id || inst.id || 'N/A'}${imsLink ? ` (Link: ${imsLink})` : ''}    Parent Path: ${inst.m_parent_ref_path || 'N/A'}`;
-                }).join('\n');
-                const subject = encodeURIComponent('Request for Inventory Parts');
-                const body = encodeURIComponent(
-                  `Hello${custodian ? ' ' + custodian : ''},\n\n` +
-                  `I would like to request the following part(s) from inventory. Could you please let me know the status and if they are available for me to pick up?\n\n` +
-                  sharedInfo +
-                  '\n\n' +
-                  instanceLines +
-                  '\n\nThank you!\n' +
-                  (typeof window !== 'undefined' && window.location && window.location.origin ? `Requested via: ${window.location.origin}` : '')
-                );
-                return (
-                  <button
-                    key={custodian || idx}
-                    style={{
-                      background: 'none',
-                      color: '#222',
-                      border: '1px solid #ccc',
-                      borderRadius: 4,
-                      padding: '6px 18px',
-                      fontWeight: 600,
-                      fontSize: 16,
-                      cursor: 'pointer',
-                      margin: '6px 0',
-                      minWidth: 120,
-                      transition: 'background 0.15s',
-                    }}
-                    onMouseOver={e => (e.currentTarget.style.background = '#ffe066')}
-                    onFocus={e => (e.currentTarget.style.background = '#ffe066')}
-                    onMouseOut={e => (e.currentTarget.style.background = 'none')}
-                    onBlur={e => (e.currentTarget.style.background = 'none')}
-                    onClick={() => {
-                      window.location.href = `mailto:?subject=${subject}&body=${body}`;
-                    }}
-                  >
-                    {custodian || '(Unknown Custodian)'}
-                  </button>
-                );
-              })
-            )}
-            <button className="session-popup-close" style={{ marginTop: 18, fontSize: 15 }} onClick={() => setRequestPopup({ open: false, custodians: [], group: null })}>Close</button>
-          </div>
-        </div>,
-        document.body
-      )}
-      <nav className="taskbar" style={{ display: 'flex', alignItems: 'center', paddingRight: 24 }}>
-        <div className="taskbar-title clickable" onClick={() => setPage('home')} style={{ display: 'flex', alignItems: 'center' }}>
-          <img src={wizardIcon} alt="Wizard Logo" className="taskbar-logo" />
-          {page === 'home' && (
-            <span style={{ color: '#fff', fontWeight: 600, fontSize: 22, marginLeft: 12, letterSpacing: '0.01em' }}>Scout</span>
-          )}
-        </div>
-        {/* Workflow navigation progress indicator (not buttons) */}
-        {accessToken && ['search', 'requiredFields', 'confirmationSummary'].includes(page) && (
-          <div className="workflow-progress" style={{ display: 'flex', alignItems: 'center', gap: 18, marginLeft: 32 }}>
-            {[
-              { key: 'search', label: '1. Search' },
-              { key: 'requiredFields', label: '2. Required Fields' },
-              { key: 'confirmationSummary', label: '3. Confirmation Summary' },
-              { key: 'submit', label: '4. Submit' }
-            ].map((step, idx, arr) => (
-              <div key={step.key} style={{ display: 'flex', alignItems: 'center' }}>
-                <span
-                  className={`workflow-step${page === step.key ? ' active' : ''}${arr.findIndex(s => s.key === page) > idx ? ' completed' : ''}`}
-                  style={{
-                    color: '#fff', // Force white for all steps
-                    fontWeight: page === step.key ? 700 : 500,
-                    fontSize: 15,
-                    borderBottom: page === step.key ? '3px solid #2563eb' : arr.findIndex(s => s.key === page) > idx ? '3px solid #22c55e' : '3px solid #e5e7eb',
-                    paddingBottom: 2,
-                    minWidth: 90,
-                    textAlign: 'left',
-                    background: 'none',
-                    transition: 'color 0.2s, border-bottom 0.2s',
-                  }}
-                >
-                  {step.label}
-                </span>
-                {idx < arr.length - 1 && (
-                  <span style={{ margin: '0 8px', color: '#fff', fontSize: 18 }}>&rarr;</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ flex: 1 }} />
-        <ul className="taskbar-links" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', paddingRight: 6 }}>
-          {/* Only show Search link if user is logged in */}
-          {accessToken && (
-            <li><a href="#" onClick={() => setPage('search')} style={{ color: '#fff', textDecoration: 'none' }}>Search</a></li>
-          )}
-          {/* Only show Orders link if user is logged in */}
-          {accessToken && (
-            <li><a href="#" onClick={() => setPage('orders')} style={{ color: '#fff', textDecoration: 'none' }}>Orders</a></li>
-          )}
-          {/* About page removed */}
-          {!accessToken ? (
-            <li><a href="#" onClick={handleNavLogin} style={{ color: '#fff', textDecoration: 'none' }}>Login</a></li>
-          ) : (
-            <>
-              <li>
-                <a href="#" className="taskbar-link" onClick={e => { e.preventDefault(); setShowSessionPopup(true); }} style={{ color: '#fff', textDecoration: 'none' }}>
-                  Session
-                </a>
-              </li>
-              <li><a href="#" onClick={handleLogout} style={{ color: '#fff', textDecoration: 'none' }}>Logout</a></li>
-            </>
-          )}
-        </ul>
-      </nav>
+      {/* Request popup feature removed */}
+      <NavigationBar
+        page={page}
+        setPage={setPage}
+        accessToken={accessToken}
+        isAdmin={isAdmin}
+        handleNavLogin={handleNavLogin}
+        handleLogout={handleLogout}
+        setShowSessionPopup={setShowSessionPopup}
+      />
       {/* Use HomePage component for the homepage */}
       {page === 'home' && (
         <HomePage setPage={setPage} setSearch={setSearch} handleSearch={handleLoginSearch} accessToken={accessToken} setJustSearched={setJustSearched} />
@@ -666,35 +521,7 @@ function App() {
           {!accessToken ? (
             <>{setPage('home')}</>
           ) : null}
-          {(() => {
-            window.renderExportButton = () => (
-              <button
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 6,
-                  border: '1px solid #bcd6f7',
-                  background: Object.keys(selected).length === 0 ? '#f8fafc' : '#2563eb',
-                  color: Object.keys(selected).length === 0 ? '#334155' : '#fff',
-                  cursor: Object.keys(selected).length === 0 ? 'not-allowed' : 'pointer',
-                  fontWeight: 500,
-                  fontSize: 15,
-                  width: 80,
-                  minWidth: 80,
-                  maxWidth: 80,
-                  height: '42px',
-                  boxSizing: 'border-box',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-                onClick={Object.keys(selected).length === 0 ? undefined : handleExport}
-                disabled={Object.keys(selected).length === 0}
-              >
-                Export
-              </button>
-            );
-            return null;
-          })()}
+          {/* Floating export button removed; use table header export button only */}
           {/* Always render PartsTable if logged in and on search page, even if no results yet */}
           {accessToken && (
             <>
@@ -709,8 +536,7 @@ function App() {
                   setPage={handleSetPage}
                   isAdmin={isAdmin}
                   accessToken={accessToken}
-                  requestPopup={requestPopup}
-                  setRequestPopup={setRequestPopup}
+                  // requestPopup and setRequestPopup removed
                   onFilterSearch={handleFilterSearch}
                   loading={loading}
                   filterConditions={filterConditions}
@@ -725,31 +551,7 @@ function App() {
             </>
           )}
           {accessToken && page === 'search' && (
-            <button
-              style={{
-                position: 'fixed',
-                bottom: 32,
-                right: 15,
-                zIndex: 1000,
-                background: '#2563eb',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '50%',
-                width: 56,
-                height: 56,
-                fontSize: 28,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                cursor: 'pointer',
-                display: chatOpen ? 'none' : 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 0
-              }}
-              aria-label="Open Chatbox"
-              onClick={() => handleSetChatOpen(true)}
-            >
-              <img src={chatIcon} alt="Open Chat" style={{ width: 32, height: 32,}} />
-            </button>
+            <ChatboxOpenButton chatOpen={chatOpen} onOpen={() => handleSetChatOpen(true)} />
           )}
         </div>
       )}

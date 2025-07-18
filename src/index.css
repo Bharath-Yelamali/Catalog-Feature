@@ -1,3 +1,10 @@
+/*
+ * index.css
+ *
+ * Global CSS styles for the Catalog-feature React application.
+ * Sets up base typography, color scheme, layout, and default element styles.
+ * Includes responsive and accessibility improvements for light/dark mode.
+ */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
