@@ -1,4 +1,12 @@
-
+.key-col-singleline {
+  min-width: 0;
+  max-width: 320px;
+  display: flex;
+  align-items: flex-start;
+  height: 100%;
+  word-break: break-word;
+  white-space: normal;
+}
 /* ==========================================================================
    Parts Table
    ========================================================================== */
@@ -1460,4 +1468,33 @@
   background: #fff;
   margin-bottom: 20px;
   /* Optional: add shadow or padding if desired */
+}
+
+/* Add vertical divider between the four key columns in the main part row */
+.part-left-align:not(:last-child) {
+  border-right: 1px solid #d1d5db;
+  padding-left: 10px;
+}
+
+.key-col-border.left {
+  border-left: 1px solid #d1d5db;
+  padding-left: 10px;
+}
+/* Left align for main part fields in table row */
+.part-left-align {
+  justify-content: flex-start;
+  text-align: left;
+}
+/* Scrollable cell for long part fields in main table row */
+.part-scroll-cell {
+  overflow-x: auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 120px;
+  max-width: 320px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #f8fafc;
+  box-sizing: border-box;
+  margin: 2px 0;
 }

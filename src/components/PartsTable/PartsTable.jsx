@@ -410,12 +410,12 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             {!hiddenFields.total && <div className="search-result-field">Total</div>}
             {!hiddenFields.inUse && <div className="search-result-field">In Use</div>}
             {!hiddenFields.essentialReserve && <div className="search-result-field">Essential Reserve</div>}
-            {!hiddenFields.usableSurplus && <div className="search-result-field">Usable Surplus</div>}
+            {!hiddenFields.usableSurplus && <div className="search-result-field key-col-border">Usable Surplus</div>}
             {/* Remove expand button column */}
-            {!hiddenFields.inventoryItemNumber && <div className="search-result-field small-header">Inventory Item Number</div>}
-            {!hiddenFields.manufacturerPartNumber && <div className="search-result-field">Manufactur Part #</div>}
-            {!hiddenFields.manufacturerName && <div className="search-result-field">Manufacturer Name</div>}
-            {!hiddenFields.inventoryDescription && <div className="search-result-field">Inventory Description</div>}
+            {!hiddenFields.inventoryItemNumber && <div className="search-result-field small-header part-left-align key-col-border left">Inventory Item Number</div>}
+            {!hiddenFields.manufacturerPartNumber && <div className="search-result-field part-left-align">Manufactur Part #</div>}
+            {!hiddenFields.manufacturerName && <div className="search-result-field part-left-align">Manufacturer Name</div>}
+            {!hiddenFields.inventoryDescription && <div className="search-result-field part-left-align">Inventory Description</div>}
           </div>
         {/* Main table content */}
         <div className="search-results-dropdown">

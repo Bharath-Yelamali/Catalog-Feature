@@ -84,82 +84,34 @@ const PartsTableMainRow = ({
       </div>
     )}
     {!hiddenFields.usableSurplus && (
-      <div className={`search-result-field ${part.usableSurplus > 0 ? 'usable-surplus-positive' : ''}`}>
+      <div className={`search-result-field${part.usableSurplus > 0 ? ' usable-surplus-positive' : ''} key-col-border`}>
         {truncateText(part.usableSurplus?.toString())}
       </div>
     )}
-    {/* Inventory Item Number (truncated, expandable if long) */}
-    {!hiddenFields.inventoryItemNumber && (() => {
-      const fullValue = part.m_inventory_item?.item_number ?? 'N/A';
-      const truncated = truncateText(fullValue);
-      const isTruncated = truncated !== fullValue;
-      return (
-        <div
-          className={`search-result-field small-header${isTruncated ? ' table-cell--clickable' : ' table-cell--default-cursor'}`}
-          onClick={isTruncated ? (e) => {
-            e.stopPropagation();
-            setExpandedValue && setExpandedLabel && setExpandedValue(fullValue);
-            setExpandedLabel && setExpandedLabel('Inventory Item Number');
-          } : undefined}
-        >
-          {highlightFieldWithMatches(truncated, part._matches?.m_inventory_item)}
-        </div>
-      );
-    })()}
-    {/* Manufacturer Part # (truncated, expandable if long) */}
-    {!hiddenFields.manufacturerPartNumber && (() => {
-      const fullValue = part.m_mfg_part_number ?? 'N/A';
-      const truncated = truncateText(fullValue);
-      const isTruncated = truncated !== fullValue;
-      return (
-        <div
-          className={`search-result-field${isTruncated ? ' table-cell--clickable' : ' table-cell--default-cursor'}`}
-          onClick={isTruncated ? (e) => {
-            e.stopPropagation();
-            setExpandedValue && setExpandedLabel && setExpandedValue(fullValue);
-            setExpandedLabel && setExpandedLabel('Manufacturer Part #');
-          } : undefined}
-        >
-          {highlightFieldWithMatches(truncated, part._matches?.m_mfg_part_number)}
-        </div>
-      );
-    })()}
-    {/* Manufacturer Name (truncated, expandable if long) */}
-    {!hiddenFields.manufacturerName && (() => {
-      const fullValue = part.m_mfg_name ?? 'N/A';
-      const truncated = truncateText(fullValue);
-      const isTruncated = truncated !== fullValue;
-      return (
-        <div
-          className={`search-result-field${isTruncated ? ' table-cell--clickable' : ' table-cell--default-cursor'}`}
-          onClick={isTruncated ? (e) => {
-            e.stopPropagation();
-            setExpandedValue && setExpandedLabel && setExpandedValue(fullValue);
-            setExpandedLabel && setExpandedLabel('Manufacturer Name');
-          } : undefined}
-        >
-          {highlightFieldWithMatches(truncated, part._matches?.m_mfg_name)}
-        </div>
-      );
-    })()}
-    {/* Inventory Description (truncated, expandable if long) */}
-    {!hiddenFields.inventoryDescription && (() => {
-      const fullValue = (part.m_inventory_description ?? part.m_description) ?? 'N/A';
-      const truncated = truncateText(fullValue);
-      const isTruncated = truncated !== fullValue;
-      return (
-        <div
-          className={`search-result-field${isTruncated ? ' table-cell--clickable' : ' table-cell--default-cursor'}`}
-          onClick={isTruncated ? (e) => {
-            e.stopPropagation();
-            setExpandedValue && setExpandedLabel && setExpandedValue(fullValue);
-            setExpandedLabel && setExpandedLabel('Inventory Description');
-          } : undefined}
-        >
-          {highlightFieldWithMatches(truncated, part._matches?.m_inventory_description || part._matches?.m_description)}
-        </div>
-      );
-    })()}
+    {/* Inventory Item Number (full, single line, left aligned) */}
+    {!hiddenFields.inventoryItemNumber && (
+      <div className="search-result-field small-header part-left-align key-col-border left">
+        {highlightFieldWithMatches(part.m_inventory_item?.item_number ?? 'N/A', part._matches?.m_inventory_item)}
+      </div>
+    )}
+    {/* Manufacturer Part # (full, single line, left aligned) */}
+    {!hiddenFields.manufacturerPartNumber && (
+      <div className="search-result-field part-left-align">
+        {highlightFieldWithMatches(part.m_mfg_part_number ?? 'N/A', part._matches?.m_mfg_part_number)}
+      </div>
+    )}
+    {/* Manufacturer Name (full, single line, left aligned) */}
+    {!hiddenFields.manufacturerName && (
+      <div className="search-result-field part-left-align">
+        {highlightFieldWithMatches(part.m_mfg_name ?? 'N/A', part._matches?.m_mfg_name)}
+      </div>
+    )}
+    {/* Inventory Description (full, single line, left aligned) */}
+    {!hiddenFields.inventoryDescription && (
+      <div className="search-result-field part-left-align">
+        {highlightFieldWithMatches((part.m_inventory_description ?? part.m_description) ?? 'N/A', part._matches?.m_inventory_description || part._matches?.m_description)}
+      </div>
+    )}
   </div>
 );
 
