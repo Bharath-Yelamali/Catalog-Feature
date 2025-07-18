@@ -1,45 +1,56 @@
-import React, { useRef, useEffect } from 'react';
+/**
+ * InstanceSection Component
+ * -------------------------
+ * Renders the instance table section for a part, including filtering, selection, and admin controls.
+ *
+ * Features:
+ * - Dynamic dropdown filters for maturity, project, custodian, and parent path
+ * - Admin-only spare threshold editing with async update
+ * - Checkbox selection for general inventory instances
+ * - Accessibility and keyboard navigation support
+ * - Uses helper functions for unique value extraction and dropdown rendering
+ */
 
-const InstanceSection = ({
-  group,
-  part,
-  isAdmin,
-  hiddenFields,
-  generalInventoryFilter,
-  setGeneralInventoryFilter,
-  spareFeedback,
-  setSpareFeedback,
-  requestedInstances,
-  setRequestedInstances,
-  instanceSelectionOrder,
-  setInstanceSelectionOrder,
-  projectFilter,
-  setProjectFilter,
-  openProjectDropdown,
+/**
+ * Returns a unique array of truthy values.
+ * @param {Array} arr
+ * @returns {Array}
+ */
+const unique = arr => Array.from(new Set(arr.filter(Boolean)));
+
+/**
+ * Renders a dropdown cell for filtering instance table columns.
+ * @param {string} header - The column header label
+ * @param {Object} filter - Current filter state
+ * @param {Function} setFilter - Setter for filter state
+ * @param {Object} openDropdown - Current open dropdown state
+ * @param {Function} setOpenDropdown - Setter for open dropdown state
+ * @param {Array} values - Dropdown options
+ * @param {string|number} groupKey - Key for the group/row
+ * @param {React.RefObject} dropdownRef - Ref for the dropdown
+ * @param {string} dropdownType - Type of dropdown (project, maturity, etc.)
+ * @param {Function} setOpenProjectDropdown
+ * @param {Function} setOpenMaturityDropdown
+ * @param {Function} setOpenCustodianDropdown
+ * @param {Function} setOpenParentPathDropdown
+ * @returns {JSX.Element}
+ */
+function renderDropdown(
+  header,
+  filter,
+  setFilter,
+  openDropdown,
+  setOpenDropdown,
+  values,
+  groupKey,
+  dropdownRef,
+  dropdownType,
   setOpenProjectDropdown,
-  maturityFilter,
-  setMaturityFilter,
-  openMaturityDropdown,
   setOpenMaturityDropdown,
-  custodianFilter,
-  setCustodianFilter,
-  openCustodianDropdown,
   setOpenCustodianDropdown,
-  parentPathFilter,
-  setParentPathFilter,
-  openParentPathDropdown,
-  setOpenParentPathDropdown,
-  accessToken,
-  getInstanceTableGridColumns,
-  highlightFieldWithMatches,
-  usableSurplus,
-  updateSpareValue
-}) => {
-  // Helper: get unique values for dropdowns
-  const unique = arr => Array.from(new Set(arr.filter(Boolean)));
-
-  // Dropdown render helper
-  const renderDropdown = (header, filter, setFilter, openDropdown, setOpenDropdown, values, groupKey, dropdownRef, dropdownType) => (
+  setOpenParentPathDropdown
+) {
+  return (
     <div className="table-cell" style={{ position: 'relative', cursor: 'pointer', userSelect: 'none' }} ref={dropdownRef}>
       <span
         onClick={e => {
@@ -81,6 +92,87 @@ const InstanceSection = ({
       )}
     </div>
   );
+}
+
+import React, { useRef, useEffect } from 'react';
+
+/**
+ * InstanceSection Component
+ * -------------------------
+ * Renders the instance table section with filtering, selection, and admin controls.
+ *
+ * @param {Object} props
+ * @param {Object} props.group - Group data for the part
+ * @param {Object} props.part - Part data
+ * @param {boolean} props.isAdmin - Whether the user is an admin
+ * @param {Object} props.hiddenFields - Fields to hide in the table
+ * @param {Object} props.generalInventoryFilter
+ * @param {Function} props.setGeneralInventoryFilter
+ * @param {Object} props.spareFeedback
+ * @param {Function} props.setSpareFeedback
+ * @param {Object} props.requestedInstances
+ * @param {Function} props.setRequestedInstances
+ * @param {Array} props.instanceSelectionOrder
+ * @param {Function} props.setInstanceSelectionOrder
+ * @param {Object} props.projectFilter
+ * @param {Function} props.setProjectFilter
+ * @param {Object} props.openProjectDropdown
+ * @param {Function} props.setOpenProjectDropdown
+ * @param {Object} props.maturityFilter
+ * @param {Function} props.setMaturityFilter
+ * @param {Object} props.openMaturityDropdown
+ * @param {Function} props.setOpenMaturityDropdown
+ * @param {Object} props.custodianFilter
+ * @param {Function} props.setCustodianFilter
+ * @param {Object} props.openCustodianDropdown
+ * @param {Function} props.setOpenCustodianDropdown
+ * @param {Object} props.parentPathFilter
+ * @param {Function} props.setParentPathFilter
+ * @param {Object} props.openParentPathDropdown
+ * @param {Function} props.setOpenParentPathDropdown
+ * @param {string} props.accessToken
+ * @param {Function} props.getInstanceTableGridColumns
+ * @param {Function} props.highlightFieldWithMatches
+ * @param {any} props.usableSurplus
+ * @param {Function} props.updateSpareValue
+ * @returns {JSX.Element}
+ */
+const InstanceSection = ({
+  group,
+  part,
+  isAdmin,
+  hiddenFields,
+  generalInventoryFilter,
+  setGeneralInventoryFilter,
+  spareFeedback,
+  setSpareFeedback,
+  requestedInstances,
+  setRequestedInstances,
+  instanceSelectionOrder,
+  setInstanceSelectionOrder,
+  projectFilter,
+  setProjectFilter,
+  openProjectDropdown,
+  setOpenProjectDropdown,
+  maturityFilter,
+  setMaturityFilter,
+  openMaturityDropdown,
+  setOpenMaturityDropdown,
+  custodianFilter,
+  setCustodianFilter,
+  openCustodianDropdown,
+  setOpenCustodianDropdown,
+  parentPathFilter,
+  setParentPathFilter,
+  openParentPathDropdown,
+  setOpenParentPathDropdown,
+  accessToken,
+  getInstanceTableGridColumns,
+  highlightFieldWithMatches,
+  usableSurplus,
+  updateSpareValue
+}) => {
+
 
   // Refs for dropdowns
   const projectDropdownRef = useRef(null);

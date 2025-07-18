@@ -52,13 +52,17 @@ export default function useExportPDF() {
       const mfgPartNum = part.m_mfg_part_number || 'N/A';
       const mfgName = part.m_mfg_name || 'N/A';
       const description = part.m_inventory_description || part.m_description || 'N/A';
+      // Split all fields to size for consistent wrapping/indentation
+      const itemNumLines = doc.splitTextToSize(itemNum, 25);
+      const mfgPartNumLines = doc.splitTextToSize(mfgPartNum, 30);
+      const mfgNameLines = doc.splitTextToSize(mfgName, 35);
       const descLines = doc.splitTextToSize(description, 70);
-      const maxLines = Math.max(1, descLines.length);
+      const maxLines = Math.max(1, descLines.length, itemNumLines.length, mfgPartNumLines.length, mfgNameLines.length);
       for (let i = 0; i < maxLines; i++) {
         doc.text(i === 0 ? qtyStr : '', 10, y);
-        doc.text(i === 0 ? itemNum : '', 25, y);
-        doc.text(i === 0 ? mfgPartNum : '', 55, y);
-        doc.text(i === 0 ? mfgName : '', 90, y);
+        doc.text(itemNumLines[i] || '', 25, y);
+        doc.text(mfgPartNumLines[i] || '', 55, y);
+        doc.text(mfgNameLines[i] || '', 90, y);
         doc.text(descLines[i] || '', 130, y);
         y += 6;
         if (y > 270) { doc.addPage(); y = 15; }

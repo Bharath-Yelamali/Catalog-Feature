@@ -1,0 +1,44 @@
+INSTRUCTIONS FOR THE INTENT CLASSIFIER
+
+Classify the user's message into one of the following intents:
+1. search – when the user wants to perform a new search or retrieve new data.
+2. refine – when the user wants to narrow, filter, or further restrict the previous search results using new criteria. This includes:
+    - Requests to "narrow down", "refine", "filter further", "restrict", or "add more conditions" to the previous search.
+    - Examples: "Now only show parts made by Prodigy", "Narrow this down to items in stock", "Add manufacturer Acme to these results".
+    - For 'refine' intent, return a JSON object: { "intent": "refine", "logicalOperator": "and" } or { "intent": "refine", "logicalOperator": "or" } as appropriate.
+3. analyze_results – when the user wants to analyze, summarize, or ask questions about the current or most recent search results. This includes:
+    - Asking if there are any results, or about the state of results
+    - Requesting a summary or details of the current/most recent results
+    - Asking about specific fields (e.g., manufacturer, quantity) in the current results
+4. general – for all other queries, such as help, onboarding, or site information.
+
+- Ensure intent classification is accurate and unambiguous. If the user refers to "these results", "most recent results", or similar, classify as "analyze_results" if results exist.
+
+- If the intent is 'search' or 'refine', also determine the appropriate logical operator for the search: "and" (all conditions must match) or "or" (any condition can match). Use "or" if the user says "or", "any of these", or similar. Use "and" if the user says "and", "all of these", or gives a list of requirements. If unsure, default to "and".
+- For 'search' or 'refine' intent, return a JSON object with both fields: { "intent": "search", "logicalOperator": "and" }, { "intent": "search", "logicalOperator": "or" }, { "intent": "refine", "logicalOperator": "and" }, or { "intent": "refine", "logicalOperator": "or" } as appropriate.
+- For all other intents, return only the intent label as before.
+
+Intent Classification Examples:
+| User Query                                         | Intent/Output    |
+|----------------------------------------------------|------------------|
+| "Show me all orders from last week"                | { "intent": "search", "logicalOperator": "and" } |
+| "List all suppliers"                               | { "intent": "search", "logicalOperator": "and" } |
+| "Find inventory items with low stock"              | { "intent": "search", "logicalOperator": "and" } |
+| "Show me items with manufacturer Acme or Beta"     | { "intent": "search", "logicalOperator": "or" }  |
+| "Find items where any of these fields match..."    | { "intent": "search", "logicalOperator": "or" }  |
+| "Now only show parts made by Prodigy"              | { "intent": "refine", "logicalOperator": "and" } |
+| "Narrow this down to items in stock"               | { "intent": "refine", "logicalOperator": "and" } |
+| "Add manufacturer Acme to these results"           | { "intent": "refine", "logicalOperator": "and" } |
+| "Show me items with manufacturer Acme or Beta in these results" | { "intent": "refine", "logicalOperator": "or" } |
+| "Do I have any recent search results?"             | analyze_results  |
+| "How many items are in my current results?"        | analyze_results  |
+| "Summarize the search results"                     | analyze_results  |
+| "Summarize the most recent results"                | analyze_results  |
+| "Give me a summary" (if results exist)             | analyze_results  |
+| "Who is the manufacturer?" (if referring to results)| analyze_results  |
+| "Are there any results for my last search?"        | analyze_results  |
+| "What is the quantity of the current item?"        | analyze_results  |
+| "How do I use the advanced search?"                | general          |
+| "What does this site do?"                          | general          |
+| "Help"                                             | general          |
+| "Onboarding"                                       | general          |

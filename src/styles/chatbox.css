@@ -1,3 +1,116 @@
+/* Chatbox header and title */
+.copilot-chat-header {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: #222;
+  border-bottom: 1px solid #333;
+}
+.copilot-chat-title {
+  flex: none;
+  font-weight: bold;
+}
+
+/* JSON toggle group */
+.copilot-chat-json-toggle-group {
+  display: flex;
+  align-items: center;
+  margin-left: 16px;
+  margin-right: 8px;
+}
+
+/* JSON slider */
+.copilot-json-slider {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  margin-right: 10px;
+}
+.copilot-json-slider-input {
+  display: none;
+}
+.copilot-json-slider-bar {
+  width: 36px;
+  height: 20px;
+  background: #ccc;
+  border-radius: 12px;
+  position: relative;
+  transition: background 0.2s;
+  display: inline-block;
+  margin-right: 0.5em;
+}
+.copilot-json-slider-bar.checked {
+  background: #2d72d9;
+}
+.copilot-json-slider-knob {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transition: left 0.2s;
+}
+.copilot-json-slider-knob.checked {
+  left: 18px;
+}
+
+/* JSON icon and label */
+.copilot-json-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 6px;
+  filter: invert(1) brightness(2);
+}
+.copilot-json-label {
+  font-size: 0.95em;
+  color: #fff;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+/* Clear button icon */
+.copilot-chat-clear-icon {
+  width: 20px;
+  height: 20px;
+  filter: invert(1);
+  margin-right: 8px;
+}
+
+/* Clear button */
+.copilot-chat-clear {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* Empty state */
+.copilot-chat-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+/* Empty state wizard icon (large) */
+.copilot-chat-empty-state-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.8;
+}
+.copilot-chat-empty-state-text {
+  color: #aaa;
+  font-size: .9em;
+  text-align: center;
+}
 .copilot-chat-sidebar {
   position: fixed;
   top: 115px; /* Start below nav bar and header bar (60px + 60px) */

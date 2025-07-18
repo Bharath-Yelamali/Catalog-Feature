@@ -1,53 +1,67 @@
+
+/**
+ * @file useFilterManagement.js
+ * @description
+ *   Custom React hook for managing advanced filter logic, state, and drag-and-drop functionality
+ *   for a search/filter UI. Handles both client-side and API-driven filtering, debounced updates,
+ *   logical operators, and integrates with a drag-and-drop hook for reordering filter conditions.
+ *
+ *   Exposes all relevant state, handlers, and utility functions for use in filter UIs.
+ *
+ * @author Bharath Yelamali
+ * @date 2025-07-16
+ *
+ * @exports useFilterManagement
+ */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDragAndDrop } from '../../../hooks/useDragAndDrop';
 import { DEBOUNCE_DELAY_MS, searchableFields } from '../constants';
 
 /**
- * Custom hook for managing filter functionality
- * @param {Array} results - Array of search results to filter
- * @param {Function} onFilterSearch - Callback function for API filter searches
- * @returns {Object} Filter management state and functions
+ * Custom hook for managing filter functionality, state, and drag-and-drop for a search/filter UI.
+ * Handles both client-side and API-driven filtering, debounced updates, and logical operators.
+ *
+ * @param {Array} results - Array of search results to filter (raw data)
+ * @param {Function} onFilterSearch - Optional callback for API filter searches (chips format)
+ * @returns {Object} Filter management state, handlers, and utility functions
  */
 export function useFilterManagement(results = [], onFilterSearch) {
-  // Validate inputs
+  // --- Input validation ---
   if (!Array.isArray(results)) {
+    // Defensive: ensure results is always an array
     console.warn('useFilterManagement: results is not an array, defaulting to empty array');
     results = [];
   }
-  
   if (onFilterSearch && typeof onFilterSearch !== 'function') {
+    // Defensive: ensure onFilterSearch is a function if provided
     console.warn('useFilterManagement: onFilterSearch is not a function');
     onFilterSearch = null;
   }
-  // State for filter functionality
-  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [filterConditions, setFilterConditions] = useState([]); // Array of condition objects
-  const [conditionGroups, setConditionGroups] = useState([]); // Array of condition group objects
-  const [filteredResults, setFilteredResults] = useState(results); // Filtered results for display
-  const [inputValues, setInputValues] = useState({}); // Local state for input values to enable debouncing
-  const [hasUnprocessedChanges, setHasUnprocessedChanges] = useState(false); // Track if user has made changes that haven't been processed
-  const [logicalOperator, setLogicalOperator] = useState('and'); // Logical operator for multiple conditions
-  const [draggedCondition, setDraggedCondition] = useState(null); // Track which condition is being dragged
-  const [dragHoverTarget, setDragHoverTarget] = useState(null); // Track which condition is being hovered over during drag
+  // --- State for filter UI and logic ---
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false); // Is the filter dropdown open?
+  const [filterConditions, setFilterConditions] = useState([]); // Array of filter condition objects
+  const [conditionGroups, setConditionGroups] = useState([]); // Array of filter condition group objects (for advanced grouping)
+  const [filteredResults, setFilteredResults] = useState(results); // Results after filtering (displayed)
+  const [inputValues, setInputValues] = useState({}); // Input values for each filter row (for debouncing)
+  const [hasUnprocessedChanges, setHasUnprocessedChanges] = useState(false); // Tracks if user has made changes that need to be processed
+  const [logicalOperator, setLogicalOperator] = useState('and'); // Logical operator for combining conditions ('and'/'or')
+  const [draggedCondition, setDraggedCondition] = useState(null); // Currently dragged filter condition (for DnD)
+  const [dragHoverTarget, setDragHoverTarget] = useState(null); // Condition currently hovered during drag
 
-  // Debouncing refs for API calls
+  // Ref for debouncing filter API calls
   const debounceTimeoutRef = useRef(null);
 
-  // Count active filter conditions - memoized for performance
+  /**
+   * Memoized count of active (complete) filter conditions.
+   * Used for UI badges, etc.
+   */
   const activeFilterCount = useMemo(() => {
     try {
-      if (!Array.isArray(filterConditions)) {
-        return 0;
-      }
-      
+      if (!Array.isArray(filterConditions)) return 0;
+      // Only count conditions with all required fields
       return filterConditions.filter(condition => {
-        if (!condition || typeof condition !== 'object') {
-          return false;
-        }
-        
-        return condition.field && 
-               condition.operator && 
-               condition.value?.trim() !== '';
+        if (!condition || typeof condition !== 'object') return false;
+        return condition.field && condition.operator && condition.value?.trim() !== '';
       }).length;
     } catch (error) {
       console.error('Error counting active filters:', error);
@@ -56,9 +70,11 @@ export function useFilterManagement(results = [], onFilterSearch) {
   }, [filterConditions]);
 
   /**
-   * Helper function to safely check if a value matches a filter condition
+   * Helper function to check if a value matches a filter condition.
+   * Handles all supported operators and null/undefined values safely.
+   *
    * @param {*} fieldValue - The field value to test
-   * @param {string} operator - The comparison operator
+   * @param {string} operator - The comparison operator (e.g. 'contains', 'is')
    * @param {string} searchValue - The value to search for
    * @returns {boolean} Whether the condition matches
    */
@@ -91,7 +107,9 @@ export function useFilterManagement(results = [], onFilterSearch) {
   }, []);
 
   /**
-   * Filter function that applies all conditions to results (client-side fallback only)
+   * Client-side filter function: applies all filter conditions to the results array.
+   * Used as a fallback if no API handler is provided.
+   *
    * @param {Array} conditions - Array of filter conditions
    * @param {Array} data - Array of data to filter
    * @returns {Array} Filtered data array
@@ -220,7 +238,9 @@ export function useFilterManagement(results = [], onFilterSearch) {
   }, [matchesCondition]);
 
   /**
-   * Convert filter conditions to search chips format for API
+   * Converts filter conditions to the "chips" format expected by the API.
+   * Maps UI field keys to API field names and includes the logical operator.
+   *
    * @param {Array} conditions - Array of filter conditions
    * @returns {Object} Formatted conditions for API consumption
    */
@@ -281,7 +301,9 @@ export function useFilterManagement(results = [], onFilterSearch) {
   }, [logicalOperator]);
 
   /**
-   * Trigger API search when filter conditions are complete and have changed
+   * Triggers a filter search (API or client-side) when filter conditions are complete and have changed.
+   * Handles fallback to client-side filtering if no API handler is provided.
+   *
    * @param {Array} conditions - Array of filter conditions
    */
   const triggerFilterSearch = useCallback(async (conditions) => {
@@ -326,9 +348,10 @@ export function useFilterManagement(results = [], onFilterSearch) {
   }, [onFilterSearch, convertFilterConditionsToChips, applyFilters, results, setFilteredResults]);
 
   /**
-   * Apply global search conditions by replacing all existing global search fields with the new OR'ed conditions.
-   * This ensures only one set of global search conditions is present, sets logicalOperator to 'or',
+   * Applies global search conditions by replacing all existing global search fields with the new OR'ed conditions.
+   * Ensures only one set of global search conditions is present, sets logicalOperator to 'or',
    * and triggers the search by setting hasUnprocessedChanges.
+   *
    * @param {Array} newGlobalConditions - Array of new global search filter conditions
    */
   const applyGlobalSearchConditions = useCallback((newGlobalConditions) => {
@@ -347,41 +370,33 @@ export function useFilterManagement(results = [], onFilterSearch) {
     setHasUnprocessedChanges(true);
   }, [filterConditions, searchableFields]);
 
-  // Close filter dropdown when clicking outside
+  // --- Effect: Close filter dropdown when clicking outside ---
   useEffect(() => {
-    if (!filterDropdownOpen) {
-      return; // Early return if dropdown is not open
-    }
-
+    if (!filterDropdownOpen) return;
+    /**
+     * Handler to close dropdown if click is outside filter container.
+     */
     const handleClickOutside = (event) => {
       try {
-        if (!event?.target) {
-          return;
-        }
-        
+        if (!event?.target) return;
         const container = event.target.closest('.filter-container');
-        if (!container) {
-          setFilterDropdownOpen(false);
-        }
+        if (!container) setFilterDropdownOpen(false);
       } catch (error) {
         console.error('Error in filter dropdown handleClickOutside:', error);
         // Don't close dropdown on errors to avoid unintended behavior
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [filterDropdownOpen]);
 
-  // Update input values when filter conditions change (for initial loading only)
+  // --- Effect: Update input values when filter conditions change (for initial loading only) ---
   useEffect(() => {
     try {
-      if (!Array.isArray(filterConditions)) {
-        return;
-      }
-      
+      if (!Array.isArray(filterConditions)) return;
+      // Build new input values object for each filter row
       const newInputValues = {};
       filterConditions.forEach((condition, index) => {
         if (condition && typeof condition === 'object') {
@@ -394,16 +409,14 @@ export function useFilterManagement(results = [], onFilterSearch) {
     }
   }, [filterConditions.length]); // Only react to array length changes, not value changes
 
-  // Apply filters when conditions change (only for complete conditions)
+  // --- Effect: Debounced filter search when filter conditions change ---
   useEffect(() => {
-    if (!hasUnprocessedChanges) {
-      return;
-    }
-
+    if (!hasUnprocessedChanges) return;
+    // Clear any existing debounce timeout
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-
+    // Debounce filter search to avoid excessive API calls
     debounceTimeoutRef.current = setTimeout(async () => {
       try {
         if (!Array.isArray(filterConditions)) {
@@ -411,19 +424,17 @@ export function useFilterManagement(results = [], onFilterSearch) {
           setHasUnprocessedChanges(false);
           return;
         }
-
         // Only use complete conditions for searching
         const completeConditions = filterConditions.filter(condition =>
           condition && typeof condition === 'object' &&
           condition.field && condition.operator && condition.value?.trim() !== ''
         );
-
         if (completeConditions.length > 0) {
+          // Trigger search with complete conditions
           console.log('Triggering debounced filter search');
           await triggerFilterSearch(completeConditions);
         } else {
-          // When no conditions OR all conditions are incomplete OR conditions array is empty
-          // We need to trigger the original search to get back unfiltered results
+          // No valid conditions: reset to original results
           console.log('Clearing filters - triggering original search to get unfiltered results');
           if (onFilterSearch) {
             try {
@@ -446,12 +457,13 @@ export function useFilterManagement(results = [], onFilterSearch) {
     }, DEBOUNCE_DELAY_MS);
   }, [filterConditions, hasUnprocessedChanges, triggerFilterSearch, onFilterSearch, results, setFilteredResults]);
 
-  // Update filtered results when base results change
+  // --- Effect: Update filtered results when base results change ---
   useEffect(() => {
     try {
       if (Array.isArray(results)) {
         setFilteredResults(results);
       } else {
+        // Defensive: always set to array
         console.warn('Results is not an array, setting empty array');
         setFilteredResults([]);
       }
@@ -461,7 +473,7 @@ export function useFilterManagement(results = [], onFilterSearch) {
     }
   }, [results]);
 
-  // Cleanup timeout on unmount
+  // --- Effect: Cleanup debounce timeout on unmount ---
   useEffect(() => {
     return () => {
       if (debounceTimeoutRef.current) {
@@ -470,7 +482,8 @@ export function useFilterManagement(results = [], onFilterSearch) {
     };
   }, []);
 
-  // Use drag and drop hook
+  // --- Integrate drag-and-drop handlers for filter conditions ---
+  // These handlers are provided by a custom useDragAndDrop hook and allow reordering of filter rows.
   const {
     handleDragStart,
     handleDragOver,
@@ -492,45 +505,47 @@ export function useFilterManagement(results = [], onFilterSearch) {
     setDragHoverTarget
   );
 
+  // --- Expose all state, handlers, and helpers for use in filter UIs ---
   return {
-    // State
-    filterDropdownOpen,
-    setFilterDropdownOpen,
-    filterConditions,
-    setFilterConditions,
-    conditionGroups,
-    setConditionGroups,
-    filteredResults,
-    setFilteredResults,
-    inputValues,
-    setInputValues,
-    hasUnprocessedChanges,
-    setHasUnprocessedChanges,
-    logicalOperator,
-    setLogicalOperator,
-    draggedCondition,
-    setDraggedCondition,
-    dragHoverTarget,
-    setDragHoverTarget,
-    
-    // Computed values
-    activeFilterCount,
-    
-    // Filter logic functions
-    applyFilters,
-    matchesCondition,
-    convertFilterConditionsToChips,
-    triggerFilterSearch,
-    applyGlobalSearchConditions,
-    // Drag handlers
+    // --- State ---
+    filterDropdownOpen,      // Is the filter dropdown open?
+    setFilterDropdownOpen,   // Setter for dropdown open state
+    filterConditions,        // Array of filter condition objects
+    setFilterConditions,     // Setter for filter conditions
+    conditionGroups,         // Array of filter condition group objects
+    setConditionGroups,      // Setter for condition groups
+    filteredResults,         // Results after filtering (displayed)
+    setFilteredResults,      // Setter for filtered results
+    inputValues,             // Input values for each filter row
+    setInputValues,          // Setter for input values
+    hasUnprocessedChanges,   // Tracks if user has made changes that need to be processed
+    setHasUnprocessedChanges,// Setter for unprocessed changes
+    logicalOperator,         // Logical operator for combining conditions ('and'/'or')
+    setLogicalOperator,      // Setter for logical operator
+    draggedCondition,        // Currently dragged filter condition (for DnD)
+    setDraggedCondition,     // Setter for dragged condition
+    dragHoverTarget,         // Condition currently hovered during drag
+    setDragHoverTarget,      // Setter for drag hover target
+
+    // --- Computed values ---
+    activeFilterCount,       // Number of active (complete) filter conditions
+
+    // --- Filter logic functions ---
+    applyFilters,                    // Client-side filter function
+    matchesCondition,                // Helper for matching a value to a filter condition
+    convertFilterConditionsToChips,  // Convert UI conditions to API chips format
+    triggerFilterSearch,             // Triggers filter search (API or client-side)
+    applyGlobalSearchConditions,     // Applies global search conditions (OR'ed)
+
+    // --- Drag-and-drop handlers ---
     handleDragStart,
     handleDragOver,
     handleDragEnter,
     handleDragLeave,
     handleDrop,
     handleDragEnd,
-    
-    // Field definitions
-    searchableFields
+
+    // --- Field definitions ---
+    searchableFields                 // List of fields available for global search
   };
 }
