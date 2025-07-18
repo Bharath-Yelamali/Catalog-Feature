@@ -10,7 +10,7 @@
  */
 import React from 'react';
 import PropTypes from 'prop-types';
-import { FilterDropdown } from '../../FilterDropdown';
+import { FilterDropdown } from '../../FilterComponents/FilterDropdown';
 import filterIcon from '../../../assets/filter.svg';
 
 /**

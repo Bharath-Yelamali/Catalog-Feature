@@ -11,7 +11,7 @@
 
 import React from 'react';
 import { UnifiedFilterList } from './UnifiedFilterList';
-import plusIcon from '../assets/plus.svg';
+import plusIcon from '../../assets/plus.svg';
 
 /**
  * FilterDropdown component for managing filter conditions.

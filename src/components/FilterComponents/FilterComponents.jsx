@@ -11,8 +11,8 @@
 import React, { useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { LogicalOperatorSelector } from './LogicalOperatorSelector';
-import garbageIcon from '../assets/garbage.svg';
-import dotsIcon from '../assets/dots.svg';
+import garbageIcon from '../../assets/garbage.svg';
+import dotsIcon from '../../assets/dots.svg';
 
 // Individual Filter Condition Component (flat only)
 /**

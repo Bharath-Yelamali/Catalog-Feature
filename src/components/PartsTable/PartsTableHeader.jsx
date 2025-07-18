@@ -14,12 +14,12 @@
  * @author Bharath Yelamali
  */
 import React, { useState } from 'react';
-import { HideFieldsButton, FilterButton } from '../../SearchBarLogic';
-import { GlobalSearchBar } from '../../SearchBarLogic/components/GlobalSearchBar';
-import downloadIcon from '../../../assets/download.svg';
-import nextIcon from '../../../assets/next.svg';
-import chatIcon from '../../../assets/chat.svg'; // Add chat icon import
-import infoIcon from '../../../assets/info.svg';
+import { HideFieldsButton, FilterButton } from '../SearchBarLogic';
+import { GlobalSearchBar } from '../SearchBarLogic/components/GlobalSearchBar';
+import downloadIcon from '../../assets/download.svg';
+import nextIcon from '../../assets/next.svg';
+import chatIcon from '../../assets/chat.svg'; // Add chat icon import
+import infoIcon from '../../assets/info.svg';
 
 
 const PartsTableHeader = ({

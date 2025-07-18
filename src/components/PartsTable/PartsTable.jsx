@@ -11,12 +11,12 @@
  * - Robust state management for selection, quantities, and filters
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { updateSpareValue } from '../../../api/parts';
-import { useFieldManagement, useFilterManagement, useSearchUtilities } from '../../SearchBarLogic';
+import { updateSpareValue } from '../../api/parts';
+import { useFieldManagement, useFilterManagement, useSearchUtilities } from '../SearchBarLogic';
 import * as XLSX from 'xlsx';
 import PartsTableHeader from './PartsTableHeader';
 import PartsTableMainRow from './PartsTableMainRow';
-import '../../../styles/ChatBox.css';
+import '../../styles/chatbox.css';
 import InstanceSection from './InstanceSection';
 import ExpandedModal from './ExpandedModal';
 import EmptyState from './EmptyState';

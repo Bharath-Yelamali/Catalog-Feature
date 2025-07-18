@@ -12,7 +12,7 @@
  * @returns {JSX.Element}
  */
 import React from 'react';
-import personIcon from '../../../assets/wizard.svg';
+import personIcon from '../../assets/wizard.svg';
 
 /**
  * Displays a friendly empty state for the parts table.
