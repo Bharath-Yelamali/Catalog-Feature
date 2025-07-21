@@ -19,8 +19,9 @@ import { HideFieldsButton, FilterButton } from '../SearchBarLogic';
 import { GlobalSearchBar } from '../SearchBarLogic/components/GlobalSearchBar';
 import downloadIcon from '../../assets/download.svg';
 import nextIcon from '../../assets/next.svg';
-import chatIcon from '../../assets/chat.svg'; // Add chat icon import
+import chatIcon from '../../assets/chat.svg';
 import infoIcon from '../../assets/info.svg';
+import alertIcon from '../../assets/alert.svg';
 
 
 const PartsTableHeader = ({
@@ -145,14 +146,32 @@ const PartsTableHeader = ({
               `${resultsToDisplay.length} items`
             )}
           </span>
+          {/* Low Parts button */}
+          <button
+            className="low-parts-btn header-btn compact-btn"
+            onClick={() => {
+              if (typeof window.showBulkOrderParts === 'function') {
+                window.showBulkOrderParts();
+              } else {
+                alert('Low parts view not implemented.');
+              }
+            }}
+            title="Show all parts that are low/out of stock"
+            aria-label="Show all parts that are low/out of stock"
+            style={{ padding: '2px 8px', fontSize: '0.95em', minWidth: 'unset', height: '32px', lineHeight: '28px' }}
+          >
+            <img src={alertIcon} alt="Low Parts" style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle' }} />
+            <span style={{ verticalAlign: 'middle' }}>Low Parts</span>
+          </button>
           {/* Surplus request button */}
           <button
-            className="surplus-request-btn header-btn"
+            className="surplus-request-btn header-btn compact-btn"
             onClick={() => window.open('https://dev.azure.com/CHIELabs/CHIE%20Labs/_workitems/create/Lab%20Task', '_blank')}
             title="Create ADO Request Ticket For Surplus"
             aria-label="Create ADO Request Ticket For Surplus"
+            style={{ padding: '2px 8px', fontSize: '0.95em', minWidth: 'unset', height: '32px', lineHeight: '28px' }}
           >
-            Create ADO Request Ticket For Surplus
+            ADO Request for Surplus
           </button>
           {/* Info tooltip for surplus request */}
           <div className="info-dropdown-container">
