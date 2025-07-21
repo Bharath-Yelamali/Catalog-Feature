@@ -76,20 +76,18 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   };
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
-  // Remove old selected/quantity logic for flat parts
-  // Add expand/collapse state for each itemNumber
+  // State for expand/collapse per itemNumber
   const [expandedRows, setExpandedRows] = useState({});
-  // State for select all checkbox
-  const [selectAll, setSelectAll] = useState(false);
+  // State for select all checkbox (not used elsewhere, can be removed)
   // State for filtering instances by General Inventory per group
   const [generalInventoryFilter, setGeneralInventoryFilter] = useState({});
-  // Spare threshold feedback state
+  // Feedback state for spare threshold updates
   const [spareFeedback, setSpareFeedback] = useState({}); // { [instanceId]: 'success' | 'error' | null }
-  // Add state to track requested instances
+  // State to track requested instances
   const [requestedInstances, setRequestedInstances] = useState({}); // { [instanceId]: true/false }
   // State for filtering instances by associated project
   const [projectFilter, setProjectFilter] = useState({}); // { [itemNumber]: projectName }
-  // Add state for open project dropdown
+  // State for open project dropdown
   const [openProjectDropdown, setOpenProjectDropdown] = useState({}); // { [itemNumber]: boolean }
   // State for filtering instances by inventory maturity
   const [maturityFilter, setMaturityFilter] = useState({}); // { [itemNumber]: maturityValue }
@@ -97,14 +95,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // State for filtering instances by hardware custodian
   const [custodianFilter, setCustodianFilter] = useState({}); // { [itemNumber]: custodianValue }
   const [openCustodianDropdown, setOpenCustodianDropdown] = useState({}); // { [itemNumber]: boolean }
-  // Add state for open parent path dropdown
+  // State for open parent path dropdown
   const [openParentPathDropdown, setOpenParentPathDropdown] = useState({}); // { [itemNumber]: boolean }
   const [parentPathFilter, setParentPathFilter] = useState({}); // { [itemNumber]: parentPathSection }
 
-  // 1. Add state to track the order in which instances are checked
+  // State to track the order in which instances are checked
   const [instanceSelectionOrder, setInstanceSelectionOrder] = useState([]); // array of instance ids in order of selection
 
-  // Use field management hook
+  // Field management hook
   const {
     hideFieldsDropdownOpen,
     setHideFieldsDropdownOpen,
@@ -120,7 +118,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     allFields
   } = useFieldManagement();
 
-  // Use filter management hook
+  // Filter management hook
   const {
     filterDropdownOpen,
     setFilterDropdownOpen,
@@ -154,7 +152,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     searchableFields
   } = useFilterManagement(results, onFilterSearch);
 
-  // Use search utilities hook
+  // Search utilities hook
   const { highlightFieldWithMatches, truncateText } = useSearchUtilities();
 
   /**
@@ -190,6 +188,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // Display selected groups at the top
   const displayGroups = [...selectedGroups, ...nonSelectedGroups];
 
+  // Handle quantity input for each part
   const handleQuantityChange = (id, value, e) => {
     // Only allow positive integers or empty
     if (/^\d*$/.test(value)) {
@@ -205,6 +204,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     }
   };
 
+  // Handle checkbox selection for each part
   const handleCheckboxChange = (id, part) => {
     setSelected(prev => {
       const newSelected = { ...prev };
@@ -219,14 +219,14 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     });
   };
 
+  // Toggle expand/collapse for a part group
   const handleExpandToggle = (itemNumber) => {
     setExpandedRows(prev => ({ ...prev, [itemNumber]: !prev[itemNumber] }));
   };
 
-  // Handler for select all checkbox
+  // Handle select all checkbox for visible groups
   const handleSelectAll = (e) => {
     const checked = e.target.checked;
-    setSelectAll(checked);
     if (checked) {
       // Select all visible groups
       const newSelected = { ...selected };
@@ -244,21 +244,18 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     }
   };
 
-  /**
-   * Helper to cap requested instances for a group at usable surplus.
-   * @param {Object} group - The part group
-   * @param {Object} requestedInstances - Requested instance ids
-   * @param {Object} generalInventoryFilter - General inventory filter state
-   * @returns {Object} - Capped requested instances
-   */
+  // Helper to cap requested instances for a group at usable surplus
   function getCappedRequestedInstances(group, requestedInstances, generalInventoryFilter) {
     const part = group.instances[0];
+    // Calculate spare threshold and inventory numbers
     const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
     const total = part.total == null ? 0 : part.total;
     const inUse = part.inUse == null ? 0 : part.inUse;
     const generalInventoryAmount = total - inUse;
+    // Calculate essential reserve and usable surplus
     const essentialReserve = Math.ceil(spareThreshold * inUse);
     const usableSurplus = generalInventoryAmount - essentialReserve;
+    // Cap checked instances by usable surplus
     const checkedInstances = (generalInventoryFilter[group.itemNumber]
       ? group.instances.filter(instance => instance.generalInventory)
       : group.instances
@@ -324,7 +321,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     XLSX.writeFile(wb, `selected_parts_${new Date().toISOString().slice(0,10)}.xlsx`);
   };
 
-  // --- AI Chat Integration: Notify parent of filtered results ---
+  // Notify parent of filtered results (AI chat integration)
   useEffect(() => {
     if (typeof onResultsChange === 'function') {
       onResultsChange(resultsToDisplay);
@@ -427,12 +424,17 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             <>
             {resultsToDisplay.map(group => {
               const part = group.instances[0];
+              // Calculate spare threshold and inventory numbers
               const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
               const total = part.total == null ? 0 : part.total;
               const inUse = part.inUse == null ? 0 : part.inUse;
-              const generalInventoryAmount = total - inUse;
-              const essentialReserve = Math.ceil(spareThreshold * inUse);
-              const usableSurplus = generalInventoryAmount - essentialReserve;
+              // Calculate potential surplus
+              const potentialSurplus = total - inUse;
+              // Calculate essential reserve and usable surplus
+              const essentialReserve = Math.max(0, Math.min(spareThreshold, potentialSurplus));
+              const usableSurplus = potentialSurplus - essentialReserve;
+              // Flag if essential reserve is low
+              const isEssentialReserveLow = essentialReserve < spareThreshold;
               return (
                 <div key={group.itemNumber} className={expandedRows[group.itemNumber] ? 'part-instance-wrapper' : ''}>
                   <PartsTableMainRow
@@ -441,6 +443,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       ...part,
                       essentialReserve,
                       usableSurplus,
+                      spareThreshold,
                     }}
                     hiddenFields={hiddenFields}
                     selected={selected}
@@ -456,11 +459,17 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                     highlightFieldWithMatches={highlightFieldWithMatches}
                     setExpandedValue={setExpandedValue}
                     setExpandedLabel={setExpandedLabel}
+                    isEssentialReserveLow={isEssentialReserveLow}
                   />
                   {expandedRows[group.itemNumber] && (
                     <InstanceSection
                       group={group}
-                      part={part}
+                      part={{
+                        ...part,
+                        essentialReserve,
+                        usableSurplus,
+                        spareThreshold,
+                      }}
                       isAdmin={isAdmin}
                       hiddenFields={hiddenFields}
                       generalInventoryFilter={generalInventoryFilter}
@@ -490,7 +499,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       accessToken={accessToken}
                       getInstanceTableGridColumns={getInstanceTableGridColumns}
                       highlightFieldWithMatches={highlightFieldWithMatches}
-                      usableSurplus={usableSurplus}
                       updateSpareValue={updateSpareValue}
                     />
                   )}

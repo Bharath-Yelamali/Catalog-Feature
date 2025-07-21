@@ -198,11 +198,17 @@ export async function postNewInventoryPart(part, accessToken) {
 export async function updateSpareValue(instanceId, spareValue, accessToken) {
   const url = `${BASE_URL}/m_Instance/${instanceId}/spare-value`;
   const headers = buildHeaders(accessToken, { 'Content-Type': 'application/json' });
-  
+  // Accept both spareValue and bulkOrder
+  const patchBody = {};
+  if (typeof spareValue !== 'undefined') patchBody.spare_value = spareValue;
+  // Accept bulkOrder as an optional second argument
+  if (arguments.length > 3 && typeof arguments[3] !== 'undefined') {
+    patchBody.bulk_order = arguments[3];
+  }
   const response = await fetch(url, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ spare_value: spareValue }),
+    body: JSON.stringify(patchBody),
   });
   if (!response.ok) throw new Error('Failed to update spare value');
   return response.status === 204 ? null : await response.json();
