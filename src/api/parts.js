@@ -1,4 +1,20 @@
 /**
+ * Fetches all parts in need of a bulk order (bulk_order == true) from the backend API.
+ * @param {Object} options - Options for the request.
+ * @param {string} [options.accessToken] - Optional Bearer token for authentication.
+ * @returns {Promise<Array>} The response array containing bulk order parts data.
+ * @throws {Error} If the request fails.
+ */
+export async function fetchBulkOrderParts({ accessToken } = {}) {
+  const url = `${BASE_URL}/parts/bulk-order`;
+  const headers = buildHeaders(accessToken);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error('Failed to fetch bulk order parts');
+  const data = await response.json();
+  // If backend returns { value: [...] }, unwrap value
+  return Array.isArray(data) ? data : data.value || [];
+}
+/**
  * parts.js
  *
  * API utility functions for interacting with inventory parts via the backend API.

@@ -34,12 +34,18 @@ const PartsTableHeader = ({
   // Other
   loading, resultsToDisplay, selected, quantities, handleExport, setPage,
   chatOpen, setChatOpen,
-  onClearSearch
+  onClearSearch,
+  onShowLowParts
 }) => {
   // State for info tooltip dropdown
   const [infoDropdownOpen, setInfoDropdownOpen] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const infoIconRef = useRef(null);
+
+  // Debug: Log when component mounts and onShowLowParts prop
+  React.useEffect(() => {
+    console.log('[PartsTableHeader] Mounted. onShowLowParts:', typeof onShowLowParts);
+  }, [onShowLowParts]);
 
   // Show tooltip and calculate position
   const handleInfoMouseEnter = () => {
@@ -150,8 +156,8 @@ const PartsTableHeader = ({
           <button
             className="low-parts-btn header-btn compact-btn"
             onClick={() => {
-              if (typeof window.showBulkOrderParts === 'function') {
-                window.showBulkOrderParts();
+              if (typeof onShowLowParts === 'function') {
+                onShowLowParts();
               } else {
                 alert('Low parts view not implemented.');
               }

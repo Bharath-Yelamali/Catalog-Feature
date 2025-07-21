@@ -11,7 +11,7 @@
  * - Robust state management for selection, quantities, and filters
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { updateSpareValue } from '../../api/parts';
+import { updateSpareValue, fetchBulkOrderParts } from '../../api/parts';
 import { useFieldManagement, useFilterManagement, useSearchUtilities } from '../SearchBarLogic';
 import * as XLSX from 'xlsx';
 import PartsTableHeader from './PartsTableHeader';
@@ -60,20 +60,41 @@ function getVisibleFields(allFields, hiddenFields) {
  * @returns {JSX.Element}
  */
 function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen, onResultsChange }) {
+  // Local loading state for low parts fetch
+  const [lowPartsLoading, setLowPartsLoading] = useState(false);
+  const [lowPartsResults, setLowPartsResults] = useState(null);
+
+  // Handler to fetch and show only bulk order (low parts)
+  const handleShowLowParts = async () => {
+    console.log('[PartsTable] Low Parts button clicked.');
+    setLowPartsLoading(true);
+    try {
+      console.log('[PartsTable] Calling fetchBulkOrderParts with accessToken:', accessToken);
+      const bulkOrderParts = await fetchBulkOrderParts({ accessToken });
+      console.log('[PartsTable] Received bulkOrderParts:', bulkOrderParts);
+      setLowPartsResults(bulkOrderParts);
+    } catch (err) {
+      console.error('[PartsTable] Failed to fetch low parts:', err);
+      alert('Failed to fetch low parts.');
+    } finally {
+      setLowPartsLoading(false);
+    }
+  };
+
   // Handler to clear all search, filters, and results
   const handleClearSearch = () => {
-    // Clear both the local and global search input fields
     setLocalSearch("");
     if (typeof setSearch === 'function') {
-      setSearch(""); // Clear the global search prop/state
+      setSearch("");
     }
-    // Clear all filters and results
     setFilterConditions([]);
     setInputValues({});
     setGlobalSearchResults(null);
+    setLowPartsResults(null);
     setHasUnprocessedChanges(true);
     // Optionally, reset other state like selected, quantities, etc.
   };
+  // ...existing code...
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // State for expand/collapse per itemNumber
@@ -277,8 +298,16 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   const [globalSearchResults, setGlobalSearchResults] = useState(null);
 
   // Helper: which results to display
-  const resultsToDisplay = globalSearchResults !== null ? globalSearchResults : displayGroups;
-  const isEmpty = (globalSearchResults !== null ? globalSearchResults.length : filteredResults.length) === 0;
+  let resultsToDisplay;
+  if (lowPartsResults !== null) {
+    resultsToDisplay = lowPartsResults;
+  } else if (globalSearchResults !== null) {
+    resultsToDisplay = globalSearchResults;
+  } else {
+    resultsToDisplay = displayGroups;
+  }
+  const isEmpty = resultsToDisplay.length === 0;
+  const effectiveLoading = loading || lowPartsLoading;
 
   // Get currently visible fields (not hidden)
   const visibleFields = getVisibleFields(allFields, hiddenFields);
@@ -369,7 +398,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         setLocalSearch={setLocalSearch}
         setGlobalSearchResults={setGlobalSearchResults}
         accessToken={accessToken}
-        loading={loading}
+        loading={effectiveLoading}
         resultsToDisplay={resultsToDisplay}
         selected={selected}
         quantities={quantities}
@@ -389,6 +418,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         chatOpen={chatOpen}
         setChatOpen={setChatOpen}
         onClearSearch={handleClearSearch}
+        onShowLowParts={handleShowLowParts}
       />
       {/* Wrap main table/results area in a container that shifts when chat is open */}
       <div className={`main-table-area${chatOpen ? ' chat-open' : ''}`}>
@@ -416,7 +446,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
           </div>
         {/* Main table content */}
         <div className="search-results-dropdown">
-          {loading ? (
+          {effectiveLoading ? (
             <div className="searching-message">Searching...</div>
           ) : isEmpty ? (
             <EmptyState isInitial={results.length === 0 && localSearch.trim() === ''} />

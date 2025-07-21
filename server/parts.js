@@ -1,3 +1,4 @@
+// ...existing code...
 /**
  * parts.js
  *
@@ -50,6 +51,33 @@ const FIELD_CONFIG = {
 };
 
 // --- ROUTE HANDLERS ---
+// GET /parts/bulk-order - Return all parts in need of a bulk order (bulk_order == true)
+router.get('/parts/bulk-order', async (req, res) => {
+  try {
+    const token = extractBearerToken(req);
+    if (!token) {
+      return res.status(401).json({ error: 'Missing or invalid access token. Please log in.' });
+    }
+
+    // Build OData query for bulk_order == true
+    const odataUrl = `${BASE_URL}m_Instance?$filter=bulk_order eq true&$select=${FIELD_CONFIG.SELECT_FIELDS.join(',')}&$expand=${FIELD_CONFIG.EXPAND_FIELDS.join(',')}`;
+    const response = await fetch(odataUrl, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `Failed to fetch bulk order parts: ${errorText}` });
+    }
+    const data = await response.json();
+    let results = data.value || [];
+    // Group and process results for frontend
+    results = groupAndProcessParts(results);
+    res.json({ value: results });
+  } catch (err) {
+    console.error('Error in /parts/bulk-order:', err);
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
+  }
+});
 
 /**
  * Helper to extract Bearer token from Authorization header
@@ -100,6 +128,8 @@ router.get('/parts', async (req, res) => {
         try {
           // Try to parse as JSON (new format)
           const parsed = JSON.parse(value);
+// GET /parts/bulk-order - Return all parts in need of a bulk order (bulk_order == true)
+// This route should be placed after router and FIELD_CONFIG initialization
           if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
             fieldParams[field] = parsed;
           }
