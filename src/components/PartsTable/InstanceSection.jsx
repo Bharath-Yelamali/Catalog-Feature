@@ -227,8 +227,8 @@ const InstanceSection = ({
           <input
             type="number"
             min="0"
-            max={Infinity}
-            step="1"
+            max="1"
+            step=".01"
             value={spareThresholdInput}
             onChange={e => {
               const newValue = parseFloat(e.target.value);

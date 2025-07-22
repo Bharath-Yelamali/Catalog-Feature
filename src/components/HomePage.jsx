@@ -13,6 +13,7 @@
 import React, { useEffect, useState } from 'react';
 import shuffleIcon from '../assets/shuffle.svg';
 import sendIcon from '../assets/send.svg';
+import { fetchBulkOrderParts } from '../api/parts';
 
 /**
  * AnimatedText component
@@ -122,6 +123,32 @@ const typewriterDelay = 0.025;
  * @param {string} [props.accessToken] - User access token (if logged in)
  */
 const HomePage = ({ setPage, accessToken }) => {
+  // Bulk order parts state
+  const [bulkParts, setBulkParts] = useState([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkError, setBulkError] = useState(null);
+
+  // Fetch bulk order parts on mount
+  useEffect(() => {
+    let isMounted = true;
+    setBulkLoading(true);
+    setBulkError(null);
+    fetchBulkOrderParts({ accessToken })
+      .then(parts => {
+        if (isMounted) {
+          console.log('[HomePage] Bulk order table data:', parts);
+          setBulkParts(parts);
+          setBulkLoading(false);
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          setBulkError(err.message || 'Failed to fetch bulk order parts');
+          setBulkLoading(false);
+        }
+      });
+    return () => { isMounted = false; };
+  }, [accessToken]);
   // Index of the current demo input
   const [demoIdx, setDemoIdx] = useState(0);
   // Key to force re-render of AnimatedText for animation reset
@@ -206,6 +233,81 @@ const HomePage = ({ setPage, accessToken }) => {
           Use it now
         </button>
       </div>
+      {/* Header for bulk order parts list */}
+      {accessToken && (
+        <>
+          <div style={{ width: '100%', maxWidth: '1360px', margin: '40px auto 0 auto', textAlign: 'left' }}>
+            <div style={{ fontSize: '24px', fontWeight: 600, color: '#ffffffff', marginBottom: '-20px' }}>
+              Parts Needing Order (Low Inventory)
+            </div>
+          </div>
+          <div className="homepage-column-box" style={{ width: '100%', maxWidth: '1360px', minHeight: '600px', background: '#292929ff', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '32px 24px', margin: '40px auto 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', marginBottom: '64px' }}>
+            {/* Scrollable inner box for text */}
+            <div style={{ width: '100%', maxWidth: '1300px', height: '650px', background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', padding: '24px', overflowY: 'auto', color: '#222', fontSize: '18px' }}>
+              {/* Bulk order parts list */}
+              {bulkLoading && <div>Loading bulk order parts...</div>}
+              {bulkError && <div style={{ color: 'red' }}>Error: {bulkError}</div>}
+              {!bulkLoading && !bulkError && bulkParts.length === 0 && (
+                <div>No bulk order parts found.</div>
+              )}
+              {!bulkLoading && !bulkError && bulkParts.length > 0 && (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '16px' }}>
+                  <thead>
+                    <tr style={{ background: '#ebebebff' }}>
+                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Inventory Item #</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Manufacturer Part #</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Description</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Total</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>In Use</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Essential Reserve</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Amount Needed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.values(
+                      bulkParts.reduce((acc, part) => {
+                        const key = part.m_inventory_item?.item_number || part.item_number || 'Unknown';
+                        if (!acc[key]) {
+                          acc[key] = part;
+                        }
+                        return acc;
+                      }, {})
+                    ).map((part, idx) => {
+                      // Calculate summary fields
+                      const total = part.total ?? 0;
+                      const inUse = part.inUse ?? 0;
+                      const spare = part.spare ?? 0;
+                      const spareValue = part.spare_value ?? 0;
+                      const essentialReserve = part.spare ?? 0;
+                      // Amount needed is spare_value minus spare
+                      const amountNeeded = Math.max(0, spareValue - spare);
+                      return (
+                        <tr key={part.m_inventory_item?.item_number || part.item_number || idx} style={{ borderBottom: '1px solid #eee' }}>
+                          <td style={{ padding: '12px', fontWeight: 'bold', textAlign: 'left' }}>{part.m_inventory_item?.item_number || part.item_number || 'No Item Number'}</td>
+                          <td style={{ padding: '12px', textAlign: 'left' }}>{part.m_mfg_part_number || part.manufacturer_part_number || part.mfg_part_number || 'N/A'}</td>
+                          <td style={{ padding: '12px', textAlign: 'left' }}>{
+                            part.m_inventory_description ||
+                            part.m_inventory_item?.description ||
+                            part.description ||
+                            part.m_inventory_item?.part_description ||
+                            part.part_description ||
+                            part.m_description ||
+                            'N/A'
+                          }</td>
+                          <td style={{ padding: '12px', textAlign: 'left' }}>{total}</td>
+                          <td style={{ padding: '12px', textAlign: 'left' }}>{inUse}</td>
+                          <td style={{ padding: '12px', textAlign: 'left' }}>{essentialReserve}</td>
+                          <td style={{ padding: '12px', textAlign: 'left' }}>{amountNeeded}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
