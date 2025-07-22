@@ -11,7 +11,7 @@
  * - Robust state management for selection, quantities, and filters
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { updateSpareValue, fetchBulkOrderParts } from '../../api/parts';
+import { updateSpareValue } from '../../api/parts';
 import { useFieldManagement, useFilterManagement, useSearchUtilities } from '../SearchBarLogic';
 import * as XLSX from 'xlsx';
 import PartsTableHeader from './PartsTableHeader';
@@ -60,26 +60,6 @@ function getVisibleFields(allFields, hiddenFields) {
  * @returns {JSX.Element}
  */
 function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen, onResultsChange }) {
-  // Local loading state for low parts fetch
-  const [lowPartsLoading, setLowPartsLoading] = useState(false);
-  const [lowPartsResults, setLowPartsResults] = useState(null);
-
-  // Handler to fetch and show only bulk order (low parts)
-  const handleShowLowParts = async () => {
-    console.log('[PartsTable] Low Parts button clicked.');
-    setLowPartsLoading(true);
-    try {
-      console.log('[PartsTable] Calling fetchBulkOrderParts with accessToken:', accessToken);
-      const bulkOrderParts = await fetchBulkOrderParts({ accessToken });
-      console.log('[PartsTable] Received bulkOrderParts:', bulkOrderParts);
-      setLowPartsResults(bulkOrderParts);
-    } catch (err) {
-      console.error('[PartsTable] Failed to fetch low parts:', err);
-      alert('Failed to fetch low parts.');
-    } finally {
-      setLowPartsLoading(false);
-    }
-  };
 
   // Handler to clear all search, filters, and results
   const handleClearSearch = () => {
@@ -90,7 +70,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     setFilterConditions([]);
     setInputValues({});
     setGlobalSearchResults(null);
-    setLowPartsResults(null);
     setHasUnprocessedChanges(true);
     // Optionally, reset other state like selected, quantities, etc.
   };
@@ -299,15 +278,13 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
 
   // Helper: which results to display
   let resultsToDisplay;
-  if (lowPartsResults !== null) {
-    resultsToDisplay = lowPartsResults;
-  } else if (globalSearchResults !== null) {
+  if (globalSearchResults !== null) {
     resultsToDisplay = globalSearchResults;
   } else {
     resultsToDisplay = displayGroups;
   }
   const isEmpty = resultsToDisplay.length === 0;
-  const effectiveLoading = loading || lowPartsLoading;
+  const effectiveLoading = loading;
 
   // Get currently visible fields (not hidden)
   const visibleFields = getVisibleFields(allFields, hiddenFields);
@@ -418,7 +395,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         chatOpen={chatOpen}
         setChatOpen={setChatOpen}
         onClearSearch={handleClearSearch}
-        onShowLowParts={handleShowLowParts}
+        // ...existing code...
       />
       {/* Wrap main table/results area in a container that shifts when chat is open */}
       <div className={`main-table-area${chatOpen ? ' chat-open' : ''}`}>

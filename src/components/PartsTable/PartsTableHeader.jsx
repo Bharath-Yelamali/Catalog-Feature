@@ -21,7 +21,6 @@ import downloadIcon from '../../assets/download.svg';
 import nextIcon from '../../assets/next.svg';
 import chatIcon from '../../assets/chat.svg';
 import infoIcon from '../../assets/info.svg';
-import alertIcon from '../../assets/alert.svg';
 
 
 const PartsTableHeader = ({
@@ -35,7 +34,7 @@ const PartsTableHeader = ({
   loading, resultsToDisplay, selected, quantities, handleExport, setPage,
   chatOpen, setChatOpen,
   onClearSearch,
-  onShowLowParts
+  // ...existing code...
 }) => {
   // State for info tooltip dropdown
   const [infoDropdownOpen, setInfoDropdownOpen] = useState(false);
@@ -43,9 +42,7 @@ const PartsTableHeader = ({
   const infoIconRef = useRef(null);
 
   // Debug: Log when component mounts and onShowLowParts prop
-  React.useEffect(() => {
-    console.log('[PartsTableHeader] Mounted. onShowLowParts:', typeof onShowLowParts);
-  }, [onShowLowParts]);
+  // ...existing code...
 
   // Show tooltip and calculate position
   const handleInfoMouseEnter = () => {
@@ -152,23 +149,6 @@ const PartsTableHeader = ({
               `${resultsToDisplay.length} items`
             )}
           </span>
-          {/* Low Parts button */}
-          <button
-            className="low-parts-btn header-btn compact-btn"
-            onClick={() => {
-              if (typeof onShowLowParts === 'function') {
-                onShowLowParts();
-              } else {
-                alert('Low parts view not implemented.');
-              }
-            }}
-            title="Show all parts that are low/out of stock"
-            aria-label="Show all parts that are low/out of stock"
-            style={{ padding: '2px 8px', fontSize: '0.95em', minWidth: 'unset', height: '32px', lineHeight: '28px' }}
-          >
-            <img src={alertIcon} alt="Low Parts" style={{ width: 18, height: 18, marginRight: 4, verticalAlign: 'middle' }} />
-            <span style={{ verticalAlign: 'middle' }}>Low Parts</span>
-          </button>
           {/* Surplus request button */}
           <button
             className="surplus-request-btn header-btn compact-btn"
