@@ -237,31 +237,31 @@ const HomePage = ({ setPage, accessToken }) => {
       {/* Header for bulk order parts list */}
       {accessToken && (
         <>
-          <div style={{ width: '100%', maxWidth: '1360px', margin: '40px auto 0 auto', textAlign: 'left' }}>
-            <div style={{ fontSize: '24px', fontWeight: 600, color: '#ffffffff', marginBottom: '-20px' }}>
+          <div className="homepage-bulk-header">
+            <div className="homepage-bulk-title">
               Parts Needing Order (Low Inventory)
             </div>
           </div>
-          <div className="homepage-column-box" style={{ width: '100%', maxWidth: '1360px', minHeight: '600px', background: '#292929ff', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.07)', padding: '32px 24px', margin: '40px auto 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start', marginBottom: '64px' }}>
+          <div className="homepage-column-box">
             {/* Scrollable inner box for text */}
-            <div style={{ width: '100%', maxWidth: '1300px', height: '650px', background: '#fff', borderRadius: '10px', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', padding: '24px', overflowY: 'auto', color: '#222', fontSize: '18px' }}>
+            <div className="homepage-bulk-table-container">
               {/* Bulk order parts list */}
               {bulkLoading && <div>Loading bulk order parts...</div>}
-              {bulkError && <div style={{ color: 'red' }}>Error: {bulkError}</div>}
+              {bulkError && <div className="homepage-bulk-error">Error: {bulkError}</div>}
               {!bulkLoading && !bulkError && bulkParts.length === 0 && (
                 <div>No bulk order parts found.</div>
               )}
               {!bulkLoading && !bulkError && bulkParts.length > 0 && (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '16px' }}>
+                <table className="homepage-bulk-table">
                   <thead>
-                    <tr style={{ background: '#ebebebff' }}>
-                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Inventory Item #</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Manufacturer Part #</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Description</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Total</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>In Use</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Essential Reserve</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid #ddd', textAlign: 'left' }}>Amount Needed</th>
+                    <tr className="homepage-bulk-table-header">
+                      <th>Inventory Item #</th>
+                      <th>Manufacturer Part #</th>
+                      <th>Description</th>
+                      <th>Total</th>
+                      <th>In Use</th>
+                      <th>Essential Reserve</th>
+                      <th>Amount Needed</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -283,10 +283,10 @@ const HomePage = ({ setPage, accessToken }) => {
                       const { essentialReserve, amountNeeded, inUse } = getInventoryReserveFromPart(part);
                       const total = part.total ?? 0;
                       return (
-                        <tr key={part.m_inventory_item?.item_number || part.item_number || idx} style={{ borderBottom: '1px solid #eee' }}>
-                          <td style={{ padding: '12px', fontWeight: 'bold', textAlign: 'left' }}>{part.m_inventory_item?.item_number || part.item_number || 'No Item Number'}</td>
-                          <td style={{ padding: '12px', textAlign: 'left' }}>{part.m_mfg_part_number || part.manufacturer_part_number || part.mfg_part_number || 'N/A'}</td>
-                          <td style={{ padding: '12px', textAlign: 'left' }}>{
+                        <tr key={part.m_inventory_item?.item_number || part.item_number || idx} className="homepage-bulk-table-row">
+                          <td className="homepage-bulk-table-cell homepage-bulk-table-cell-bold">{part.m_inventory_item?.item_number || part.item_number || 'No Item Number'}</td>
+                          <td className="homepage-bulk-table-cell">{part.m_mfg_part_number || part.manufacturer_part_number || part.mfg_part_number || 'N/A'}</td>
+                          <td className="homepage-bulk-table-cell">{
                             part.m_inventory_description ||
                             part.m_inventory_item?.description ||
                             part.description ||
@@ -295,10 +295,10 @@ const HomePage = ({ setPage, accessToken }) => {
                             part.m_description ||
                             'N/A'
                           }</td>
-                          <td style={{ padding: '12px', textAlign: 'left' }}>{total}</td>
-                          <td style={{ padding: '12px', textAlign: 'left' }}>{inUse}</td>
-                          <td style={{ padding: '12px', textAlign: 'left' }}>{essentialReserve}</td>
-                          <td style={{ padding: '12px', textAlign: 'left' }}>{amountNeeded}</td>
+                          <td className="homepage-bulk-table-cell">{total}</td>
+                          <td className="homepage-bulk-table-cell">{inUse}</td>
+                          <td className="homepage-bulk-table-cell">{essentialReserve}</td>
+                          <td className="homepage-bulk-table-cell">{amountNeeded}</td>
                         </tr>
                       );
                     })}

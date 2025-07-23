@@ -39,30 +39,8 @@ function getVisibleFields(allFields, hiddenFields) {
   return allFields.filter(field => !hiddenFields[field]);
 }
 
-/**
- * Main table UI for parts and their instances.
- * @param {Object} props
- * @param {Array} props.results - Array of part groups
- * @param {Object} props.selected - Selected parts by itemNumber
- * @param {Function} props.setSelected - Setter for selected parts
- * @param {Object} props.quantities - Quantities for each part
- * @param {Function} props.setQuantities - Setter for quantities
- * @param {string} [props.search] - Search string
- * @param {Function} [props.setSearch] - Setter for search string
- * @param {Function} props.setPage - Setter for pagination
- * @param {boolean} props.isAdmin - Whether the user is an admin
- * @param {string} props.accessToken - Auth token
- * @param {Function} props.onFilterSearch - Handler for filter search
- * @param {boolean} props.loading - Loading state
- * @param {any} props.spinner - Spinner component
- * @param {boolean} props.chatOpen - Whether chat is open
- * @param {Function} props.setChatOpen - Setter for chat open state
- * @param {Function} props.onResultsChange - Handler for results change
- * @returns {JSX.Element}
- */
 function PartsTable({ results, selected, setSelected, quantities, setQuantities, search = '', setSearch, setPage, isAdmin, accessToken, onFilterSearch, loading, spinner, chatOpen, setChatOpen, onResultsChange }) {
 
-  // Handler to clear all search, filters, and results
   const handleClearSearch = () => {
     setLocalSearch("");
     if (typeof setSearch === 'function') {
@@ -72,14 +50,11 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     setInputValues({});
     setGlobalSearchResults(null);
     setHasUnprocessedChanges(true);
-    // Optionally, reset other state like selected, quantities, etc.
   };
-  // ...existing code...
   const [expandedValue, setExpandedValue] = useState(null);
   const [expandedLabel, setExpandedLabel] = useState('');
   // State for expand/collapse per itemNumber
   const [expandedRows, setExpandedRows] = useState({});
-  // State for select all checkbox (not used elsewhere, can be removed)
   // State for filtering instances by General Inventory per group
   const [generalInventoryFilter, setGeneralInventoryFilter] = useState({});
   // Feedback state for spare threshold updates
@@ -156,11 +131,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // Search utilities hook
   const { highlightFieldWithMatches, truncateText } = useSearchUtilities();
 
-  /**
-   * Handler for clicking a cell to expand its value in a modal.
-   * @param {string} label - The cell label
-   * @param {string} value - The cell value
-   */
   const handleCellClick = (label, value) => {
     if (value && value.length > 20) {
       setExpandedValue(value);
@@ -168,9 +138,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
     }
   };
 
-  /**
-   * Handler for closing the expanded modal.
-   */
   const handleClose = () => {
     setExpandedValue(null);
     setExpandedLabel('');
@@ -389,7 +356,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
         chatOpen={chatOpen}
         setChatOpen={setChatOpen}
         onClearSearch={handleClearSearch}
-        // ...existing code...
       />
       {/* Wrap main table/results area in a container that shifts when chat is open */}
       <div className={`main-table-area${chatOpen ? ' chat-open' : ''}`}>
@@ -463,7 +429,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       part={{
                         ...part,
                         essentialReserve,
-                        usableSurplus,
                         inUse,
                         amountNeeded,
                         spareThreshold,
@@ -498,7 +463,6 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       getInstanceTableGridColumns={getInstanceTableGridColumns}
                       highlightFieldWithMatches={highlightFieldWithMatches}
                       updateSpareValue={updateSpareValue}
-                      shouldBulkOrder={calc.shouldBulkOrder}
                     />
                   )}
                 </div>
