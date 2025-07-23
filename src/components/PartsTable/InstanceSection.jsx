@@ -142,6 +142,8 @@ import React, { useRef, useEffect } from 'react';
  * @param {Function} props.updateSpareValue - Updates spare value for an instance
  * @returns {JSX.Element}
  */
+import { getInventoryReserveFromPart } from '../../utils/inventoryCalculations';
+
 const InstanceSection = ({
   group,
   part,
@@ -175,7 +177,8 @@ const InstanceSection = ({
   getInstanceTableGridColumns,
   highlightFieldWithMatches,
   usableSurplus,
-  updateSpareValue
+  updateSpareValue,
+  shouldBulkOrder // new prop from PartsTable
 }) => {
 
 
@@ -236,15 +239,14 @@ const InstanceSection = ({
             }}
             onBlur={async e => {
               const newValue = parseFloat(e.target.value);
-              // Update group.instances and backend
+              // Recalculate shouldBulkOrder with the new threshold
+              const partForCalc = { ...part, spare_value: isNaN(newValue) ? 0 : newValue };
+              const { shouldBulkOrder: recalculatedBulkOrder } = getInventoryReserveFromPart(partForCalc);
               await Promise.all(
                 group.instances.map(async instance => {
                   instance.spare_value = isNaN(newValue) ? 0 : newValue;
-                  // Use essentialReserve passed from parent (PartsTable.jsx)
-                  const desiredBulkOrder = part.essentialReserve < newValue;
-                  console.log(`Instance ${instance.id}: essentialReserve=${part.essentialReserve}, threshold=${newValue}, sending bulk_order=`, desiredBulkOrder);
                   try {
-                    await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken, desiredBulkOrder);
+                    await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken, recalculatedBulkOrder);
                     setSpareFeedback(prev => ({ ...prev, [instance.id]: 'success' }));
                     setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 1500);
                   } catch (err) {

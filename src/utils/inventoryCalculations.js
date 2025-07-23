@@ -25,7 +25,8 @@ export function calculateInventoryReserve({ total = 0, spare = 0, inUse, spareTh
     amountNeeded = 0;
   }
   const usableSurplus = Math.max(0, spare - calculatedReserve);
-  return { essentialReserve, amountNeeded, usableSurplus, inUse: actualInUse };
+  const shouldBulkOrder = amountNeeded > 0;
+  return { essentialReserve, amountNeeded, usableSurplus, inUse: actualInUse, shouldBulkOrder };
 }
 
 /**

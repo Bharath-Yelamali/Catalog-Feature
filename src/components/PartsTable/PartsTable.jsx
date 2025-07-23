@@ -498,6 +498,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       getInstanceTableGridColumns={getInstanceTableGridColumns}
                       highlightFieldWithMatches={highlightFieldWithMatches}
                       updateSpareValue={updateSpareValue}
+                      shouldBulkOrder={calc.shouldBulkOrder}
                     />
                   )}
                 </div>
