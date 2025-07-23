@@ -14,6 +14,7 @@ import React, { useEffect, useState } from 'react';
 import shuffleIcon from '../assets/shuffle.svg';
 import sendIcon from '../assets/send.svg';
 import { fetchBulkOrderParts } from '../api/parts';
+import { getInventoryReserveFromPart } from '../utils/inventoryCalculations';
 
 /**
  * AnimatedText component
@@ -272,15 +273,15 @@ const HomePage = ({ setPage, accessToken }) => {
                         }
                         return acc;
                       }, {})
-                    ).map((part, idx) => {
-                      // Calculate summary fields
+                    )
+                    .filter(part => {
+                      const { inUse } = getInventoryReserveFromPart(part);
+                      return inUse !== 0;
+                    })
+                    .map((part, idx) => {
+                      // Use utility for calculations
+                      const { essentialReserve, amountNeeded, inUse } = getInventoryReserveFromPart(part);
                       const total = part.total ?? 0;
-                      const inUse = part.inUse ?? 0;
-                      const spare = part.spare ?? 0;
-                      const spareValue = part.spare_value ?? 0;
-                      const essentialReserve = part.spare ?? 0;
-                      // Amount needed is spare_value minus spare
-                      const amountNeeded = Math.max(0, spareValue - spare);
                       return (
                         <tr key={part.m_inventory_item?.item_number || part.item_number || idx} style={{ borderBottom: '1px solid #eee' }}>
                           <td style={{ padding: '12px', fontWeight: 'bold', textAlign: 'left' }}>{part.m_inventory_item?.item_number || part.item_number || 'No Item Number'}</td>

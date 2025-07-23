@@ -20,6 +20,7 @@ import '../../styles/chatbox.css';
 import InstanceSection from './InstanceSection';
 import ExpandedModal from './ExpandedModal';
 import EmptyState from './EmptyState';
+import { getInventoryReserveFromPart } from '../../utils/inventoryCalculations';
 
 /**
  * Returns an array of visible field keys (not hidden).
@@ -247,14 +248,7 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
   // Helper to cap requested instances for a group at usable surplus
   function getCappedRequestedInstances(group, requestedInstances, generalInventoryFilter) {
     const part = group.instances[0];
-    // Calculate spare threshold and inventory numbers
-    const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
-    const total = part.total == null ? 0 : part.total;
-    const inUse = part.inUse == null ? 0 : part.inUse;
-    const generalInventoryAmount = total - inUse;
-    // Calculate essential reserve and usable surplus
-    const essentialReserve = Math.ceil(spareThreshold * inUse);
-    const usableSurplus = generalInventoryAmount - essentialReserve;
+    const { usableSurplus } = getInventoryReserveFromPart(part);
     // Cap checked instances by usable surplus
     const checkedInstances = (generalInventoryFilter[group.itemNumber]
       ? group.instances.filter(instance => instance.generalInventory)
@@ -431,17 +425,10 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
             <>
             {resultsToDisplay.map(group => {
               const part = group.instances[0];
-              // Calculate spare threshold and inventory numbers
-              const spareThreshold = part.spare_value == null ? 0 : part.spare_value;
-              const total = part.total == null ? 0 : part.total;
-              const inUse = part.inUse == null ? 0 : part.inUse;
-              // Calculate potential surplus
-              const potentialSurplus = total - inUse;
-              // Calculate essential reserve and usable surplus
-              const essentialReserve = Math.max(0, Math.min(spareThreshold, potentialSurplus));
-              const usableSurplus = potentialSurplus - essentialReserve;
+              const calc = getInventoryReserveFromPart(part);
+              const { essentialReserve, usableSurplus, inUse, amountNeeded, spareThreshold } = calc;
               // Flag if essential reserve is low
-              const isEssentialReserveLow = essentialReserve < spareThreshold;
+              const isEssentialReserveLow = essentialReserve < (spareThreshold ?? 0);
               return (
                 <div key={group.itemNumber} className={expandedRows[group.itemNumber] ? 'part-instance-wrapper' : ''}>
                   <PartsTableMainRow
@@ -450,6 +437,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                       ...part,
                       essentialReserve,
                       usableSurplus,
+                      inUse,
+                      amountNeeded,
                       spareThreshold,
                     }}
                     hiddenFields={hiddenFields}
@@ -475,6 +464,8 @@ function PartsTable({ results, selected, setSelected, quantities, setQuantities,
                         ...part,
                         essentialReserve,
                         usableSurplus,
+                        inUse,
+                        amountNeeded,
                         spareThreshold,
                       }}
                       isAdmin={isAdmin}
