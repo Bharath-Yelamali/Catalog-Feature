@@ -1,4 +1,19 @@
 
+/**
+ * InstanceSection.jsx
+ * -------------------
+ * Renders the instance table section for a part, including filtering, selection, and admin controls.
+ *
+ * Features:
+ * - Dynamic dropdown filters for maturity, project, custodian, and parent path
+ * - Admin-only spare threshold editing with async update
+ * - Checkbox selection for general inventory instances
+ * - Accessibility and keyboard navigation support
+ * - Uses helper functions for unique value extraction and dropdown rendering
+ *
+ * @module InstanceSection
+ */
+// InstanceSection: Renders the instance table section for a part, including filtering, selection, and admin controls.
 
 /**
  * Returns a unique array of truthy values.
@@ -123,10 +138,11 @@ import React, { useRef, useEffect } from 'react';
  * @param {string} props.accessToken - Access token for API calls
  * @param {Function} props.getInstanceTableGridColumns - Returns grid column layout
  * @param {Function} props.highlightFieldWithMatches - Highlights field matches
+ * @param {any} props.usableSurplus - Usable surplus value
  * @param {Function} props.updateSpareValue - Updates spare value for an instance
  * @returns {JSX.Element}
  */
-
+import { getInventoryReserveFromPart } from '../../utils/inventoryCalculations';
 
 const InstanceSection = ({
   group,
@@ -160,10 +176,13 @@ const InstanceSection = ({
   accessToken,
   getInstanceTableGridColumns,
   highlightFieldWithMatches,
-  updateSpareValue
+  usableSurplus,
+  updateSpareValue,
+  shouldBulkOrder // new prop from PartsTable
 }) => {
 
 
+  // Local state for spare threshold input
   const initialSpareValue = group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value;
   const [spareThresholdInput, setSpareThresholdInput] = React.useState(initialSpareValue);
 
@@ -206,6 +225,7 @@ const InstanceSection = ({
       </div>
       {isAdmin && (
         <div className="spare-threshold-section">
+          {/* Admin control: Edit spare threshold for this item */}
           Spare Threshold for this item:
           <input
             type="number"
@@ -241,6 +261,7 @@ const InstanceSection = ({
           />
         </div>
       )}
+      {/* Instance table header: selection and filter dropdowns */}
       <div className="instance-grid-header" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
         <div className="table-cell">Select</div>
         {/* Correct column order: ID, Serial, Quantity, Maturity, Project, Custodian, Path */}
@@ -299,6 +320,7 @@ const InstanceSection = ({
           'parentPath'
         )}
       </div>
+      {/* Spacer row for grid alignment */}
       <div className="instance-grid-spacer" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
         {!hiddenFields.instanceId && <div></div>}
         {!hiddenFields.serialNumber && <div></div>}
@@ -308,6 +330,7 @@ const InstanceSection = ({
         {!hiddenFields.hardwareCustodian && <div></div>}
         {!hiddenFields.parentPath && <div></div>}
       </div>
+      {/* Instance rows: selection, links, and field display */}
       {group.instances.filter(instance => {
         if (maturityFilter[group.itemNumber] && instance.m_maturity !== maturityFilter[group.itemNumber]) return false;
         if (projectFilter[group.itemNumber] && (instance.m_project?.keyed_name || instance.associated_project) !== projectFilter[group.itemNumber]) return false;
