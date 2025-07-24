@@ -15,37 +15,36 @@ export const buildSearchParams = (chips) => {
   const searchParams = {};
   
   chips.forEach(chip => {
-    if (chip.field && chip.value) {
+    if (chip.field) {
       const field = chip.field;
-      let value = chip.value;
-      
-      // Handle operator-value object format
-      if (typeof value === 'object' && value.operator && value.value) {
-        // Keep the operator-value object intact
-        if (value.value.trim() === '') {
-          return; // Skip empty values
-        }
-      } else if (typeof value === 'string') {
-        // Handle legacy string format
-        if (value.trim() === '') {
-          return; // Skip empty values
-        }
-        // Convert to operator-value object with default "contains" operator
-        value = { operator: 'contains', value: value.trim() };
-      } else {
-        return; // Skip invalid values
+      let valueObj = null;
+
+      // Case 1: chip has top-level operator and value (value is string)
+      if (chip.operator && typeof chip.value === 'string') {
+        if (chip.value.trim() === '') return;
+        valueObj = { operator: chip.operator, value: chip.value.trim() };
       }
-      
+      // Case 2: chip.value is an object with operator and value
+      else if (typeof chip.value === 'object' && chip.value.operator && chip.value.value) {
+        if (typeof chip.value.value === 'string' && chip.value.value.trim() === '') return;
+        valueObj = { operator: chip.value.operator, value: chip.value.value.trim() };
+      }
+      // Case 3: legacy string value, no operator
+      else if (typeof chip.value === 'string') {
+        if (chip.value.trim() === '') return;
+        valueObj = { operator: 'contains', value: chip.value.trim() };
+      }
+      // Otherwise, skip invalid
+      if (!valueObj) return;
+
       if (searchParams[field]) {
-        // If field already exists, convert to array or add to existing array
         if (Array.isArray(searchParams[field])) {
-          searchParams[field].push(value);
+          searchParams[field].push(valueObj);
         } else {
-          searchParams[field] = [searchParams[field], value];
+          searchParams[field] = [searchParams[field], valueObj];
         }
       } else {
-        // First value for this field
-        searchParams[field] = value;
+        searchParams[field] = valueObj;
       }
     }
   });

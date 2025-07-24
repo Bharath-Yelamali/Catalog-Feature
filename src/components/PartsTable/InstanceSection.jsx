@@ -1,6 +1,7 @@
+
 /**
- * InstanceSection Component
- * -------------------------
+ * InstanceSection.jsx
+ * -------------------
  * Renders the instance table section for a part, including filtering, selection, and admin controls.
  *
  * Features:
@@ -9,14 +10,19 @@
  * - Checkbox selection for general inventory instances
  * - Accessibility and keyboard navigation support
  * - Uses helper functions for unique value extraction and dropdown rendering
+ *
+ * @module InstanceSection
  */
+// InstanceSection: Renders the instance table section for a part, including filtering, selection, and admin controls.
 
 /**
  * Returns a unique array of truthy values.
- * @param {Array} arr
- * @returns {Array}
+ * @param {Array} arr - Array to filter and deduplicate
+ * @returns {Array} Unique, truthy values
  */
-const unique = arr => Array.from(new Set(arr.filter(Boolean)));
+function unique(arr) {
+  return Array.from(new Set(arr.filter(Boolean)));
+}
 
 /**
  * Renders a dropdown cell for filtering instance table columns.
@@ -98,45 +104,46 @@ import React, { useRef, useEffect } from 'react';
 
 /**
  * InstanceSection Component
- * -------------------------
  * Renders the instance table section with filtering, selection, and admin controls.
  *
- * @param {Object} props
+ * @param {Object} props - Component props
  * @param {Object} props.group - Group data for the part
  * @param {Object} props.part - Part data
  * @param {boolean} props.isAdmin - Whether the user is an admin
  * @param {Object} props.hiddenFields - Fields to hide in the table
- * @param {Object} props.generalInventoryFilter
- * @param {Function} props.setGeneralInventoryFilter
- * @param {Object} props.spareFeedback
- * @param {Function} props.setSpareFeedback
- * @param {Object} props.requestedInstances
- * @param {Function} props.setRequestedInstances
- * @param {Array} props.instanceSelectionOrder
- * @param {Function} props.setInstanceSelectionOrder
- * @param {Object} props.projectFilter
- * @param {Function} props.setProjectFilter
- * @param {Object} props.openProjectDropdown
- * @param {Function} props.setOpenProjectDropdown
- * @param {Object} props.maturityFilter
- * @param {Function} props.setMaturityFilter
- * @param {Object} props.openMaturityDropdown
- * @param {Function} props.setOpenMaturityDropdown
- * @param {Object} props.custodianFilter
- * @param {Function} props.setCustodianFilter
- * @param {Object} props.openCustodianDropdown
- * @param {Function} props.setOpenCustodianDropdown
- * @param {Object} props.parentPathFilter
- * @param {Function} props.setParentPathFilter
- * @param {Object} props.openParentPathDropdown
- * @param {Function} props.setOpenParentPathDropdown
- * @param {string} props.accessToken
- * @param {Function} props.getInstanceTableGridColumns
- * @param {Function} props.highlightFieldWithMatches
- * @param {any} props.usableSurplus
- * @param {Function} props.updateSpareValue
+ * @param {Object} props.generalInventoryFilter - General inventory filter state
+ * @param {Function} props.setGeneralInventoryFilter - Setter for general inventory filter
+ * @param {Object} props.spareFeedback - Feedback state for spare threshold updates
+ * @param {Function} props.setSpareFeedback - Setter for spare feedback
+ * @param {Object} props.requestedInstances - Requested instance selection state
+ * @param {Function} props.setRequestedInstances - Setter for requested instances
+ * @param {Array} props.instanceSelectionOrder - Order of instance selection
+ * @param {Function} props.setInstanceSelectionOrder - Setter for selection order
+ * @param {Object} props.projectFilter - Project filter state
+ * @param {Function} props.setProjectFilter - Setter for project filter
+ * @param {Object} props.openProjectDropdown - Open state for project dropdown
+ * @param {Function} props.setOpenProjectDropdown - Setter for project dropdown open state
+ * @param {Object} props.maturityFilter - Maturity filter state
+ * @param {Function} props.setMaturityFilter - Setter for maturity filter
+ * @param {Object} props.openMaturityDropdown - Open state for maturity dropdown
+ * @param {Function} props.setOpenMaturityDropdown - Setter for maturity dropdown open state
+ * @param {Object} props.custodianFilter - Custodian filter state
+ * @param {Function} props.setCustodianFilter - Setter for custodian filter
+ * @param {Object} props.openCustodianDropdown - Open state for custodian dropdown
+ * @param {Function} props.setOpenCustodianDropdown - Setter for custodian dropdown open state
+ * @param {Object} props.parentPathFilter - Parent path filter state
+ * @param {Function} props.setParentPathFilter - Setter for parent path filter
+ * @param {Object} props.openParentPathDropdown - Open state for parent path dropdown
+ * @param {Function} props.setOpenParentPathDropdown - Setter for parent path dropdown open state
+ * @param {string} props.accessToken - Access token for API calls
+ * @param {Function} props.getInstanceTableGridColumns - Returns grid column layout
+ * @param {Function} props.highlightFieldWithMatches - Highlights field matches
+ * @param {any} props.usableSurplus - Usable surplus value
+ * @param {Function} props.updateSpareValue - Updates spare value for an instance
  * @returns {JSX.Element}
  */
+import { getInventoryReserveFromPart } from '../../utils/inventoryCalculations';
+
 const InstanceSection = ({
   group,
   part,
@@ -170,9 +177,19 @@ const InstanceSection = ({
   getInstanceTableGridColumns,
   highlightFieldWithMatches,
   usableSurplus,
-  updateSpareValue
+  updateSpareValue,
+  shouldBulkOrder // new prop from PartsTable
 }) => {
 
+
+  // Local state for spare threshold input
+  const initialSpareValue = group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value;
+  const [spareThresholdInput, setSpareThresholdInput] = React.useState(initialSpareValue);
+
+  // Keep input in sync if group.instances changes (e.g., after backend update)
+  React.useEffect(() => {
+    setSpareThresholdInput(group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value);
+  }, [group.instances]);
 
   // Refs for dropdowns
   const projectDropdownRef = useRef(null);
@@ -208,45 +225,44 @@ const InstanceSection = ({
       </div>
       {isAdmin && (
         <div className="spare-threshold-section">
+          {/* Admin control: Edit spare threshold for this item */}
           Spare Threshold for this item:
           <input
             type="number"
             min="0"
             max="1"
-            step="0.01"
-            value={group.instances[0]?.spare_value == null ? 0 : group.instances[0].spare_value}
+            step=".01"
+            value={spareThresholdInput}
             onChange={e => {
               const newValue = parseFloat(e.target.value);
-              group.instances.forEach(instance => {
-                instance.spare_value = isNaN(newValue) ? 0 : newValue;
-              });
+              setSpareThresholdInput(isNaN(newValue) ? '' : newValue);
             }}
             onBlur={async e => {
               const newValue = parseFloat(e.target.value);
-              try {
-                await Promise.all(
-                  group.instances.map(async instance => {
-                    try {
-                      await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken);
-                      setSpareFeedback(prev => ({ ...prev, [instance.id]: 'success' }));
-                      setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 1500);
-                    } catch (err) {
-                      setSpareFeedback(prev => ({ ...prev, [instance.id]: 'error' }));
-                      setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 2500);
-                    }
-                  })
-                );
-              } catch (err) {
-                // Handle error
-              }
+              // Recalculate shouldBulkOrder with the new threshold
+              const partForCalc = { ...part, spare_value: isNaN(newValue) ? 0 : newValue };
+              const { shouldBulkOrder: recalculatedBulkOrder } = getInventoryReserveFromPart(partForCalc);
+              await Promise.all(
+                group.instances.map(async instance => {
+                  instance.spare_value = isNaN(newValue) ? 0 : newValue;
+                  try {
+                    await updateSpareValue(instance.id, isNaN(newValue) ? 0 : newValue, accessToken, recalculatedBulkOrder);
+                    setSpareFeedback(prev => ({ ...prev, [instance.id]: 'success' }));
+                    setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 1500);
+                  } catch (err) {
+                    setSpareFeedback(prev => ({ ...prev, [instance.id]: 'error' }));
+                    setTimeout(() => setSpareFeedback(prev => ({ ...prev, [instance.id]: null })), 2500);
+                  }
+                })
+              );
             }}
             className="spare-threshold-input"
             aria-label="Edit spare threshold for this item"
           />
         </div>
       )}
+      {/* Instance table header: selection and filter dropdowns */}
       <div className="instance-grid-header" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-        {/* Add Select header for General Inventory checkboxes */}
         <div className="table-cell">Select</div>
         {/* Correct column order: ID, Serial, Quantity, Maturity, Project, Custodian, Path */}
         {!hiddenFields.instanceId && <div className="table-cell">Instance ID</div>}
@@ -304,8 +320,8 @@ const InstanceSection = ({
           'parentPath'
         )}
       </div>
+      {/* Spacer row for grid alignment */}
       <div className="instance-grid-spacer" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-        {/* Removed the empty column for the triangle/expand button */}
         {!hiddenFields.instanceId && <div></div>}
         {!hiddenFields.serialNumber && <div></div>}
         {!hiddenFields.quantity && <div></div>}
@@ -314,6 +330,7 @@ const InstanceSection = ({
         {!hiddenFields.hardwareCustodian && <div></div>}
         {!hiddenFields.parentPath && <div></div>}
       </div>
+      {/* Instance rows: selection, links, and field display */}
       {group.instances.filter(instance => {
         if (maturityFilter[group.itemNumber] && instance.m_maturity !== maturityFilter[group.itemNumber]) return false;
         if (projectFilter[group.itemNumber] && (instance.m_project?.keyed_name || instance.associated_project) !== projectFilter[group.itemNumber]) return false;
@@ -345,6 +362,7 @@ const InstanceSection = ({
                 />
               )}
             </div>
+            {/* Instance ID link */}
             {!hiddenFields.instanceId && (
               <div>
                 {instance.id && instance.m_id ? (
@@ -361,6 +379,7 @@ const InstanceSection = ({
                 )}
               </div>
             )}
+            {/* Serial Number, Quantity, Maturity, Project, Custodian, Parent Path */}
             {!hiddenFields.serialNumber && <div>{highlightFieldWithMatches(instance.m_serial_number || instance.m_name || 'N/A', part._matches?.m_serial_number)}</div>}
             {!hiddenFields.quantity && <div>{highlightFieldWithMatches((instance.m_quantity ?? 'N/A').toString(), part._matches?.m_quantity)}</div>}
             {!hiddenFields.inventoryMaturity && <div>{highlightFieldWithMatches(instance.m_maturity || 'N/A', part._matches?.m_maturity)}</div>}

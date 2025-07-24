@@ -13,6 +13,8 @@
 import React, { useEffect, useState } from 'react';
 import shuffleIcon from '../assets/shuffle.svg';
 import sendIcon from '../assets/send.svg';
+import { fetchBulkOrderParts } from '../api/parts';
+import { getInventoryReserveFromPart } from '../utils/inventoryCalculations';
 
 /**
  * AnimatedText component
@@ -122,6 +124,32 @@ const typewriterDelay = 0.025;
  * @param {string} [props.accessToken] - User access token (if logged in)
  */
 const HomePage = ({ setPage, accessToken }) => {
+  // Bulk order parts state
+  const [bulkParts, setBulkParts] = useState([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkError, setBulkError] = useState(null);
+
+  // Fetch bulk order parts on mount
+  useEffect(() => {
+    let isMounted = true;
+    setBulkLoading(true);
+    setBulkError(null);
+    fetchBulkOrderParts({ accessToken })
+      .then(parts => {
+        if (isMounted) {
+          console.log('[HomePage] Bulk order table data:', parts);
+          setBulkParts(parts);
+          setBulkLoading(false);
+        }
+      })
+      .catch(err => {
+        if (isMounted) {
+          setBulkError(err.message || 'Failed to fetch bulk order parts');
+          setBulkLoading(false);
+        }
+      });
+    return () => { isMounted = false; };
+  }, [accessToken]);
   // Index of the current demo input
   const [demoIdx, setDemoIdx] = useState(0);
   // Key to force re-render of AnimatedText for animation reset
@@ -206,6 +234,81 @@ const HomePage = ({ setPage, accessToken }) => {
           Use it now
         </button>
       </div>
+      {/* Header for bulk order parts list */}
+      {accessToken && (
+        <>
+          <div className="homepage-bulk-header">
+            <div className="homepage-bulk-title">
+              Parts Needing Order (Low Inventory)
+            </div>
+          </div>
+          <div className="homepage-column-box">
+            {/* Scrollable inner box for text */}
+            <div className="homepage-bulk-table-container">
+              {/* Bulk order parts list */}
+              {bulkLoading && <div>Loading bulk order parts...</div>}
+              {bulkError && <div className="homepage-bulk-error">Error: {bulkError}</div>}
+              {!bulkLoading && !bulkError && bulkParts.length === 0 && (
+                <div>No bulk order parts found.</div>
+              )}
+              {!bulkLoading && !bulkError && bulkParts.length > 0 && (
+                <table className="homepage-bulk-table">
+                  <thead>
+                    <tr className="homepage-bulk-table-header">
+                      <th>Inventory Item #</th>
+                      <th>Manufacturer Part #</th>
+                      <th>Description</th>
+                      <th>Total</th>
+                      <th>In Use</th>
+                      <th>Essential Reserve</th>
+                      <th>Amount Needed</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.values(
+                      bulkParts.reduce((acc, part) => {
+                        const key = part.m_inventory_item?.item_number || part.item_number || 'Unknown';
+                        if (!acc[key]) {
+                          acc[key] = part;
+                        }
+                        return acc;
+                      }, {})
+                    )
+                    .filter(part => {
+                      const { inUse } = getInventoryReserveFromPart(part);
+                      return inUse !== 0;
+                    })
+                    .map((part, idx) => {
+                      // Use utility for calculations
+                      const { essentialReserve, amountNeeded, inUse } = getInventoryReserveFromPart(part);
+                      const total = part.total ?? 0;
+                      return (
+                        <tr key={part.m_inventory_item?.item_number || part.item_number || idx} className="homepage-bulk-table-row">
+                          <td className="homepage-bulk-table-cell homepage-bulk-table-cell-bold">{part.m_inventory_item?.item_number || part.item_number || 'No Item Number'}</td>
+                          <td className="homepage-bulk-table-cell">{part.m_mfg_part_number || part.manufacturer_part_number || part.mfg_part_number || 'N/A'}</td>
+                          <td className="homepage-bulk-table-cell">{
+                            part.m_inventory_description ||
+                            part.m_inventory_item?.description ||
+                            part.description ||
+                            part.m_inventory_item?.part_description ||
+                            part.part_description ||
+                            part.m_description ||
+                            'N/A'
+                          }</td>
+                          <td className="homepage-bulk-table-cell">{total}</td>
+                          <td className="homepage-bulk-table-cell">{inUse}</td>
+                          <td className="homepage-bulk-table-cell">{essentialReserve}</td>
+                          <td className="homepage-bulk-table-cell">{amountNeeded}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

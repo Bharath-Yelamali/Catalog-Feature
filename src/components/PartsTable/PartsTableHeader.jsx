@@ -19,7 +19,7 @@ import { HideFieldsButton, FilterButton } from '../SearchBarLogic';
 import { GlobalSearchBar } from '../SearchBarLogic/components/GlobalSearchBar';
 import downloadIcon from '../../assets/download.svg';
 import nextIcon from '../../assets/next.svg';
-import chatIcon from '../../assets/chat.svg'; // Add chat icon import
+import chatIcon from '../../assets/chat.svg';
 import infoIcon from '../../assets/info.svg';
 
 
@@ -33,12 +33,16 @@ const PartsTableHeader = ({
   // Other
   loading, resultsToDisplay, selected, quantities, handleExport, setPage,
   chatOpen, setChatOpen,
-  onClearSearch
+  onClearSearch,
+  // ...existing code...
 }) => {
   // State for info tooltip dropdown
   const [infoDropdownOpen, setInfoDropdownOpen] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const infoIconRef = useRef(null);
+
+  // Debug: Log when component mounts and onShowLowParts prop
+  // ...existing code...
 
   // Show tooltip and calculate position
   const handleInfoMouseEnter = () => {
@@ -147,12 +151,13 @@ const PartsTableHeader = ({
           </span>
           {/* Surplus request button */}
           <button
-            className="surplus-request-btn header-btn"
+            className="surplus-request-btn header-btn compact-btn"
             onClick={() => window.open('https://dev.azure.com/CHIELabs/CHIE%20Labs/_workitems/create/Lab%20Task', '_blank')}
             title="Create ADO Request Ticket For Surplus"
             aria-label="Create ADO Request Ticket For Surplus"
+            style={{ padding: '2px 8px', fontSize: '0.95em', minWidth: 'unset', height: '32px', lineHeight: '28px' }}
           >
-            Create ADO Request Ticket For Surplus
+            ADO Request for Surplus
           </button>
           {/* Info tooltip for surplus request */}
           <div className="info-dropdown-container">

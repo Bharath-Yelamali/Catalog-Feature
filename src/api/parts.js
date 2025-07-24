@@ -1,4 +1,20 @@
 /**
+ * Fetches all parts in need of a bulk order (bulk_order == true) from the backend API.
+ * @param {Object} options - Options for the request.
+ * @param {string} [options.accessToken] - Optional Bearer token for authentication.
+ * @returns {Promise<Array>} The response array containing bulk order parts data.
+ * @throws {Error} If the request fails.
+ */
+export async function fetchBulkOrderParts({ accessToken } = {}) {
+  const url = `${BASE_URL}/parts/bulk-order`;
+  const headers = buildHeaders(accessToken);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error('Failed to fetch bulk order parts');
+  const data = await response.json();
+  // If backend returns { value: [...] }, unwrap value
+  return Array.isArray(data) ? data : data.value || [];
+}
+/**
  * parts.js
  *
  * API utility functions for interacting with inventory parts via the backend API.
@@ -198,11 +214,17 @@ export async function postNewInventoryPart(part, accessToken) {
 export async function updateSpareValue(instanceId, spareValue, accessToken) {
   const url = `${BASE_URL}/m_Instance/${instanceId}/spare-value`;
   const headers = buildHeaders(accessToken, { 'Content-Type': 'application/json' });
-  
+  // Accept both spareValue and bulkOrder
+  const patchBody = {};
+  if (typeof spareValue !== 'undefined') patchBody.spare_value = spareValue;
+  // Accept bulkOrder as an optional second argument
+  if (arguments.length > 3 && typeof arguments[3] !== 'undefined') {
+    patchBody.bulk_order = arguments[3];
+  }
   const response = await fetch(url, {
     method: 'PATCH',
     headers,
-    body: JSON.stringify({ spare_value: spareValue }),
+    body: JSON.stringify(patchBody),
   });
   if (!response.ok) throw new Error('Failed to update spare value');
   return response.status === 204 ? null : await response.json();

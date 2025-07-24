@@ -31,7 +31,8 @@ const PartsTableMainRow = ({
   highlightFieldWithMatches,
   setExpandedValue,
   setExpandedLabel,
-  getMainTableGridColumns
+  getMainTableGridColumns,
+  isEssentialReserveLow
 }) => (
   // Main row for a part group. Handles selection, quantity, and expandable fields.
   <div
@@ -79,7 +80,7 @@ const PartsTableMainRow = ({
       </div>
     )}
     {!hiddenFields.essentialReserve && (
-      <div className="search-result-field">
+      <div className={"search-result-field" + (isEssentialReserveLow ? " essential-reserve-low" : "")}>
         {truncateText(part.essentialReserve?.toString())}
       </div>
     )}

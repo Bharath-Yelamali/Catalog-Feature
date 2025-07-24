@@ -1,3 +1,4 @@
+// ...existing code...
 /**
  * parts.js
  *
@@ -50,6 +51,33 @@ const FIELD_CONFIG = {
 };
 
 // --- ROUTE HANDLERS ---
+// GET /parts/bulk-order - Return all parts in need of a bulk order (bulk_order == true)
+router.get('/parts/bulk-order', async (req, res) => {
+  try {
+    const token = extractBearerToken(req);
+    if (!token) {
+      return res.status(401).json({ error: 'Missing or invalid access token. Please log in.' });
+    }
+
+    // Build OData query for bulk_order == true
+    const odataUrl = `${BASE_URL}m_Instance?$filter=bulk_order eq true&$select=${FIELD_CONFIG.SELECT_FIELDS.join(',')}&$expand=${FIELD_CONFIG.EXPAND_FIELDS.join(',')}`;
+    const response = await fetch(odataUrl, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `Failed to fetch bulk order parts: ${errorText}` });
+    }
+    const data = await response.json();
+    let results = data.value || [];
+    // Group and process results for frontend
+    results = groupAndProcessParts(results);
+    res.json({ value: results });
+  } catch (err) {
+    console.error('Error in /parts/bulk-order:', err);
+    res.status(500).json({ error: 'Internal server error: ' + err.message });
+  }
+});
 
 /**
  * Helper to extract Bearer token from Authorization header
@@ -100,6 +128,8 @@ router.get('/parts', async (req, res) => {
         try {
           // Try to parse as JSON (new format)
           const parsed = JSON.parse(value);
+// GET /parts/bulk-order - Return all parts in need of a bulk order (bulk_order == true)
+// This route should be placed after router and FIELD_CONFIG initialization
           if (parsed && typeof parsed === 'object' && parsed.operator && parsed.value) {
             fieldParams[field] = parsed;
           }
@@ -235,9 +265,20 @@ router.post('/m_Inventory', async (req, res) => {
 // PATCH endpoint to update spare_value for a specific instance
 router.patch('/m_Instance/:id/spare-value', async (req, res) => {
   const { id } = req.params;
-  const { spare_value } = req.body;
-  if (typeof spare_value !== 'number') {
-    return res.status(400).json({ error: 'spare_value must be a number' });
+  const { spare_value, bulk_order } = req.body;
+  // Build PATCH body with only present fields
+  const patchBody = {};
+  if (typeof spare_value !== 'undefined') {
+    if (typeof spare_value !== 'number') {
+      return res.status(400).json({ error: 'spare_value must be a number' });
+    }
+    patchBody.spare_value = spare_value;
+  }
+  if (typeof bulk_order !== 'undefined') {
+    patchBody.bulk_order = bulk_order;
+  }
+  if (Object.keys(patchBody).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update (spare_value, bulk_order)' });
   }
   // Accept Authorization and Prefer headers from the request
   const token = extractBearerToken(req);
@@ -245,7 +286,6 @@ router.patch('/m_Instance/:id/spare-value', async (req, res) => {
   try {
     // Forward PATCH to IMS OData backend (m_Instance)
     const odataUrl = `${BASE_URL}m_Instance('${id}')`;
-    // No debug logging for production
     const response = await fetch(odataUrl, {
       method: 'PATCH',
       headers: {
@@ -254,22 +294,20 @@ router.patch('/m_Instance/:id/spare-value', async (req, res) => {
         ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         'Prefer': preferHeader,
       },
-      body: JSON.stringify({ spare_value }),
-    });    if (!response.ok) {
+      body: JSON.stringify(patchBody),
+    });
+    if (!response.ok) {
       const text = await response.text();
-      // Only log errors in case of failure
       return res.status(response.status).json({ error: text });
     }
-    // Handle Location header if present
     if (response.headers.get('Location')) {
       res.set('Location', response.headers.get('Location'));
     }
-    // Return the IMS response (could be 204 or 200)
     if (response.status === 204) return res.status(204).end();
     const data = await response.json();
-    res.json(data);  } catch (err) {
-    // Keep error logging in case of exceptions, but make it more concise
-    res.status(500).json({ error: 'Failed to update spare_value in IMS: ' + err.message });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update instance in IMS: ' + err.message });
   }
 });
 
