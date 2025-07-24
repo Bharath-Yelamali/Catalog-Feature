@@ -13,7 +13,6 @@ import { buildSearchParams, validateSearchFields } from '../utils/searchUtils.js
  * @returns {Promise} - Search results
  */
 export const executeSearch = async (searchMode, searchData, options = {}) => {
-  console.log('[SearchController] executeSearch called with:', { searchMode, searchData, options });
   const {
     filterType = 'all',
     classification = 'Inventoried',
@@ -55,10 +54,8 @@ export const executeSearch = async (searchMode, searchData, options = {}) => {
         throw new Error(`Invalid search parameters: ${validation.errors.join(', ')}`);
       }
 
-      console.log('[SearchController] conditions before buildSearchParams:', conditions);
       // Build search parameters
       const searchParams = buildSearchParams(conditions);
-      console.log('[SearchController] searchParams after buildSearchParams:', searchParams);
 
       return await fetchPartsByFields({
         classification,
