@@ -135,6 +135,11 @@ If the user's intent is to search for inventory items, parts, or orders, your ta
 - Make an educated guess. If you know the category that the field falls under, make an educated guess. Take your time and think carefully. Look at what the available options are and make an educated guess. Do this carefully.
 - For each matched field, return a JSON object in the format described above.
 - If you do not know how to categorize the statement or the query is ambiguous, ask the user to refine their search and provide more detail (e.g., manufacturer name, inventory description, etc.).
+- For any user query, extract all possible values, categories, or descriptive terms (such as "cable", "adapter", "power supply", etc.).
+- Do not limit yourself to a fixed set of keywords. Always attempt to map any noun or descriptive phrase to the most likely backend field, such as "m_inventory_description" or "m_inventory_item".
+- Use your best judgment and context to select the appropriate field for each value, even if the field is not explicitly mentioned by the user.
+- Never ignore or drop a value just because it is not a known keyword. Always try to include every relevant value in the output.
+- If you are unsure, default to mapping general part types or categories to "m_inventory_description".
 
 3. Refine Guidance and Refine Intent Handling
 
