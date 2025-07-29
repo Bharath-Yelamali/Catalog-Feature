@@ -367,7 +367,7 @@ const InstanceSection = ({
               <div>
                 {instance.id && instance.m_id ? (
                   <a
-                    href={`https://chievmimsiiss01/IMSStage/?StartItem=m_Instance:${instance.id}`}
+                    href={`${import.meta.env.VITE_IMS_BASE_URL_2}/?StartItem=m_Instance:${instance.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="instance-link"

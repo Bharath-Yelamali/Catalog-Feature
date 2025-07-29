@@ -185,13 +185,7 @@ router.get('/parts', async (req, res) => {
       results = applyFieldHighlighting(results, fieldParams);
     }
     
-    // Apply result limit for default queries
-    const hasFieldFilters = Object.keys(fieldParams).some(field => 
-      !field.includes('@') && hasFieldValues(fieldParams[field])
-    );
-    if (!search?.trim() && !hasFieldFilters) {
-      results = results.slice(0, 500);
-    }
+    // Removed 500-result client-side limit
 
     // Log performance metrics
     const totalTime = Date.now() - startTime;
@@ -513,11 +507,7 @@ function buildODataUrl(params) {
     `$expand=${FIELD_CONFIG.EXPAND_FIELDS.join(',')}`
   ];
   
-  // Add $top limit if no specific filtering is applied
-  const hasFieldFilters = fieldFilters.length > 0;
-  if ((!search || search.trim() === '') && !hasFieldFilters) {
-    queryParts.push('$top=500');
-  }
+  // Removed $top=500 OData limit
   
   return `${BASE_URL}m_Instance?${queryParts.join('&')}`;
 }
