@@ -56,18 +56,21 @@ function renderDropdown(
   setOpenCustodianDropdown,
   setOpenParentPathDropdown
 ) {
+  // Only add underline style for filterable columns (not for instanceId, serialNumber, quantity)
+  const underlineHeaders = ['maturity', 'project', 'custodian', 'parentPath'];
+  const isUnderline = underlineHeaders.includes(dropdownType);
   return (
-    <div className="table-cell" style={{ position: 'relative', cursor: 'pointer', userSelect: 'none' }} ref={dropdownRef}>
+    <div className="table-cell" style={{ position: 'relative', userSelect: 'none' }} ref={dropdownRef}>
       <span
+        className={isUnderline ? 'column-header-dropdown-underline' : ''}
         onClick={e => {
           e.stopPropagation();
-          // Close all dropdowns except the one being opened
           setOpenProjectDropdown(prev => ({ ...prev, [groupKey]: dropdownType === 'project' ? !prev[groupKey] : false }));
           setOpenMaturityDropdown(prev => ({ ...prev, [groupKey]: dropdownType === 'maturity' ? !prev[groupKey] : false }));
           setOpenCustodianDropdown(prev => ({ ...prev, [groupKey]: dropdownType === 'custodian' ? !prev[groupKey] : false }));
           setOpenParentPathDropdown(prev => ({ ...prev, [groupKey]: dropdownType === 'parentPath' ? !prev[groupKey] : false }));
         }}
-        style={{ fontWeight: 'bold', borderBottom: openDropdown[groupKey] ? '2px solid #2563eb' : 'none' }}
+        style={{ fontWeight: 'bold', borderBottom: openDropdown[groupKey] && isUnderline ? '2px solid #2563eb' : 'none', cursor: isUnderline ? 'pointer' : 'default' }}
       >
         {header}
       </span>
