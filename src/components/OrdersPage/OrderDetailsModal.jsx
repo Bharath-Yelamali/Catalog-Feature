@@ -40,24 +40,32 @@ const OrderDetailsModal = ({
           <div style={{marginBottom: 16, color: '#4a5568', fontSize: 14}}>
             <b>Note:</b> Only non-empty fields are shown below. Fields already visible in the main table (Order Name, Order ID, Status, Date Created, Last Modified) are not repeated here.
           </div>
-          {/* Order Metadata Section */}
-          <div className="order-details-section" style={{margin: '0 0 24px 0', padding: '16px 18px', background: '#f7fafc', borderRadius: 8, border: '1px solid #e2e8f0'}}>
-            <h4 style={{margin: '0 0 10px 0', fontWeight: 600, fontSize: 16}}>Order Metadata</h4>
-            <div style={{display: 'grid', gridTemplateColumns: 'max-content 1fr', rowGap: 6, columnGap: 16, fontSize: 15}}>
-              <div style={{fontWeight: 500}}>Created By:</div>
-              <div>{selectedOrder['created_by_id@aras.keyed_name'] || '—'}</div>
-              <div style={{fontWeight: 500}}>Created On:</div>
-              <div>{selectedOrder['created_on'] ? new Date(selectedOrder['created_on']).toLocaleString() : '—'}</div>
-              <div style={{fontWeight: 500}}>Modified By:</div>
-              <div>{selectedOrder['modified_by_id@aras.keyed_name'] || '—'}</div>
-              <div style={{fontWeight: 500}}>Modified On:</div>
-              <div>{selectedOrder['modified_on'] ? new Date(selectedOrder['modified_on']).toLocaleString() : '—'}</div>
-              <div style={{fontWeight: 500}}>Major Rev:</div>
-              <div>{selectedOrder['major_rev'] || '—'}</div>
-              <div style={{fontWeight: 500}}>Generation:</div>
-              <div>{selectedOrder['generation'] || '—'}</div>
-              <div style={{fontWeight: 500}}>State:</div>
-              <div>{selectedOrder['state'] || '—'}</div>
+          {/* Order Metadata Section Row */}
+          <div className="order-metadata-row">
+            <div className="order-details-section order-metadata-centered">
+              <h4 className="order-metadata-title">Order Metadata</h4>
+              <div className="order-metadata-grid">
+                <div className="order-metadata-label">Created By:</div>
+                <div className="order-metadata-value">{selectedOrder['created_by_id@aras.keyed_name'] || '—'}</div>
+                <div className="order-metadata-label">Created On:</div>
+                <div className="order-metadata-value">{selectedOrder['created_on'] ? new Date(selectedOrder['created_on']).toLocaleString() : '—'}</div>
+                <div className="order-metadata-label">Modified By:</div>
+                <div className="order-metadata-value">{selectedOrder['modified_by_id@aras.keyed_name'] || '—'}</div>
+                <div className="order-metadata-label">Modified On:</div>
+                <div className="order-metadata-value">{selectedOrder['modified_on'] ? new Date(selectedOrder['modified_on']).toLocaleString() : '—'}</div>
+                <div className="order-metadata-label">Major Rev:</div>
+                <div className="order-metadata-value">{selectedOrder['major_rev'] || '—'}</div>
+                <div className="order-metadata-label">Generation:</div>
+                <div className="order-metadata-value">{selectedOrder['generation'] || '—'}</div>
+                <div className="order-metadata-label">State:</div>
+                <div className="order-metadata-value">{selectedOrder['state'] || '—'}</div>
+              </div>
+            </div>
+            <div className="order-details-section order-metadata-sidebox">
+              <h4 className="order-metadata-title">Detail Info</h4>
+              <div className="order-metadata-detailinfo">
+                {selectedOrder['m_detail_info'] || <span style={{color:'#888'}}>No detail info provided.</span>}
+              </div>
             </div>
           </div>
           {/* Procurement Workflow Diagram */}
@@ -195,7 +203,7 @@ const OrderDetailsModal = ({
             {selectedOrder['m_is_msft_poc'] && <div className="order-details-item"><div className="order-details-label">Is MSFT POC</div><div className="order-details-value">{selectedOrder['m_is_msft_poc'] === '1' ? 'Yes' : selectedOrder['m_is_msft_poc'] === '0' ? 'No' : ''}</div></div>}
             {selectedOrder['m_is_po_urgent'] && <div className="order-details-item"><div className="order-details-label">Is PO Urgent</div><div className="order-details-value">{selectedOrder['m_is_po_urgent'] === '1' ? 'Yes' : selectedOrder['m_is_po_urgent'] === '0' ? 'No' : ''}</div></div>}
             {/* 5. Business Justification & Notes */}
-            {selectedOrder['m_detail_info'] && <div className="order-details-item"><div className="order-details-label">Detail Info</div><div className="order-details-value">{selectedOrder['m_detail_info']}</div></div>}
+            {/* Detail Info now appears in the right-side box above */}
             {selectedOrder['m_notes_proc'] && <div className="order-details-item"><div className="order-details-label">Notes to Procurement</div><div className="order-details-value">{selectedOrder['m_notes_proc']}</div></div>}
             {selectedOrder['m_explanation_for_wait'] && <div className="order-details-item"><div className="order-details-label">Explanation for Wait</div><div className="order-details-value">{selectedOrder['m_explanation_for_wait']}</div></div>}
             {selectedOrder['m_explanation_not_submit'] && <div className="order-details-item"><div className="order-details-label">Explanation Not Submit</div><div className="order-details-value">{selectedOrder['m_explanation_not_submit']}</div></div>}

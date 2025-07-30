@@ -1,3 +1,65 @@
+/* --- Order Details Modal: Metadata Row Layout --- */
+.order-metadata-row {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.order-metadata-centered,
+.order-metadata-sidebox {
+  width: 55%;
+  min-width: 320px;
+  background: #f7fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 16px 18px;
+  margin: 0 0 24px 0;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+.order-metadata-sidebox {
+  /* Add any additional styling for the right box here */
+}
+/* --- Order Details Modal: Order Metadata Section --- */
+.order-metadata-centered {
+  display: block;
+  margin: 0 0 24px 0;
+  padding: 16px 18px;
+  background: #f7fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  width: auto;
+  text-align: left;
+}
+
+.order-metadata-title {
+  margin: 0 0 10px 0;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: left;
+}
+
+.order-metadata-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  row-gap: 6px;
+  column-gap: 16px;
+  font-size: 15px;
+  min-width: 320px;
+  text-align: left;
+}
+
+.order-metadata-label {
+  font-weight: 500;
+  text-align: left;
+}
+
+.order-metadata-value {
+  text-align: left;
+}
 /* ==========================================================================
    Orders Page
    ========================================================================== */

@@ -218,6 +218,18 @@ const InstanceSection = ({
     };
   }, [group.itemNumber, setOpenProjectDropdown, setOpenMaturityDropdown, setOpenCustodianDropdown, setOpenParentPathDropdown]);
 
+  // Calculate number of visible columns for even grid
+  const visibleColumns = [
+    !hiddenFields.instanceId,
+    !hiddenFields.serialNumber,
+    !hiddenFields.quantity,
+    !hiddenFields.inventoryMaturity,
+    !hiddenFields.associatedProject,
+    !hiddenFields.hardwareCustodian,
+    !hiddenFields.parentPath
+  ].filter(Boolean).length;
+  const evenGrid = `repeat(${visibleColumns}, 1fr)`;
+
   return (
     <div className="instance-section">
       <div className="instance-header">
@@ -262,12 +274,46 @@ const InstanceSection = ({
         </div>
       )}
       {/* Instance table header: selection and filter dropdowns */}
-      <div className="instance-grid-header" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-        <div className="table-cell">Select</div>
-        {/* Correct column order: ID, Serial, Quantity, Maturity, Project, Custodian, Path */}
-        {!hiddenFields.instanceId && <div className="table-cell">Instance ID</div>}
-        {!hiddenFields.serialNumber && <div className="table-cell">Serial Number/Name</div>}
-        {!hiddenFields.quantity && <div className="table-cell">Quantity</div>}
+      <div className="instance-grid-header" style={{ gridTemplateColumns: evenGrid }}>
+        {/* Instance ID Dropdown */}
+        {!hiddenFields.instanceId && renderDropdown(
+          'Instance ID',
+          {}, // not filterable by ID, so pass empty filter
+          () => {},
+          {},
+          () => {},
+          unique(group.instances.map(i => i.m_id)),
+          group.itemNumber + '-id',
+          useRef(null),
+          'instanceId',
+          () => {}, () => {}, () => {}, () => {}
+        )}
+        {/* Serial Number/Name Dropdown */}
+        {!hiddenFields.serialNumber && renderDropdown(
+          'Serial Number/Name',
+          {},
+          () => {},
+          {},
+          () => {},
+          unique(group.instances.map(i => i.m_serial_number || i.m_name)),
+          group.itemNumber + '-serial',
+          useRef(null),
+          'serialNumber',
+          () => {}, () => {}, () => {}, () => {}
+        )}
+        {/* Quantity Dropdown */}
+        {!hiddenFields.quantity && renderDropdown(
+          'Quantity',
+          {},
+          () => {},
+          {},
+          () => {},
+          unique(group.instances.map(i => (i.m_quantity ?? '').toString())),
+          group.itemNumber + '-qty',
+          useRef(null),
+          'quantity',
+          () => {}, () => {}, () => {}, () => {}
+        )}
         {/* Inventory Maturity Dropdown */}
         {!hiddenFields.inventoryMaturity && renderDropdown(
           'Inventory Maturity',
@@ -278,7 +324,8 @@ const InstanceSection = ({
           unique(group.instances.map(i => i.m_maturity)),
           group.itemNumber,
           maturityDropdownRef,
-          'maturity'
+          'maturity',
+          setOpenProjectDropdown, setOpenMaturityDropdown, setOpenCustodianDropdown, setOpenParentPathDropdown
         )}
         {/* Associated Project Dropdown */}
         {!hiddenFields.associatedProject && renderDropdown(
@@ -290,7 +337,8 @@ const InstanceSection = ({
           unique(group.instances.map(i => i.m_project?.keyed_name || i.associated_project)),
           group.itemNumber,
           projectDropdownRef,
-          'project'
+          'project',
+          setOpenProjectDropdown, setOpenMaturityDropdown, setOpenCustodianDropdown, setOpenParentPathDropdown
         )}
         {/* Hardware Custodian Dropdown */}
         {!hiddenFields.hardwareCustodian && renderDropdown(
@@ -302,7 +350,8 @@ const InstanceSection = ({
           unique(group.instances.map(i => i["m_custodian@aras.keyed_name"] || i.m_custodian)),
           group.itemNumber,
           custodianDropdownRef,
-          'custodian'
+          'custodian',
+          setOpenProjectDropdown, setOpenMaturityDropdown, setOpenCustodianDropdown, setOpenParentPathDropdown
         )}
         {/* Parent Path Dropdown */}
         {!hiddenFields.parentPath && renderDropdown(
@@ -317,11 +366,13 @@ const InstanceSection = ({
           })),
           group.itemNumber,
           parentPathDropdownRef,
-          'parentPath'
+          'parentPath',
+          setOpenProjectDropdown, setOpenMaturityDropdown, setOpenCustodianDropdown, setOpenParentPathDropdown
         )}
       </div>
       {/* Spacer row for grid alignment */}
-      <div className="instance-grid-spacer" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
+      <div className="instance-grid-spacer" style={{ gridTemplateColumns: evenGrid }}>
+        {/* Spacer for each column except select */}
         {!hiddenFields.instanceId && <div></div>}
         {!hiddenFields.serialNumber && <div></div>}
         {!hiddenFields.quantity && <div></div>}
@@ -332,36 +383,21 @@ const InstanceSection = ({
       </div>
       {/* Instance rows: selection, links, and field display */}
       {group.instances.filter(instance => {
-        if (maturityFilter[group.itemNumber] && instance.m_maturity !== maturityFilter[group.itemNumber]) return false;
-        if (projectFilter[group.itemNumber] && (instance.m_project?.keyed_name || instance.associated_project) !== projectFilter[group.itemNumber]) return false;
-        if (custodianFilter[group.itemNumber] && (instance["m_custodian@aras.keyed_name"] || instance.m_custodian) !== custodianFilter[group.itemNumber]) return false;
-        if (parentPathFilter[group.itemNumber]) {
-          const match = (instance.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
-          if (!match || match[1] !== parentPathFilter[group.itemNumber]) return false;
-        }
+        // Extract values using the same logic as dropdowns
+        const maturityVal = instance.m_maturity || '';
+        const projectVal = instance.m_project?.keyed_name || instance.associated_project || '';
+        const custodianVal = instance["m_custodian@aras.keyed_name"] || instance.m_custodian || '';
+        const parentPathMatch = (instance.m_parent_ref_path || '').match(/^\/?([^\/]+)/);
+        const parentPathVal = parentPathMatch && parentPathMatch[1] ? parentPathMatch[1] : '';
+
+        if (maturityFilter[group.itemNumber] && maturityVal !== maturityFilter[group.itemNumber]) return false;
+        if (projectFilter[group.itemNumber] && projectVal !== projectFilter[group.itemNumber]) return false;
+        if (custodianFilter[group.itemNumber] && custodianVal !== custodianFilter[group.itemNumber]) return false;
+        if (parentPathFilter[group.itemNumber] && parentPathVal !== parentPathFilter[group.itemNumber]) return false;
         return true;
       }).map((instance, idx, filteredInstances) => {
-        const isGeneralInventory = (instance.m_project?.keyed_name || instance.associated_project) === 'General Inventory';
         return (
-          <div key={instance.id} className="instance-table-row" style={{ gridTemplateColumns: getInstanceTableGridColumns() }}>
-            <div className="instance-checkbox">
-              {isGeneralInventory && (
-                <input
-                  type="checkbox"
-                  aria-label="Request this instance"
-                  checked={!!requestedInstances[instance.id]}
-                  onChange={e => {
-                    if (e.target.checked) {
-                      setRequestedInstances(prev => ({ ...prev, [instance.id]: true }));
-                      setInstanceSelectionOrder(order => [...order.filter(x => x !== instance.id), instance.id]);
-                    } else {
-                      setRequestedInstances(prev => ({ ...prev, [instance.id]: false }));
-                      setInstanceSelectionOrder(order => order.filter(x => x !== instance.id));
-                    }
-                  }}
-                />
-              )}
-            </div>
+          <div key={instance.id} className="instance-table-row" style={{ gridTemplateColumns: evenGrid }}>
             {/* Instance ID link */}
             {!hiddenFields.instanceId && (
               <div>
