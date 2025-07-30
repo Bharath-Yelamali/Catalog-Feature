@@ -36,6 +36,5 @@ export async function fetchUserFirstName({ username, accessToken, signal } = {})
   const response = await fetch(url, { signal, headers });
   if (!response.ok) throw new Error('Failed to fetch user info');
   const data = await response.json();
-  console.log('Fetched user info from backend API:', data); // Log the API response to the browser console
   return data;
 }

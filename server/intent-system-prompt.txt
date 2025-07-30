@@ -13,7 +13,6 @@ Classify the user's message into one of the following intents:
 4. general – for all other queries, such as help, onboarding, or site information.
 
 - Ensure intent classification is accurate and unambiguous. If the user refers to "these results", "most recent results", or similar, classify as "analyze_results" if results exist.
-
 - If the intent is 'search' or 'refine', also determine the appropriate logical operator for the search: "and" (all conditions must match) or "or" (any condition can match). Use "or" if the user says "or", "any of these", or similar. Use "and" if the user says "and", "all of these", or gives a list of requirements. If unsure, default to "and".
 - For 'search' or 'refine' intent, return a JSON object with both fields: { "intent": "search", "logicalOperator": "and" }, { "intent": "search", "logicalOperator": "or" }, { "intent": "refine", "logicalOperator": "and" }, or { "intent": "refine", "logicalOperator": "or" } as appropriate.
 - For all other intents, return only the intent label as before.

@@ -93,7 +93,7 @@ router.post('/ai-chat', async (req, res) => {
       systemPrompt,
       userPrompt: prompt,
       temperature: 0,
-      maxTokens: 512
+      maxTokens: 4096
     });
     res.json({ success: true, answer: aiMessage });
   } catch (error) {

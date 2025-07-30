@@ -108,7 +108,8 @@ const OrdersPage = ({ username, accessToken }) => {
       setImsRaw(data.imsRaw);
       setOrders(Array.isArray(data.orders) ? data.orders : []);
       setTotalCount(typeof data.totalCount === 'number' ? data.totalCount : 0);
-      console.log('IMS API response (raw):', data.imsRaw);
+      //log statement of orders data
+      //console.log('IMS API response (raw):', data.imsRaw);
       hasLoadedOrdersRef.current = true;
       setHasSearched(true);
     } catch (err) {
@@ -124,7 +125,7 @@ const OrdersPage = ({ username, accessToken }) => {
   useEffect(() => {
     // Only fetch data if we're authenticated and haven't loaded orders yet
     if (accessToken && !hasLoadedOrdersRef.current) {
-      console.log('Fetching initial orders data');
+      // Removed log statement for security/privacy
       fetchAllOrders('');
     }
     
@@ -173,16 +174,16 @@ const OrdersPage = ({ username, accessToken }) => {
       });
       const data = await resp.json();
       setWorkflowProcess(data.workflowProcess || null);
-      // Always log the workflow process response
-      console.log('[Order Click] Workflow Process API response:', data);
-      console.log('[Order Click] Workflow Process:', data.workflowProcess || null);
+      // log of workflow process response
+      //console.log('[Order Click] Workflow Process API response:', data);
+      //console.log('[Order Click] Workflow Process:', data.workflowProcess || null);
       if (data.workflowProcess && data.workflowProcess.id) {
         const activityResp = await fetch(`/api/workflow-process-activities?workflowProcessId=${encodeURIComponent(data.workflowProcess.id)}`, {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         const activityData = await activityResp.json();
-        // Log the full API response
-        console.log('[Order Click] Workflow Activities API response:', activityData);
+        // log workflow activities response
+        //console.log('[Order Click] Workflow Activities API response:', activityData);
         // Try to extract activities as array or object
         let activities = [];
         if (Array.isArray(activityData.activities)) {
@@ -193,11 +194,8 @@ const OrdersPage = ({ username, accessToken }) => {
           activities = [activityData.workflowProcessActivity];
         }
         setWorkflowActivities(activities);
-        console.log('[Order Click] Workflow Activities (parsed):', activities);
-      } else {
-        // Log if no workflow process id
-        console.log('[Order Click] No workflow process id found, skipping activities fetch.');
-        console.log('[Order Click] Workflow Activities:', []);
+        //log the workflow activities parsed
+        //console.log('[Order Click] Workflow Activities (parsed):', activities);
       }
     } catch (err) {
       console.error('Error fetching workflow process or activity:', err);

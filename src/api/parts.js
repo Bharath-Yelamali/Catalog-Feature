@@ -154,7 +154,6 @@ export async function fetchPartsByFields({ classification, top, searchParams, fi
   if (!response.ok) throw new Error('Failed to fetch parts by fields');
   
   const data = await response.json();
-  console.log('Fetched parts from backend API (field-based):', data); // Log the API response to the terminal
   return data;
 }
 

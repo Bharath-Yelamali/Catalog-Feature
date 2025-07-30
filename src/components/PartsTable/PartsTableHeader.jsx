@@ -146,7 +146,24 @@ const PartsTableHeader = ({
                 </svg>
               </span>
             ) : (
-              `${resultsToDisplay.length} items`
+              <>
+                {`${resultsToDisplay.length} items`}
+                {/* Total instance count to the right, styled identically */}
+                <span style={{ marginLeft: 12 }}>
+                  {(() => {
+                    // Calculate total instances across all displayed parts
+                    let totalInstances = 0;
+                    for (const part of resultsToDisplay) {
+                      if (Array.isArray(part.instances)) {
+                        totalInstances += part.instances.length;
+                      } else if (part.instances) {
+                        totalInstances += 1;
+                      }
+                    }
+                    return `(${totalInstances} instances)`;
+                  })()}
+                </span>
+              </>
             )}
           </span>
           {/* Surplus request button */}

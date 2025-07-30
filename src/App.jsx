@@ -277,7 +277,6 @@ function App() {
       // Fetch identities immediately after user info
       try {
         const identitiesData = await import('./api/identity').then(mod => mod.fetchIdentities({ accessToken: token }));
-        console.log('Fetched identities from API:', identitiesData); // Log to browser console
         setIdentities(identitiesData.value || []);
         // Check if user is admin by matching name (case-insensitive, trimmed)
         const userNameNorm = (usernameValue || '').trim().toLowerCase();
@@ -292,9 +291,6 @@ function App() {
             adminMatch = true;
           }
         });
-        if (adminId) {
-          console.log('User is admin. Admin ID:', adminId);
-        }
         setIsAdmin(adminMatch);
       } catch (err) {
         setIdentities([]);

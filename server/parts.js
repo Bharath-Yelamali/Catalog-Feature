@@ -496,8 +496,7 @@ function buildODataUrl(params) {
       filterClauses.push(combinedFieldFilters);
     }
     
-    console.log('Added field-specific filters:', fieldFilters);
-    console.log('Using logical operator between fields:', logicalOperator);
+    // Removed log statements for security/privacy
   }
   
   // Always use AND between the classification filter and field filters

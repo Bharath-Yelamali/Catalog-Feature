@@ -215,7 +215,7 @@ router.get('/workflow-processes', async (req, res) => {
     }
     const select = "$select=*";
     const url = `${BASE_URL}Workflow Process?${select}${filter}`;
-    console.log(`Fetching workflow process for orderItemNumber: ${orderItemNumber} with URL: ${url}`);
+    // Removed log statement for security/privacy
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!resp.ok) {
       const text = await resp.text();
@@ -253,7 +253,7 @@ router.get('/workflow-processes', async (req, res) => {
  * Response: { workflowProcessActivity: Object|null }
  */
 router.get('/workflow-process-activities', async (req, res) => {
-  console.log('workflow-process-activities endpoint hit');
+  // Removed log statement for security/privacy
   const token = extractBearerToken(req);
   if (!token) {
     return res.status(400).json({ error: 'Missing Authorization header' });
@@ -266,7 +266,7 @@ router.get('/workflow-process-activities', async (req, res) => {
     }
     const select = "$select=*";
     const url = `${BASE_URL}Workflow Process Activity?${select}${filter}`;
-    console.log(`Fetching workflow process activities for workflowProcessId: ${workflowProcessId} with URL: ${url}`);
+    // Removed log statement for security/privacy
     const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!resp.ok) {
       const text = await resp.text();
